@@ -3,6 +3,7 @@ export interface HeaderTabConfig {
     name: string;
     icon: string;
     color: string;
+    header_color?: string;
 }
 
 export interface CompanySettings {
@@ -39,6 +40,9 @@ export interface CompanySettings {
     rider_time_slots: any[];
     app_version: string;
     is_force_update: boolean;
+    promo_banners: string | null;
+    screen_colors: any[];
+    spotlight: any[];
     createdAt: string;
     updatedAt: string;
 }

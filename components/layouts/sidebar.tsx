@@ -41,6 +41,9 @@ import IconTrendingUp from '@/components/icon/icon-trending-up';
 import IconSettings from '@/components/icon/icon-settings';
 import { usePathname } from 'next/navigation';
 import { getTranslation } from '@/i18n';
+import IconPlus from '@/components/icon/icon-plus';
+import IconUsers from '@/components/icon/icon-users';
+import IconRefresh from '@/components/icon/icon-refresh';
 
 const Sidebar = () => {
     const dispatch = useDispatch();
@@ -279,12 +282,10 @@ const Sidebar = () => {
 
                             <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">Product Management</span>
+                                <span className="text-[11px] opacity-70">Products</span>
                             </h2>
-
                             <li className="nav-item">
                                 <ul>
-
                                     <li className="nav-item">
                                         <Link href="/products/list" className="group">
                                             <div className="flex items-center">
@@ -303,12 +304,63 @@ const Sidebar = () => {
                                     </li>
                                 </ul>
                             </li>
-                     
+                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <IconMinus className="hidden h-5 w-4 flex-none" />
+                                <span className="text-[11px] opacity-70">Inventory & Purchse</span>
+                            </h2>
+
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item">
+                                        <Link href="/suppliers/list" className="group">
+                                            <div className="flex items-center">
+                                                <IconUsers className="shrink-0 group-hover:!text-primary" />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span>
+                                            </div>
+                                        </Link>
+                                    </li>
+                                    <li className="nav-item">
+                                        <Link href="/purchase/list" className="group">
+                                            <div className="flex items-center">
+                                                <IconListCheck className="shrink-0 group-hover:!text-primary" />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span>
+                                            </div>
+                                        </Link>
+                                    </li>
+
+                                    <li className="nav-item">
+                                        <Link href="/inventory/warehouse" className="group">
+                                            <div className="flex items-center">
+                                                <IconBox className="shrink-0 group-hover:!text-primary" />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span>
+                                            </div>
+                                        </Link>
+                                    </li>
+                                    <li className="nav-item">
+                                        <Link href="/inventory/store" className="group">
+                                            <div className="flex items-center">
+                                                <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span>
+                                            </div>
+                                        </Link>
+                                    </li>
+                                    <li className="nav-item">
+                                        <Link href="/inventory/transfer" className="group">
+                                            <div className="flex items-center">
+                                                <IconRefresh className="shrink-0 group-hover:!text-primary" />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span>
+                                            </div>
+                                        </Link>
+                                    </li>
+
+                                </ul>
+                            </li>
+
                             <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <IconMinus className="hidden h-5 w-4 flex-none" />
                                 <span className="text-[11px] opacity-70">Settings</span>
                             </h2>
-                                    <li className="nav-item">
+                            <li className="nav-item">
                                 <ul>
 
                                     <li className="nav-item">
@@ -321,7 +373,7 @@ const Sidebar = () => {
                                     </li>
                                 </ul>
                             </li>
-       
+
                             {/* <li className="nav-item">
                                 <ul>
                                     <li className="nav-item">

@@ -18,6 +18,11 @@ import IconEdit from '@/components/icon/icon-edit';
 import IconGallery from '@/components/icon/icon-gallery';
 import { ReactSortable } from 'react-sortablejs';
 import IconMenuDragAndDrop from '@/components/icon/menu/icon-menu-drag-and-drop';
+import IconLayoutGrid from '@/components/icon/icon-layout-grid';
+import IconFile from '@/components/icon/icon-file';
+import IconClock from '@/components/icon/icon-clock';
+import IconStar from '@/components/icon/icon-star';
+import Select from 'react-select';
 
 const AVAILABLE_ICONS = ['Home', 'Headphones', 'Sparkles', 'Baby', 'Shirt', 'Dumbbell', 'UtensilsCrossed', 'Pill', 'PawPrint'];
 
@@ -33,6 +38,19 @@ const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean
     </button>
 );
 
+const CustomProductOption = (props: any) => {
+    const { data, innerRef, innerProps } = props;
+    return (
+        <div ref={innerRef} {...innerProps} className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-all">
+            <img src={data.image || '/assets/images/profile-1.jpeg'} alt="" className="w-8 h-8 rounded-lg object-cover border border-gray-100 dark:border-gray-800" />
+            <div className="flex flex-col">
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{data.label}</span>
+                <span className="text-[10px] text-white-dark uppercase">ID: {data.value.substring(data.value.length - 6)}</span>
+            </div>
+        </div>
+    );
+};
+
 const CompanySettingsForm = () => {
     const [activeTab, setActiveTab] = useState('general');
     const [loading, setLoading] = useState(false);
@@ -44,10 +62,28 @@ const CompanySettingsForm = () => {
     const [faviconImages, setFaviconImages] = useState<ImageListType>([]);
     const [loaderImages, setLoaderImages] = useState<ImageListType>([]);
     const [bannerImages, setBannerImages] = useState<ImageListType>([]);
+    const [promoBannerImages, setPromoBannerImages] = useState<ImageListType>([]);
+    const [productList, setProductList] = useState<any[]>([]);
 
     useEffect(() => {
         fetchSettings();
+        fetchProducts();
     }, []);
+
+    const fetchProducts = async () => {
+        try {
+            const response = await callApi('/management/admin/products?limit=1000', 'GET');
+            if (response && response.data) {
+                setProductList(response.data.map((p: any) => ({
+                    value: p._id,
+                    label: p.name,
+                    image: p.image
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching products:', error);
+        }
+    };
 
     const fetchSettings = async () => {
         try {
@@ -62,6 +98,7 @@ const CompanySettingsForm = () => {
                 if (data.favicon_url) setFaviconImages([{ dataURL: data.favicon_url }]);
                 if (data.loader_logo_url) setLoaderImages([{ dataURL: data.loader_logo_url }]);
                 if (data.banners) setBannerImages(data.banners.map((url: string) => ({ dataURL: url })));
+                if (data.promo_banners) setPromoBannerImages([{ dataURL: data.promo_banners }]);
             }
         } catch (error) {
             console.error('Error fetching settings:', error);
@@ -113,10 +150,10 @@ const CompanySettingsForm = () => {
 
     // Header Tabs Management
     const addHeaderTab = () => {
-        const newTab: HeaderTabConfig = { id: `tab_${Date.now()}`, name: '', icon: 'Home', color: '#000000' };
+        const newTab: HeaderTabConfig = { id: `tab_${Date.now()}`, name: '', icon: 'Home', color: '#000000', header_color: '#ffffff' };
         setSettings(prev => ({
             ...prev,
-            header_tabs_config: [...(prev.header_tabs_config || []), newTab]
+            header_tabs_config: [newTab, ...(prev.header_tabs_config || [])]
         }));
     };
 
@@ -150,6 +187,65 @@ const CompanySettingsForm = () => {
         const newSlots = [...(settings[key] || [])];
         newSlots.splice(index, 1);
         setSettings(prev => ({ ...prev, [key]: newSlots }));
+    };
+
+    // Screen Colors Management
+    const addScreenColor = () => {
+        setSettings(prev => ({
+            ...prev,
+            screen_colors: [...(prev.screen_colors || []), { screen_name: '', color: '#ffffff' }]
+        }));
+    };
+
+    const updateScreenColor = (index: number, field: string, value: string) => {
+        const newColors = [...(settings.screen_colors || [])];
+        newColors[index] = { ...newColors[index], [field]: value };
+        setSettings(prev => ({ ...prev, screen_colors: newColors }));
+    };
+
+    const removeScreenColor = (index: number) => {
+        const newColors = [...(settings.screen_colors || [])];
+        newColors.splice(index, 1);
+        setSettings(prev => ({ ...prev, screen_colors: newColors }));
+    };
+
+    // Spotlight Management
+    const addSpotlight = () => {
+        setSettings(prev => ({
+            ...prev,
+            spotlight: [{ id: Date.now().toString(), title: '', items: [] }, ...(prev.spotlight || [])]
+        }));
+    };
+
+    const updateSpotlight = (index: number, field: string, value: any) => {
+        const newSpotlight = [...(settings.spotlight || [])];
+        newSpotlight[index] = { ...newSpotlight[index], [field]: value };
+        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+    };
+
+    const removeSpotlight = (index: number) => {
+        const newSpotlight = [...(settings.spotlight || [])];
+        newSpotlight.splice(index, 1);
+        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+    };
+
+    const addSpotlightItem = (spotIndex: number) => {
+        const newSpotlight = [...(settings.spotlight || [])];
+        const newItem = { id: Date.now().toString(), image: '', products: [] };
+        newSpotlight[spotIndex].items = [newItem, ...(newSpotlight[spotIndex].items || [])];
+        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+    };
+
+    const updateSpotlightItem = (spotIndex: number, itemIndex: number, field: string, value: any) => {
+        const newSpotlight = [...(settings.spotlight || [])];
+        newSpotlight[spotIndex].items[itemIndex] = { ...newSpotlight[spotIndex].items[itemIndex], [field]: value };
+        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+    };
+
+    const removeSpotlightItem = (spotIndex: number, itemIndex: number) => {
+        const newSpotlight = [...(settings.spotlight || [])];
+        newSpotlight[spotIndex].items.splice(itemIndex, 1);
+        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -215,6 +311,18 @@ const CompanySettingsForm = () => {
             }
             payload.banners = finalBannerUrls;
 
+            // Promo Banner - Single Upload
+            if (promoBannerImages.length > 0) {
+                if (promoBannerImages[0].file) {
+                    const url = await uploadImage(promoBannerImages[0].file);
+                    if (url) payload.promo_banners = url;
+                } else if (promoBannerImages[0].dataURL) {
+                    payload.promo_banners = promoBannerImages[0].dataURL;
+                }
+            } else {
+                payload.promo_banners = null;
+            }
+
             delete payload.createdAt;
             delete payload.updatedAt;
             delete payload.id;
@@ -264,6 +372,8 @@ const CompanySettingsForm = () => {
                             { id: 'system', label: 'System Logic', icon: <IconSettings className="w-4 h-4" /> },
                             { id: 'seo', label: 'SEO & Search', icon: <IconMenuPages className="w-4 h-4" /> },
                             { id: 'tabs', label: 'App Navigation', icon: <IconLayoutGrid className="w-4 h-4" /> },
+                            { id: 'colors', label: 'Screen Colors', icon: <IconColorPalette className="w-4 h-4" /> },
+                            { id: 'spotlight', label: 'Spotlight Config', icon: <IconStar className="w-4 h-4" /> },
                             { id: 'time', label: 'Time Management', icon: <IconClock className="w-4 h-4" /> },
                             { id: 'policies', label: 'Legal & Policy', icon: <IconFile className="w-4 h-4" /> },
                         ].map((t) => (
@@ -354,9 +464,45 @@ const CompanySettingsForm = () => {
                     )}
 
                     {activeTab === 'banners' && (
-                        <div className="panel animate__animated animate__fadeIn">
-                            <h6 className="text-lg font-bold mb-6 border-b pb-4 border-gray-100 dark:border-gray-800">Promotional Banners</h6>
-                            <ImageUploading multiple value={bannerImages} onChange={setBannerImages}>
+                        <div className="panel animate__animated animate__fadeIn space-y-8">
+                            <div>
+                                <h6 className="text-lg font-bold mb-4 border-b pb-4 border-gray-100 dark:border-gray-800">Main Promo Banner (Single)</h6>
+                                <ImageUploading value={promoBannerImages} onChange={setPromoBannerImages} maxNumber={1}>
+                                    {({ imageList, onImageUpload, onImageUpdate, onImageRemove, isDragging, dragProps }) => (
+                                        <div className="space-y-4">
+                                            <div 
+                                                className={`border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-200 dark:border-gray-800 hover:border-primary/50'}`}
+                                                onClick={onImageUpload}
+                                                {...dragProps}
+                                            >
+                                                {imageList.length > 0 ? (
+                                                    <div className="relative group aspect-[21/9] rounded-2xl overflow-hidden">
+                                                        <img src={imageList[0].dataURL} alt="Promo" className="w-full h-full object-cover" />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                                                            <button type="button" className="btn btn-primary" onClick={(e) => { e.stopPropagation(); onImageUpdate(0); }}>Change Image</button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <IconGallery className="w-12 h-12 text-primary/20 mx-auto mb-2" />
+                                                        <p className="font-bold">Click to upload Main Promo Banner</p>
+                                                        <p className="text-xs text-white-dark mt-1">Recommended: 1920x800px</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {imageList.length > 0 && (
+                                                <button type="button" className="btn btn-outline-danger btn-sm w-full" onClick={() => onImageRemove(0)}>
+                                                    Remove Promo Banner
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </ImageUploading>
+                            </div>
+
+                            <div className="pt-4 mt-4">
+                                <h6 className="text-lg font-bold mb-6 border-b pb-4 border-gray-100 dark:border-gray-800">Carousel Banners (Multiple)</h6>
+                                <ImageUploading multiple value={bannerImages} onChange={setBannerImages}>
                                 {({ imageList, onImageUpload, onImageUpdate, onImageRemove, dragProps, isDragging }) => (
                                     <div className="space-y-6">
                                         <div 
@@ -384,7 +530,260 @@ const CompanySettingsForm = () => {
                                 )}
                             </ImageUploading>
                         </div>
-                    )}
+                    </div>
+                )}
+
+                {activeTab === 'colors' && (
+                    <div className="panel animate__animated animate__fadeIn">
+                        <div className="flex items-center justify-between mb-6 border-b pb-4 border-gray-100 dark:border-gray-800">
+                            <div>
+                                <h6 className="text-lg font-bold">Screen Wise Colors</h6>
+                                <p className="text-xs text-white-dark mt-1">Set specific primary colors for different app screens</p>
+                            </div>
+                            <button type="button" className="btn btn-primary btn-sm gap-2" onClick={addScreenColor}>
+                                <IconPlus /> Add Screen
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            {(settings.screen_colors || []).map((sc, idx) => (
+                                <div key={idx} className="flex items-end gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] font-bold text-white-dark uppercase mb-2 block">Screen Name</label>
+                                        <input type="text" className="form-input" value={sc.screen_name} onChange={(e) => updateScreenColor(idx, 'screen_name', e.target.value)} placeholder="e.g. Home, Cart, Profile" />
+                                    </div>
+                                    <div className="w-40">
+                                        <label className="text-[10px] font-bold text-white-dark uppercase mb-2 block">Theme Color</label>
+                                        <div className="flex items-center gap-3">
+                                            <input type="color" className="w-10 h-10 rounded-full border-2 border-white cursor-pointer" value={sc.color} onChange={(e) => updateScreenColor(idx, 'color', e.target.value)} />
+                                            <input type="text" className="form-input flex-1 text-xs font-mono lowercase" value={sc.color} onChange={(e) => updateScreenColor(idx, 'color', e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <button type="button" className="btn btn-outline-danger p-2 h-10" onClick={() => removeScreenColor(idx)}>
+                                        <IconTrashLines className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {(!settings.screen_colors || settings.screen_colors.length === 0) && (
+                                <div className="text-center py-12 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl">
+                                    <IconColorPalette className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                                    <p className="text-white-dark">No custom screen colors defined yet</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'spotlight' && (
+                    <div className="panel animate__animated animate__fadeIn space-y-8">
+                        <div className="flex items-center justify-between border-b pb-4 border-gray-100 dark:border-gray-800">
+                            <div>
+                                <h6 className="text-lg font-bold">Spotlight Campaigns</h6>
+                                <p className="text-xs text-white-dark mt-1">Manage featured deals and special product groupings</p>
+                            </div>
+                            {(!settings.spotlight || settings.spotlight.length === 0) && (
+                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={addSpotlight}>
+                                    <IconPlus /> Add Spotlight
+                                </button>
+                            )}
+                        </div>
+                        
+                        <ReactSortable
+                            list={settings.spotlight || []}
+                            setList={(newList) => setSettings(prev => ({ ...prev, spotlight: newList }))}
+                            animation={200}
+                            handle=".spotlight-handle"
+                            className="space-y-6"
+                        >
+                            {(settings.spotlight || []).map((spot, idx) => (
+                                <div key={spot.id || idx} className="panel bg-gray-50 dark:bg-black/10 border-gray-100 dark:border-gray-800 rounded-3xl space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="spotlight-handle p-2 bg-white dark:bg-black border border-gray-100 dark:border-gray-800 rounded-xl cursor-move text-white-dark hover:text-primary transition-all">
+                                            <IconMenuDragAndDrop className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-primary uppercase mb-2 block tracking-widest">Spotlight Title</label>
+                                            <input type="text" className="form-input font-bold" value={spot.title} onChange={(e) => updateSpotlight(idx, 'title', e.target.value)} placeholder="e.g. Deal of the Day" />
+                                        </div>
+                                        <button type="button" className="text-danger p-2 hover:bg-danger/10 rounded-full mt-6" onClick={() => removeSpotlight(idx)}>
+                                            <IconTrashLines className="w-5 h-5" />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                        <div className="flex items-center justify-between mb-2 px-1">
+                                            <div className="flex items-center gap-2">
+                                                <IconLayoutGrid className="w-4 h-4 text-primary" />
+                                                <h6 className="text-[11px] font-bold uppercase tracking-widest text-gray-800 dark:text-white-dark transition-all">Featured Items</h6>
+                                            </div>
+                                            <button type="button" className="btn btn-outline-primary btn-xs px-2 py-1 rounded-lg flex items-center gap-1.5" onClick={() => addSpotlightItem(idx)}>
+                                                <IconPlus className="w-3 h-3" />
+                                                <span className="text-[9px] font-bold uppercase tracking-wider">Add Item</span>
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="space-y-4">
+                                            <ReactSortable
+                                                list={spot.items || []}
+                                                setList={(newItems) => {
+                                                    const newSpotlight = [...(settings.spotlight || [])];
+                                                    newSpotlight[idx] = { ...newSpotlight[idx], items: newItems };
+                                                    setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+                                                }}
+                                                animation={200}
+                                                handle=".item-handle"
+                                                className="space-y-4"
+                                            >
+                                                {(spot.items || []).map((item: any, itemIdx: number) => (
+                                                    <div key={item.id || itemIdx} className="p-4 bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 relative group/item shadow-sm hover:shadow-md transition-all">
+                                                        <div className="flex flex-col lg:flex-row gap-6">
+                                                            {/* Left Side: Banner Only */}
+                                                            <div className="w-full lg:w-1/3 space-y-4">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="item-handle p-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-lg cursor-move text-white-dark hover:text-primary transition-all opacity-0 group-hover/item:opacity-100">
+                                                                            <IconMenuDragAndDrop className="w-3 h-3" />
+                                                                        </div>
+                                                                        <label className="text-[9px] font-bold text-white-dark uppercase tracking-widest">Banner Image</label>
+                                                                    </div>
+                                                                    <button type="button" className="text-danger p-1 hover:bg-danger/10 rounded" onClick={() => removeSpotlightItem(idx, itemIdx)}><IconX className="w-4 h-4" /></button>
+                                                                </div>
+
+                                                                <div className="relative group w-full aspect-[21/9] rounded-2xl overflow-hidden border-2 border-dashed border-gray-100 dark:border-gray-800 bg-gray-50/50">
+                                                                    {!item.image ? (
+                                                                        <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-all">
+                                                                            <IconCamera className="w-6 h-6 text-gray-300 mb-1" />
+                                                                            <span className="text-[9px] text-white-dark font-bold uppercase">Upload Banner</span>
+                                                                            <input 
+                                                                                type="file" 
+                                                                                className="hidden" 
+                                                                                accept="image/*"
+                                                                                onChange={async (e) => {
+                                                                                    if (e.target.files?.[0]) {
+                                                                                        const url = await uploadImage(e.target.files[0]);
+                                                                                        if (url) updateSpotlightItem(idx, itemIdx, 'image', url);
+                                                                                    }
+                                                                                }} 
+                                                                            />
+                                                                        </label>
+                                                                    ) : (
+                                                                        <>
+                                                                            <img src={item.image} alt="Banner" className="w-full h-full object-cover" />
+                                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+                                                                                <label className="btn btn-primary btn-xs cursor-pointer">
+                                                                                    Replace
+                                                                                    <input 
+                                                                                        type="file" 
+                                                                                        className="hidden" 
+                                                                                        accept="image/*"
+                                                                                        onChange={async (e) => {
+                                                                                            if (e.target.files?.[0]) {
+                                                                                                const url = await uploadImage(e.target.files[0]);
+                                                                                                if (url) updateSpotlightItem(idx, itemIdx, 'image', url);
+                                                                                            }
+                                                                                        }} 
+                                                                                    />
+                                                                                </label>
+                                                                                <button type="button" className="btn btn-danger btn-xs" onClick={() => updateSpotlightItem(idx, itemIdx, 'image', '')}>Remove</button>
+                                                                            </div>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Right Side: Search & Selected Products Grid */}
+                                                            <div className="flex-1 bg-gray-50/50 dark:bg-black/20 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 flex flex-col">
+                                                                <div className="flex items-center justify-between mb-4">
+                                                                    <div className="flex flex-col">
+                                                                        <label className="text-[9px] font-bold text-primary uppercase tracking-widest text-opacity-70 transition-all">Linked Products</label>
+                                                                        <span className="text-[10px] text-white-dark font-bold">Total: { (item.products || []).length } items</span>
+                                                                    </div>
+                                                                    {(item.products || []).length > 0 && (
+                                                                        <button type="button" className="text-[9px] text-danger font-bold hover:underline uppercase transition-all" onClick={() => updateSpotlightItem(idx, itemIdx, 'products', [])}>Clear All</button>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="mb-4">
+                                                                    <Select
+                                                                        options={productList}
+                                                                        components={{ Option: CustomProductOption }}
+                                                                        onChange={(selected: any) => {
+                                                                            if (selected && !(item.products || []).includes(selected.value)) {
+                                                                                updateSpotlightItem(idx, itemIdx, 'products', [...(item.products || []), selected.value]);
+                                                                            }
+                                                                        }}
+                                                                        classNamePrefix="react-select"
+                                                                        placeholder="Search and add product..."
+                                                                        className="text-xs"
+                                                                        isClearable
+                                                                        value={null}
+                                                                        styles={{
+                                                                            control: (base) => ({
+                                                                                ...base,
+                                                                                borderRadius: '12px',
+                                                                                borderColor: '#e0e6ed',
+                                                                                minHeight: '38px',
+                                                                                fontSize: '11px',
+                                                                                backgroundColor: '#fff',
+                                                                                boxShadow: 'none',
+                                                                                '&:hover': {
+                                                                                    borderColor: '#4361ee'
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+
+                                                                <div className="max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+                                                                    <ReactSortable
+                                                                        list={(item.products || []).map((id: string) => productList.find(p => p.value === id) || { value: id, label: 'Unknown', image: '' })}
+                                                                        setList={(newList) => updateSpotlightItem(idx, itemIdx, 'products', newList.map(p => p.value))}
+                                                                        animation={200}
+                                                                        handle=".prod-handle"
+                                                                        className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                                                                    >
+                                                                        {(item.products || []).map((prodId: string) => {
+                                                                            const product = productList.find(p => p.value === prodId);
+                                                                            return (
+                                                                                <div key={prodId} className="flex items-center gap-2 p-1.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-primary/30 transition-all group/prod shadow-sm">
+                                                                                    <div className="prod-handle cursor-move p-1 text-gray-200 hover:text-primary transition-all">
+                                                                                        <IconMenuDragAndDrop className="w-3 h-3" />
+                                                                                    </div>
+                                                                                    <div className="w-7 h-7 rounded-lg overflow-hidden flex-none border border-gray-100 dark:border-gray-800 bg-gray-50">
+                                                                                        <img src={product?.image || '/assets/images/profile-1.jpeg'} alt="" className="w-full h-full object-cover" />
+                                                                                    </div>
+                                                                                    <div className="flex-1 min-w-0 pr-1">
+                                                                                        <h6 className="text-[10px] font-bold truncate text-gray-700 dark:text-gray-300">{product?.label || 'Unknown'}</h6>
+                                                                                    </div>
+                                                                                    <button 
+                                                                                        type="button" 
+                                                                                        className="p-1 text-gray-300 hover:text-danger hover:bg-danger/5 rounded-md transition-all"
+                                                                                        onClick={() => updateSpotlightItem(idx, itemIdx, 'products', (item.products || []).filter((id: string) => id !== prodId))}
+                                                                                    >
+                                                                                        <IconX className="w-3 h-3" />
+                                                                                    </button>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </ReactSortable>
+                                                                    {(item.products || []).length === 0 && (
+                                                                        <div className="py-8 flex flex-col items-center justify-center opacity-40">
+                                                                            <IconLayoutGrid className="w-8 h-8 mb-2" />
+                                                                            <p className="text-[9px] font-bold uppercase tracking-widest">No Products Linked</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </ReactSortable>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </ReactSortable>
+                    </div>
+                )}
 
                     {activeTab === 'system' && (
                         <div className="panel animate__animated animate__fadeIn space-y-6">
@@ -471,7 +870,7 @@ const CompanySettingsForm = () => {
                                     className="space-y-4"
                                 >
                                     {(settings.header_tabs_config || []).map((tab, idx) => (
-                                        <div key={idx} className="flex flex-wrap md:flex-nowrap items-end gap-3 p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-black/10">
+                                        <div key={tab.id || idx} className="flex flex-wrap md:flex-nowrap items-end gap-3 p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-black/10">
                                             <div className="handle flex-none p-2 bg-white dark:bg-black border border-gray-100 dark:border-gray-800 rounded cursor-move text-white-dark hover:text-primary transition-all self-center">
                                                 <IconMenuDragAndDrop className="w-4 h-4" />
                                             </div>
@@ -479,7 +878,7 @@ const CompanySettingsForm = () => {
                                                 <label className="text-[9px] font-bold text-white-dark uppercase block mb-1">Display Name</label>
                                                 <input type="text" className="form-input text-xs" value={tab.name} onChange={(e) => updateHeaderTab(idx, 'name', e.target.value)} placeholder="Electronics" />
                                             </div>
-                                            <div className="flex-none w-40">
+                                             <div className="flex-none w-40">
                                                 <label className="text-[9px] font-bold text-white-dark uppercase block mb-1">Icon Style</label>
                                                 <select 
                                                     className="form-select text-xs" 
@@ -491,9 +890,13 @@ const CompanySettingsForm = () => {
                                                     ))}
                                                 </select>
                                             </div>
-                                            <div className="flex-none w-16 text-center">
-                                                <label className="text-[9px] font-bold text-white-dark uppercase block mb-1">Color</label>
-                                                <input type="color" className="w-8 h-8 rounded-full border-2 border-white cursor-pointer" value={tab.color} onChange={(e) => updateHeaderTab(idx, 'color', e.target.value)} />
+                                            <div className="flex-none w-20 text-center">
+                                                <label className="text-[9px] font-bold text-white-dark uppercase block mb-1">Icon Color</label>
+                                                <input type="color" className="w-8 h-8 rounded-full border-2 border-white cursor-pointer mx-auto" value={tab.color} onChange={(e) => updateHeaderTab(idx, 'color', e.target.value)} />
+                                            </div>
+                                            <div className="flex-none w-20 text-center">
+                                                <label className="text-[9px] font-bold text-white-dark uppercase block mb-1">Header Color</label>
+                                                <input type="color" className="w-8 h-8 rounded-full border-2 border-white cursor-pointer mx-auto" value={tab.header_color || '#ffffff'} onChange={(e) => updateHeaderTab(idx, 'header_color', e.target.value)} />
                                             </div>
                                             <button type="button" className="btn btn-danger btn-sm p-2 flex-none" onClick={() => removeHeaderTab(idx)}>
                                                 <IconTrashLines className="w-4 h-4" />
@@ -563,22 +966,9 @@ const CompanySettingsForm = () => {
     );
 };
 
-// Mock missing icon components
-const IconLayoutGrid = ({ className }: { className?: string }) => (
+const IconColorPalette = ({ className }: { className?: string }) => (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-    </svg>
-);
-
-const IconFile = ({ className }: { className?: string }) => (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" />
-    </svg>
-);
-
-const IconClock = ({ className }: { className?: string }) => (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
     </svg>
 );
 

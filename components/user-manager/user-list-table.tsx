@@ -43,6 +43,9 @@ interface UserListTableProps {
     onMinPriceChange?: (val: string) => void;
     maxPrice?: string;
     onMaxPriceChange?: (val: string) => void;
+    hideAction?: boolean;
+    hideDelete?: boolean;
+    hideView?: boolean;
 }
 
 const UserListTable = ({
@@ -75,6 +78,9 @@ const UserListTable = ({
     onMinPriceChange,
     maxPrice,
     onMaxPriceChange,
+    hideAction = false,
+    hideDelete = false,
+    hideView = false,
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
 
@@ -150,7 +156,7 @@ const UserListTable = ({
                                         {col.label}
                                     </th>
                                 ))}
-                                <th className="text-center w-1 px-1 py-1 text-[10px] uppercase font-black tracking-tighter">Action</th>
+                                {!hideAction && <th className="text-center w-1 px-1 py-1 text-[10px] uppercase font-black tracking-tighter">Action</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -283,35 +289,39 @@ const UserListTable = ({
                                                 )}
                                             </td>
                                         ))}
-                                        <td className="text-center">
-                                            <div className="flex items-center justify-center gap-1.5">
-                                                {userType !== 'Category' && (
-                                                    <Tippy content="View">
-                                                        <button
-                                                            type="button"
-                                                            className="p-1 text-primary hover:text-primary-dark transition-colors"
-                                                            onClick={() => onViewClick?.(item)}
+                                        {!hideAction && (
+                                            <td className="text-center">
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    {!hideView && userType !== 'Category' && (
+                                                        <Tippy content="View">
+                                                            <button
+                                                                type="button"
+                                                                className="p-1 text-primary hover:text-primary-dark transition-colors"
+                                                                onClick={() => onViewClick?.(item)}
+                                                            >
+                                                                <IconEye className="h-4 w-4" />
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
+                                                    <Tippy content="Edit">
+                                                        <button 
+                                                            type="button" 
+                                                            className="p-1 text-success hover:text-success-dark transition-colors"
+                                                            onClick={() => onEditClick?.(item)}
                                                         >
-                                                            <IconEye className="h-4 w-4" />
+                                                            <IconPencil className="h-4 w-4" />
                                                         </button>
                                                     </Tippy>
-                                                )}
-                                                <Tippy content="Edit">
-                                                    <button 
-                                                        type="button" 
-                                                        className="p-1 text-success hover:text-success-dark transition-colors"
-                                                        onClick={() => onEditClick?.(item)}
-                                                    >
-                                                        <IconPencil className="h-4 w-4" />
-                                                    </button>
-                                                </Tippy>
-                                                <Tippy content="Delete">
-                                                    <button type="button" className="p-1 text-danger hover:text-danger-dark transition-colors">
-                                                        <IconTrashLines className="h-4 w-4" />
-                                                    </button>
-                                                </Tippy>
-                                            </div>
-                                        </td>
+                                                    {!hideDelete && (
+                                                        <Tippy content="Delete">
+                                                            <button type="button" className="p-1 text-danger hover:text-danger-dark transition-colors">
+                                                                <IconTrashLines className="h-4 w-4" />
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             ) : (

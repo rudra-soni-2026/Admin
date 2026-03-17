@@ -112,7 +112,7 @@ const ProductList = () => {
         { key: 'name', label: 'Product Name' },
         { key: 'brand', label: 'Brand' },
         { key: 'category', label: 'Category' },
-        { key: 'price', label: 'Sell Price' },
+        { key: 'price', label: 'Selling Price (Offer Price)' },
         { key: 'mrp', label: 'MRP' },
         { key: 'status', label: 'Status' },
     ];

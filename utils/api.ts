@@ -1,5 +1,5 @@
 
-const BASE_URL = 'http://13.201.193.27:4000/api/v1'; // अपनी API का URL यहाँ डालें
+const BASE_URL = 'http://13.127.76.87:4000/api/v1/'; // अपनी API का URL यहाँ डालें
 
 /**
  * Universal API calling function

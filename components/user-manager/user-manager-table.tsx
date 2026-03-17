@@ -39,6 +39,9 @@ interface UserManagerTableProps {
     onMinPriceChange?: (val: string) => void;
     maxPrice?: string;
     onMaxPriceChange?: (val: string) => void;
+    hideAction?: boolean;
+    hideDelete?: boolean;
+    hideView?: boolean;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -73,7 +76,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
     return props.userType === 'Order' ? (
         <OrderListTable {...props} onViewClick={finalViewClick} />
     ) : (
-        <UserListTable {...props} onViewClick={finalViewClick} onEditClick={props.onEditClick} />
+        <UserListTable {...props} onViewClick={finalViewClick} onEditClick={props.onEditClick} hideAction={props.hideAction} hideDelete={props.hideDelete} hideView={props.hideView} />
     );
 };
 

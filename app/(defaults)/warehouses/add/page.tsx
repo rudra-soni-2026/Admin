@@ -10,7 +10,7 @@ import IconSave from '@/components/icon/icon-save';
 const AddWarehouse = () => {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    
+
     // Dropdown data
     const [warehouseManagers, setWarehouseManagers] = useState<any[]>([]);
     const [productManagers, setProductManagers] = useState<any[]>([]);
@@ -74,7 +74,7 @@ const AddWarehouse = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!formData.name || !formData.address) {
             showMessage('Name and Address are required.', 'danger');
             return;
@@ -132,7 +132,7 @@ const AddWarehouse = () => {
                             <label htmlFor="name" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1">Warehouse Name *</label>
                             <input id="name" type="text" placeholder="Enter Warehouse Name" className="form-input py-1.5 text-xs" value={formData.name} onChange={handleChange} required />
                         </div>
-                        
+
                         <div className="md:col-span-2">
                             <label htmlFor="address" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1">Full Address *</label>
                             <textarea id="address" placeholder="Enter Warehouse Address" className="form-textarea py-1.5 text-xs min-h-[80px]" value={formData.address} onChange={handleChange} required />

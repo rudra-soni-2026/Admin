@@ -133,5 +133,8 @@
     "store_list": "Store List",
     "products": "Products",
     "categories": "Categories",
-    "orders": "Orders"
+    "orders": "Orders",
+    "inventory_transfer": "Inventory Transfer",
+    "warehouse_inventory": "Warehouse Inventory",
+    "store_inventory": "Store Inventory"
 }
