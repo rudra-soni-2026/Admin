@@ -157,6 +157,12 @@ export default function EditCategory() {
 
             // Upload image to /upload if a new file is selected (base64 dataURL)
             if (images.length > 0 && images[0].file) {
+                // Check image size (limit to 1MB)
+                if (images[0].file.size > 1024 * 1024) {
+                    showMessage('Image size exceeds 1MB limit. Please upload a smaller image.', 'danger');
+                    setLoading(false);
+                    return;
+                }
                 const uploadData = new FormData();
                 uploadData.append('images', images[0].file);
 

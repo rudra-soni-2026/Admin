@@ -270,6 +270,12 @@ const AddPurchase = () => {
             // 2. Upload Invoice if present
             let invoiceUrl = '';
             if (formData.invoice) {
+                // Check invoice size (limit to 1MB)
+                if (formData.invoice.size > 1024 * 1024) {
+                    showMessage('Invoice file size exceeds 1MB limit. Please upload a smaller file.', 'danger');
+                    setLoading(false);
+                    return;
+                }
                 const uploadData = new FormData();
                 uploadData.append('images', formData.invoice);
                 const uploadRes = await callApi('/upload', 'POST', uploadData);

@@ -284,11 +284,16 @@ export default function AddProduct() {
 
             // Upload new files
             const uploadData = new FormData();
-            images.forEach((img) => {
+            for (const img of images) {
                 if (img.file) {
+                    if (img.file.size > 1024 * 1024) {
+                        showMessage(`Image "${img.file.name}" exceeds 1MB limit. Please upload a smaller image.`, 'danger');
+                        setLoading(false);
+                        return;
+                    }
                     uploadData.append('images', img.file);
                 }
-            });
+            }
 
             if (uploadData.has('images')) {
                 const uploadRes = await callApi('/upload', 'POST', uploadData);
