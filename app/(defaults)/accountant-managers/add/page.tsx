@@ -1,10 +1,10 @@
 'use client';
-import AddAdmin from '@/app/(defaults)/admins/add/page';
+import AdminForm from '@/components/users/admin-form';
 
 const AddAccountantManager = () => {
     return (
-        <AddAdmin 
-            role="account_manager" 
+        <AdminForm 
+            role="accountant_manager" 
             title="Accountant Manager" 
             redirectPath="/accountant-managers/list" 
         />

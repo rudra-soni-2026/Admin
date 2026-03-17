@@ -1,9 +1,9 @@
 'use client';
-import AddAdmin from '@/app/(defaults)/admins/add/page';
+import AdminForm from '@/components/users/admin-form';
 
 const AddStoreManager = () => {
     return (
-        <AddAdmin 
+        <AdminForm 
             role="store_manager" 
             title="Store Manager" 
             redirectPath="/store-managers/list" 
@@ -12,3 +12,4 @@ const AddStoreManager = () => {
 };
 
 export default AddStoreManager;
+

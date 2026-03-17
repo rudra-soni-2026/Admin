@@ -1,9 +1,9 @@
 'use client';
-import AddAdmin from '@/app/(defaults)/admins/add/page';
+import AdminForm from '@/components/users/admin-form';
 
 const AddWarehouseManager = () => {
     return (
-        <AddAdmin 
+        <AdminForm 
             role="warehouse_manager" 
             title="Warehouse Manager" 
             redirectPath="/warehouse-managers/list" 
@@ -12,3 +12,4 @@ const AddWarehouseManager = () => {
 };
 
 export default AddWarehouseManager;
+

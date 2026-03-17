@@ -1,9 +1,9 @@
 'use client';
-import AddAdmin from '@/app/(defaults)/admins/add/page';
+import AdminForm from '@/components/users/admin-form';
 
 const AddProductManager = () => {
     return (
-        <AddAdmin 
+        <AdminForm 
             role="product_manager" 
             title="Product Manager" 
             redirectPath="/product-managers/list" 
@@ -12,3 +12,4 @@ const AddProductManager = () => {
 };
 
 export default AddProductManager;
+
