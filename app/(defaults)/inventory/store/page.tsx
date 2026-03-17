@@ -2,10 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { callApi } from '@/utils/api';
-import { DataTable } from 'mantine-datatable';
-import IconShoppingBag from '@/components/icon/icon-shopping-bag';
-import IconBox from '@/components/icon/icon-box';
-import IconSearch from '@/components/icon/icon-search';
+import UserManagerTable from '@/components/user-manager/user-manager-table';
 
 const StoreInventory = () => {
     const [inventoryData, setInventoryData] = useState<any[]>([]);
@@ -32,7 +29,16 @@ const StoreInventory = () => {
             
             const response = await callApi(query, 'GET');
             if (response?.data) {
-                setInventoryData(response.data);
+                const mappedData = response.data.map((item: any) => ({
+                    id: `#STR-${item._id?.slice(-4).toUpperCase() || 'INV'}`,
+                    store: item.store?.name || 'N/A',
+                    product: item.product?.name || 'Unknown',
+                    stock: `${item.stock_count} units`,
+                    lastUpdated: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'Never',
+                    status: item.stock_count > 5 ? 'Active' : 'Inactive',
+                    originalId: item._id
+                }));
+                setInventoryData(mappedData);
                 setTotalRecords(response.totalCount || 0);
             }
         } catch (error) {
@@ -46,84 +52,57 @@ const StoreInventory = () => {
         fetchData(page);
     }, [page, debouncedSearch, pageSize]);
 
+    const columns = [
+        { key: 'id', label: 'Inventory ID' },
+        { key: 'store', label: 'Store Name' },
+        { key: 'product', label: 'Product Name' },
+        { key: 'stock', label: 'In Stock' },
+        { key: 'lastUpdated', label: 'Updated' },
+        { key: 'status', label: 'Stock Health' },
+    ];
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">Store Inventory</h1>
-                <Link href="/inventory/transfer" className="btn btn-info">
-                    Request Transfer
-                </Link>
-            </div>
+            <ul className="flex space-x-2 rtl:space-x-reverse mb-6">
+                <li>
+                    <Link href="/" className="text-primary hover:underline">
+                        Dashboard
+                    </Link>
+                </li>
+                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                    <span>Inventory</span>
+                </li>
+                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 font-bold">
+                    <span>Store Report</span>
+                </li>
+            </ul>
 
-            <div className="panel overflow-hidden">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="text-sm font-semibold">Total Records: {totalRecords}</div>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="form-input py-2 ltr:pl-10 rtl:pr-10"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                        <IconSearch className="w-4 h-4 absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 opacity-30" />
-                    </div>
+            {loading ? (
+                <div className="flex items-center justify-center p-10">
+                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
-
-                <div className="datatables">
-                    <DataTable
-                        className="table-hover whitespace-nowrap"
-                        records={inventoryData}
-                        columns={[
-                            {
-                                accessor: 'store',
-                                title: 'Store',
-                                render: ({ store }: any) => <span className="font-semibold">{store?.name || 'N/A'}</span>
-                            },
-                            {
-                                accessor: 'product',
-                                title: 'Product',
-                                render: ({ product }: any) => (
-                                    <div className="flex items-center gap-2">
-                                        <IconBox className="w-4 h-4 text-gray-400" />
-                                        <span className="font-bold">{product?.name || 'Unknown'}</span>
-                                    </div>
-                                )
-                            },
-                            {
-                                accessor: 'stock_count',
-                                title: 'Stock',
-                                render: ({ stock_count }: any) => (
-                                    <span className={`badge ${stock_count > 5 ? 'badge-outline-primary' : 'badge-outline-danger'}`}>
-                                        {stock_count} units
-                                    </span>
-                                )
-                            },
-                            {
-                                accessor: 'status',
-                                title: 'Status',
-                                render: ({ stock_count }: any) => (
-                                    stock_count <= 5 ? (
-                                        <span className="text-danger font-bold text-xs uppercase">Low Stock</span>
-                                    ) : (
-                                        <span className="text-success font-bold text-xs uppercase">Healthy</span>
-                                    )
-                                )
-                            }
-                        ]}
-                        fetching={loading}
-                        totalRecords={totalRecords}
-                        recordsPerPage={pageSize}
-                        page={page}
-                        onPageChange={(p) => setPage(p)}
-                        recordsPerPageOptions={[25, 50, 100]}
-                        onRecordsPerPageChange={setPageSize}
-                        minHeight={300}
-                    />
-                </div>
-            </div>
+            ) : (
+                <UserManagerTable 
+                    title="Store Stock" 
+                    data={inventoryData} 
+                    columns={columns} 
+                    userType="Inventory" 
+                    totalRecords={totalRecords}
+                    page={page}
+                    pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)}
+                    search={search}
+                    onSearchChange={setSearch}
+                    onAddClick={() => window.location.href = '/inventory/request'}
+                    addButtonLabel="Request For Stock"
+                    hideView={true}
+                    hideDelete={true}
+                    hideAction={true}
+                />
+            )}
         </div>
     );
 };
 
 export default StoreInventory;
+

@@ -148,7 +148,7 @@ export default function AddCategory() {
             const payload = {
                 name: formData.name,
                 image: finalImageUrl,
-                parentId: formData.level === 0 ? null : (formData.parentId || null),
+                parentId: Number(formData.level) === 0 ? null : (formData.parentId || null),
                 level: Number(formData.level),
                 isActive: Boolean(formData.isActive),
                 bg_color: formData.bg_color,

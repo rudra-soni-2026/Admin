@@ -115,8 +115,8 @@ const CategoryList = () => {
 
             try {
                 const response = await callApi(`/products/sub-categories/${categoryId}`, 'GET');
-                if (response && response.data) {
-                    const children = response.data.map((child: any) => ({
+                if (response?.data?.subCategories) {
+                    const children = response.data.subCategories.map((child: any) => ({
                         id: child._id ? `#${String(child._id).substring(18).toUpperCase()}` : '#UNKNOWN',
                         originalId: child._id,
                         name: child.name || 'Unknown Sub',

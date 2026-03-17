@@ -1,5 +1,5 @@
 
-const BASE_URL = 'http://13.127.76.87:4000/api/v1/'; // अपनी API का URL यहाँ डालें
+const BASE_URL = 'https://testingdomain.store/api/v1/'; // अपनी API का URL यहाँ डालें
 
 /**
  * Universal API calling function
@@ -8,6 +8,8 @@ const BASE_URL = 'http://13.127.76.87:4000/api/v1/'; // अपनी API का 
  * @param body - Request body (for POST/PUT)
  * @param customHeaders - Any extra headers you want to pass
  */
+
+
 export const callApi = async (endpoint: string, method: string = 'GET', body: any = null, customHeaders: any = {}) => {
     try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('AdminToken') : null;
