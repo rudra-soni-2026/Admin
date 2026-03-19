@@ -42,6 +42,7 @@ interface UserManagerTableProps {
     hideAction?: boolean;
     hideDelete?: boolean;
     hideView?: boolean;
+    hideFilter?: boolean;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -76,7 +77,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
     return props.userType === 'Order' ? (
         <OrderListTable {...props} onViewClick={finalViewClick} />
     ) : (
-        <UserListTable {...props} onViewClick={finalViewClick} onEditClick={props.onEditClick} hideAction={props.hideAction} hideDelete={props.hideDelete} hideView={props.hideView} />
+        <UserListTable {...props} onViewClick={finalViewClick} onEditClick={props.onEditClick} hideAction={props.hideAction} hideDelete={props.hideDelete} hideView={props.hideView} hideFilter={props.hideFilter} />
     );
 };
 

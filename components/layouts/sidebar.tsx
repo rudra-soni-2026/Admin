@@ -53,6 +53,33 @@ const Sidebar = () => {
     const [errorSubMenu, setErrorSubMenu] = useState(false);
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
     const semidark = useSelector((state: IRootState) => state.themeConfig.semidark);
+    const [permissions, setPermissions] = useState<any[] | null>(null);
+    const [role, setRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const storedPermissions = localStorage.getItem('permissions');
+            const storedRole = localStorage.getItem('role');
+            setRole(storedRole);
+            if (storedPermissions) {
+                try {
+                    setPermissions(JSON.parse(storedPermissions));
+                } catch (error) {
+                    console.error('Failed to parse permissions:', error);
+                    setPermissions([]);
+                }
+            } else {
+                setPermissions([]);
+            }
+        }
+    }, []);
+
+    const hasPermission = (permission: string) => {
+        if (role === 'super_admin') return true;
+        if (permissions === null) return false; // Still loading
+        return permissions.includes(permission);
+    };
+
     const toggleMenu = (value: string) => {
         setCurrentMenu((oldValue) => {
             return oldValue === value ? '' : value;
@@ -114,265 +141,325 @@ const Sidebar = () => {
                     </div>
                     <PerfectScrollbar className="relative h-[calc(100vh-80px)]">
                         <ul className="relative space-y-0.5 p-4 py-0 font-semibold">
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'dashboard' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('dashboard')}>
-                                    <div className="flex items-center">
-                                        <IconMenuDashboard className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('dashboard')}</span>
-                                    </div>
+                            {hasPermission('dashboard') && (
+                                <li className="menu nav-item">
+                                    <button type="button" className={`${currentMenu === 'dashboard' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('dashboard')}>
+                                        <div className="flex items-center">
+                                            <IconMenuDashboard className="shrink-0 group-hover:!text-primary" />
+                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('dashboard')}</span>
+                                        </div>
 
-                                    <div className={currentMenu !== 'dashboard' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
+                                        <div className={currentMenu !== 'dashboard' ? '-rotate-90 rtl:rotate-90' : ''}>
+                                            <IconCaretDown />
+                                        </div>
+                                    </button>
 
-                                <AnimateHeight duration={300} height={currentMenu === 'dashboard' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/">{t('sales')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/analytics">{t('analytics')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/finance">{t('finance')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/crypto">{t('crypto')}</Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li>
+                                    <AnimateHeight duration={300} height={currentMenu === 'dashboard' ? 'auto' : 0}>
+                                        <ul className="sub-menu text-gray-500">
+                                            <li>
+                                                <Link href="/">{t('sales')}</Link>
+                                            </li>
+                                            <li>
+                                                <Link href="/analytics">{t('analytics')}</Link>
+                                            </li>
+                                            <li>
+                                                <Link href="/finance">{t('finance')}</Link>
+                                            </li>
+                                            <li>
+                                                <Link href="/crypto">{t('crypto')}</Link>
+                                            </li>
+                                        </ul>
+                                    </AnimateHeight>
+                                </li>
+                            )}
 
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">{"Customer"}</span>
-                            </h2>
-
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/users/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuUsers className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Customer</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li>
-
-
-
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">{"Employee"}</span>
-                            </h2>
-
-
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/admins/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Admin</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/product-managers/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Manager</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/accountant-managers/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Accountant Manager</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/warehouse-managers/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Manager</span>
-                                            </div>
-                                        </Link>
-                                    </li>
+                            {hasPermission('users') && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">{"Customer"}</span>
+                                    </h2>
 
                                     <li className="nav-item">
-                                        <Link href="/store-managers/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Manager</span>
-                                            </div>
-                                        </Link>
+                                        <ul>
+                                            <li className="nav-item">
+                                                <Link href="/users/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconMenuUsers className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Customer</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                        </ul>
                                     </li>
-                                    <li className="nav-item">
-                                        <Link href="/riders/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconTruck className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Rider</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li>
-
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">Place</span>
-                            </h2>
-
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/warehouses/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/store/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-
-                                </ul>
-                            </li>
+                                </>
+                            )}
 
 
 
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">Order Management</span>
-                            </h2>
+                            {hasPermission('admins') && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">{"Employee"}</span>
+                                    </h2>
 
-
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/orders/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconListCheck className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('orders')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/analytics" className="group">
-                                            <div className="flex items-center">
-                                                <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Report</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li>
-
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">Products</span>
-                            </h2>
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/products/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('products')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/categories/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconTag className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('categories')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li>
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">Inventory & Purchse</span>
-                            </h2>
-
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/suppliers/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconUsers className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/purchase/list" className="group">
-                                            <div className="flex items-center">
-                                                <IconListCheck className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span>
-                                            </div>
-                                        </Link>
-                                    </li>
 
                                     <li className="nav-item">
-                                        <Link href="/inventory/warehouse" className="group">
-                                            <div className="flex items-center">
-                                                <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/inventory/store" className="group">
-                                            <div className="flex items-center">
-                                                <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/inventory/transfer" className="group">
-                                            <div className="flex items-center">
-                                                <IconRefresh className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span>
-                                            </div>
-                                        </Link>
-                                    </li>
+                                        <ul>
+                                            <li className="nav-item">
+                                                <Link href="/admins/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Admin</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                            <li className="nav-item">
+                                                <Link href="/product-managers/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Manager</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                            <li className="nav-item">
+                                                <Link href="/accountant-managers/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Accountant Manager</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                            <li className="nav-item">
+                                                <Link href="/warehouse-managers/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Manager</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
 
-                                </ul>
-                            </li>
+                                            <li className="nav-item">
+                                                <Link href="/store-managers/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Manager</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                            <li className="nav-item">
+                                                <Link href="/riders/list" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconTruck className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Rider</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </>
+                            )}
 
-                            <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span className="text-[11px] opacity-70">Settings</span>
-                            </h2>
-                            <li className="nav-item">
-                                <ul>
+                            {(hasPermission('warehouses') || hasPermission('stores')) && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">Place</span>
+                                    </h2>
 
                                     <li className="nav-item">
-                                        <Link href="/company/settings" className="group">
-                                            <div className="flex items-center">
-                                                <IconSettings className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Company</span>
-                                            </div>
-                                        </Link>
+                                        <ul>
+                                            {hasPermission('warehouses') && (
+                                                <li className="nav-item">
+                                                    <Link href="/warehouses/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconBox className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('stores') && (
+                                                <li className="nav-item">
+                                                    <Link href="/store/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+
+                                        </ul>
                                     </li>
-                                </ul>
-                            </li>
+                                </>
+                            )}
+
+
+
+                            {(hasPermission('orders') || hasPermission('reports')) && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">Order Management</span>
+                                    </h2>
+
+
+                                    <li className="nav-item">
+                                        <ul>
+                                            {hasPermission('orders') && (
+                                                <li className="nav-item">
+                                                    <Link href="/orders/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconListCheck className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('orders')}</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('reports') && (
+                                                <li className="nav-item">
+                                                    <Link href="/analytics" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Report</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                        </ul>
+                                    </li>
+                                </>
+                            )}
+
+                            {(hasPermission('products') || hasPermission('categories')) && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">Products</span>
+                                    </h2>
+                                    <li className="nav-item">
+                                        <ul>
+                                            {hasPermission('products') && (
+                                                <li className="nav-item">
+                                                    <Link href="/products/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconBox className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('products')}</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('categories') && (
+                                                <li className="nav-item">
+                                                    <Link href="/categories/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconTag className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('categories')}</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('products') && (
+                                                <li className="nav-item">
+                                                    <Link href="/offers/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Offers</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                        </ul>
+                                    </li>
+                                </>
+                            )}
+                            {(hasPermission('suppliers') || hasPermission('purchases') || hasPermission('inventory')) && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">Inventory & Purchse</span>
+                                    </h2>
+
+                                    <li className="nav-item">
+                                        <ul>
+                                            {hasPermission('suppliers') && (
+                                                <li className="nav-item">
+                                                    <Link href="/suppliers/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconUsers className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('purchases') && (
+                                                <li className="nav-item">
+                                                    <Link href="/purchase/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconListCheck className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+
+                                            {hasPermission('inventory') && (
+                                                <>
+                                                    <li className="nav-item">
+                                                        <Link href="/inventory/warehouse" className="group">
+                                                            <div className="flex items-center">
+                                                                <IconBox className="shrink-0 group-hover:!text-primary" />
+                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="nav-item">
+                                                        <Link href="/inventory/store" className="group">
+                                                            <div className="flex items-center">
+                                                                <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
+                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="nav-item">
+                                                        <Link href="/inventory/transfer" className="group">
+                                                            <div className="flex items-center">
+                                                                <IconRefresh className="shrink-0 group-hover:!text-primary" />
+                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                </>
+                                            )}
+
+                                        </ul>
+                                    </li>
+                                </>
+                            )}
+
+                            {hasPermission('settings') && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">Settings</span>
+                                    </h2>
+                                    <li className="nav-item">
+                                        <ul>
+
+                                            <li className="nav-item">
+                                                <Link href="/company/settings" className="group">
+                                                    <div className="flex items-center">
+                                                        <IconSettings className="shrink-0 group-hover:!text-primary" />
+                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Company</span>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </>
+                            )}
 
                             {/* <li className="nav-item">
                                 <ul>

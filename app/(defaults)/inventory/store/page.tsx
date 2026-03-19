@@ -30,12 +30,11 @@ const StoreInventory = () => {
             const response = await callApi(query, 'GET');
             if (response?.data) {
                 const mappedData = response.data.map((item: any) => ({
-                    id: `#STR-${item._id?.slice(-4).toUpperCase() || 'INV'}`,
-                    store: item.store?.name || 'N/A',
-                    product: item.product?.name || 'Unknown',
-                    stock: `${item.stock_count} units`,
-                    lastUpdated: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'Never',
-                    status: item.stock_count > 5 ? 'Active' : 'Inactive',
+                    id: item.id || `#STR-${item._id?.slice(-4).toUpperCase() || 'INV'}`,
+                    image: item.product?.image || '/assets/images/profile-1.jpeg',
+                    product: item.product?.name || 'Unknown Product',
+                    unit: item.product?.unit_label || 'N/A',
+                    stock: `${item.stock_count || 0} units`,
                     originalId: item._id
                 }));
                 setInventoryData(mappedData);
@@ -53,12 +52,10 @@ const StoreInventory = () => {
     }, [page, debouncedSearch, pageSize]);
 
     const columns = [
-        { key: 'id', label: 'Inventory ID' },
-        { key: 'store', label: 'Store Name' },
+        { key: 'image', label: 'Image' },
         { key: 'product', label: 'Product Name' },
-        { key: 'stock', label: 'In Stock' },
-        { key: 'lastUpdated', label: 'Updated' },
-        { key: 'status', label: 'Stock Health' },
+        { key: 'unit', label: 'Unit' },
+        { key: 'stock', label: 'Total Stock' },
     ];
 
     return (
@@ -88,12 +85,13 @@ const StoreInventory = () => {
                     columns={columns} 
                     userType="Inventory" 
                     totalRecords={totalRecords}
+                    totalUsers={totalRecords}
                     page={page}
                     pageSize={pageSize}
                     onPageChange={(p) => setPage(p)}
                     search={search}
                     onSearchChange={setSearch}
-                    onAddClick={() => window.location.href = '/inventory/request'}
+                    onAddClick={() => window.location.href = '/inventory/stock-request'}
                     addButtonLabel="Request For Stock"
                     hideView={true}
                     hideDelete={true}

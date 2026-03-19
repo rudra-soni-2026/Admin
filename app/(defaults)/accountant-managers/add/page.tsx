@@ -4,7 +4,7 @@ import AdminForm from '@/components/users/admin-form';
 const AddAccountantManager = () => {
     return (
         <AdminForm 
-            role="accountant_manager" 
+            role="account_manager" 
             title="Accountant Manager" 
             redirectPath="/accountant-managers/list" 
         />

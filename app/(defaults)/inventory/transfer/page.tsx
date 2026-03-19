@@ -1,18 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Select from 'react-select';
-import { DataTable } from 'mantine-datatable';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
-import IconSearch from '@/components/icon/icon-search';
-import IconRefresh from '@/components/icon/icon-refresh';
-import IconBox from '@/components/icon/icon-box';
-import IconMinus from '@/components/icon/icon-minus';
-import IconPlus from '@/components/icon/icon-plus';
-import IconRefresh2 from '@/components/icon/icon-refresh';
-import IconArrowBackward from '@/components/icon/icon-arrow-backward';
-import IconArrowForward from '@/components/icon/icon-arrow-forward';
+import UserManagerTable from '@/components/user-manager/user-manager-table';
 
 const InventoryTransfer = () => {
     // History States
@@ -32,7 +23,27 @@ const InventoryTransfer = () => {
             setHistoryLoading(true);
             const response = await callApi(`/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}`, 'GET');
             if (response?.data) {
-                setHistoryData(response.data);
+                const mapped = response.data.map((item: any) => {
+                    let itemsArray = [];
+                    try {
+                        itemsArray = Array.isArray(item.items) ? item.items : 
+                                     (typeof item.items === 'string' ? JSON.parse(item.items) : []);
+                    } catch (e) { itemsArray = []; }
+                    
+                    const totalUnits = itemsArray.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 0), 0);
+
+                    return {
+                        ...item,
+                        id: item.status === 'PENDING' ? `#REQ-${item.id.slice(-6).toUpperCase()}` : `#TR-${item.id.slice(-6).toUpperCase()}`,
+                        originalId: item.id,
+                        from: item.source_warehouse?.name || '---',
+                        to: item.destination_store?.name || '---',
+                        items_summary: `${itemsArray.length} Items (${totalUnits} Qty)`,
+                        date: new Date(item.created_at).toLocaleString(),
+                        status_label: item.status,
+                    };
+                });
+                setHistoryData(mapped);
                 setHistoryTotal(response.totalCount || 0);
             }
         } catch (error) {
@@ -42,97 +53,113 @@ const InventoryTransfer = () => {
         }
     };
 
+    const showMessage = (msg = '', type = 'success') => {
+        const toast: any = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+        toast.fire({
+            icon: type,
+            title: msg,
+            padding: '10px 20px',
+        });
+    };
+
+    const handleApproveTransfer = async (record: any) => {
+        if (record.status_label !== 'PENDING') {
+            showMessage('This transfer is already processed.', 'info');
+            return;
+        }
+
+        try {
+            const confirm = await Swal.fire({
+                title: 'Approve Transfer?',
+                text: 'Kya aap is stock request ko approve karna chahte hain?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4361ee',
+                cancelButtonColor: '#e7515a',
+                confirmButtonText: 'Yes, Approve It!'
+            });
+
+            if (confirm.isConfirmed) {
+                setHistoryLoading(true);
+                let items = [];
+                try {
+                    items = typeof record.items === 'string' ? JSON.parse(record.items) : (record.items || []);
+                } catch(e) { items = []; }
+
+                const payload = {
+                    source_warehouse_id: record.source_warehouse_id,
+                    destination_store_id: record.destination_store_id,
+                    items: items
+                };
+
+                const response = await callApi('/management/admin/inventory-transfer', 'POST', payload);
+                if (response?.success) {
+                    showMessage('Stock successfully transfer ho chuka hai.', 'success');
+                    fetchTransferHistory();
+                } else {
+                    showMessage(response?.message || 'Approval failed.', 'error');
+                }
+            }
+        } catch (error: any) {
+            showMessage(error?.message || 'Something went wrong.', 'error');
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const columns = [
+        { key: 'id', label: 'Reference' },
+        { key: 'from', label: 'From (Warehouse)' },
+        { key: 'to', label: 'To (Store)' },
+        { key: 'items_summary', label: 'Products Info' },
+        { key: 'date', label: 'Time Stamp' },
+        { key: 'status_label', label: 'Status' },
+    ];
+
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">Stock Transfer History</h1>
-                <div className="flex gap-2">
-                    <button className="btn btn-outline-primary" onClick={() => fetchTransferHistory()}>
-                        <IconRefresh className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
-                        Refresh Logs
-                    </button>
-                    <Link href="/inventory/request" className="btn btn-primary">
-                        <IconPlus className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
-                        Create New Request
-                    </Link>
-                </div>
-            </div>
+            <ul className="flex space-x-2 rtl:space-x-reverse mb-6">
+                <li>
+                    <Link href="/" className="text-primary hover:underline">Dashboard</Link>
+                </li>
+                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                    <span>Inventory</span>
+                </li>
+                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 font-bold">
+                    <span>History</span>
+                </li>
+            </ul>
 
-            {/* History Log */}
-            <div className="panel overflow-hidden">
-                <div className="datatables">
-                    <DataTable
-                        className="table-hover whitespace-nowrap"
-                        records={historyData}
-                        columns={[
-                            { 
-                                accessor: 'id', 
-                                title: 'Reference', 
-                                render: ({ id }: any) => <span className="font-bold text-primary">#TR-{id?.toString().slice(-6).toUpperCase()}</span>
-                            },
-                            { 
-                                accessor: 'source', 
-                                title: 'Source → Destination', 
-                                render: (record: any) => (
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase leading-none">From</span>
-                                            <span className="font-semibold">{record.source_warehouse?.name || 'N/A'}</span>
-                                        </div>
-                                        <IconArrowForward className="w-3 h-3 text-gray-400 mx-2" />
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase leading-none">To</span>
-                                            <span className="font-semibold text-gray-600">{record.destination_store?.name || 'N/A'}</span>
-                                        </div>
-                                    </div>
-                                )
-                            },
-                            { 
-                                accessor: 'items', 
-                                title: 'Items', 
-                                render: (record: any) => (
-                                    <div className="flex flex-col">
-                                        <span className="font-bold text-black">{record.items?.length || 0} Products</span>
-                                        <span className="text-[10px] text-gray-400">Total Units: {record.items?.reduce((acc: number, item: any) => acc + (item.quantity || 1), 0)}</span>
-                                    </div>
-                                )
-                            },
-                            { 
-                                accessor: 'created_at', 
-                                title: 'Date & Time', 
-                                render: ({ created_at }: any) => (
-                                    <div className="text-xs">
-                                        <div className="font-bold">{new Date(created_at).toLocaleDateString()}</div>
-                                        <div className="text-gray-400 text-[10px]">{new Date(created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                    </div>
-                                )
-                            },
-                            {
-                                accessor: 'status',
-                                title: 'Status',
-                                textAlignment: 'right',
-                                render: () => (
-                                    <span className="badge badge-outline-success rounded-full px-4 text-[10px] font-bold">
-                                        COMPLETED
-                                    </span>
-                                )
-                            }
-                        ]}
-                        fetching={historyLoading}
-                        totalRecords={historyTotal}
-                        recordsPerPage={historyPageSize}
-                        page={historyPage}
-                        onPageChange={(p) => setHistoryPage(p)}
-                        recordsPerPageOptions={[10, 20, 50]}
-                        onRecordsPerPageChange={setHistoryPageSize}
-                        minHeight={200}
-                    />
+            {historyLoading ? (
+                <div className="flex items-center justify-center p-10">
+                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
-            </div>
+            ) : (
+                <UserManagerTable 
+                    title="Inventory History" 
+                    data={historyData} 
+                    columns={columns} 
+                    userType="Inventory" 
+                    totalRecords={historyTotal}
+                    totalUsers={historyTotal}
+                    page={historyPage}
+                    pageSize={historyPageSize}
+                    onPageChange={(p) => setHistoryPage(p)}
+                    onViewClick={(record) => handleApproveTransfer(record)}
+                    addButtonLabel="Refresh History"
+                    onAddClick={() => fetchTransferHistory()}
+                    hideDelete={true}
+                    hideAction={false}
+                />
+            )}
         </div>
     );
 };
-
 
 export default InventoryTransfer;

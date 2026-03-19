@@ -334,7 +334,7 @@ export default function EditProduct() {
                 order: Number(formData.order)
             };
 
-            const response = await callApi(`/management/admin/products/${productId}`, 'PUT', payload);
+            const response = await callApi(`/management/admin/products/${productId}`, 'PATCH', payload);
             if (response && (response.status === 'success' || response.id)) {
                 showMessage('Product updated successfully', 'success');
                 router.push('/products/list');

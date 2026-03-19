@@ -163,7 +163,7 @@ const AccountantManagerList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddAccountantManager}
-                    addButtonLabel="Add New Accountant Manager"
+                    addButtonLabel="Add"
                 />
             )}
         </div>

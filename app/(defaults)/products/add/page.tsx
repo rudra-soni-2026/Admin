@@ -36,7 +36,6 @@ export default function AddProduct() {
         description: '',
         product_details: '',
         original_price: '',
-        price: '',
         p_category: '', 
         categoryId: '', 
         subcategory_id: '', 
@@ -385,29 +384,16 @@ export default function AddProduct() {
                                     <label className="text-xs font-bold uppercase">Unit Label (e.g. 1kg)</label>
                                     <input id="unit_label" type="text" className="form-input" value={formData.unit_label} onChange={handleChange} />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
-                                    <div>
-                                        <label className="text-xs font-bold uppercase text-danger font-black tracking-widest">MRP (Original Price) *</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
-                                            <input id="original_price" type="text" className="form-input pl-8 border-danger/30 focus:border-danger transition-all font-bold text-danger" value={formData.original_price} onChange={(e) => {
-                                                const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                setFormData(prev => ({ ...prev, original_price: val }));
-                                            }} placeholder="0.00" />
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 mt-1 italic">* Original Market Price</p>
+                                <div className="md:col-span-2">
+                                    <label className="text-xs font-bold uppercase text-danger font-black tracking-widest">MRP (Original Price) *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
+                                        <input id="original_price" type="text" className="form-input pl-8 border-danger/30 focus:border-danger transition-all font-bold text-danger" value={formData.original_price} onChange={(e) => {
+                                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                                            setFormData(prev => ({ ...prev, original_price: val }));
+                                        }} placeholder="0.00" />
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold uppercase text-success font-black tracking-widest">Selling Price (Offer Price) *</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
-                                            <input id="price" type="text" className="form-input pl-8 border-success/30 focus:border-success transition-all font-bold text-success" value={formData.price} onChange={(e) => {
-                                                const val = e.target.value.replace(/[^0-9.]/g, '');
-                                                setFormData(prev => ({ ...prev, price: val }));
-                                            }} placeholder="0.00" />
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 mt-1 italic">* Price customer will pay</p>
-                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1 italic">* Original Market Price shown to customer</p>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold uppercase">Display Order</label>

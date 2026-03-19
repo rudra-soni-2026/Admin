@@ -114,7 +114,7 @@ const CategoryList = () => {
             if (currentLevel >= 2) return;
 
             try {
-                const response = await callApi(`/products/sub-categories/${categoryId}`, 'GET');
+                const response = await callApi(`management/admin/sub-categories/${categoryId}`, 'GET');
                 if (response?.data?.subCategories) {
                     const children = response.data.subCategories.map((child: any) => ({
                         id: child._id ? `#${String(child._id).substring(18).toUpperCase()}` : '#UNKNOWN',
@@ -122,7 +122,11 @@ const CategoryList = () => {
                         name: child.name || 'Unknown Sub',
                         image: child.image || '/assets/images/profile-12.jpeg',
                         status: child.isActive ? 'Active' : 'Inactive',
-                        joinedDate: child.createdAt ? new Date(child.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A',
+                        joinedDate: child.createdAt
+                            ? new Date(child.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+                            : child.updatedAt
+                            ? new Date(child.updatedAt).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+                            : '—',
                         level: currentLevel + 1,
                         isExpanded: false,
                         raw: child
@@ -154,6 +158,21 @@ const CategoryList = () => {
 
     const handleEditCategory = (item: any) => {
         router.push(`/categories/edit/${item.originalId}`);
+    };
+
+    const handleStatusToggle = async (itemId: any, currentStatus: string) => {
+        try {
+            const newStatus = currentStatus === 'Active' ? false : true;
+            await callApi(`/management/admin/categories/${itemId}`, 'PATCH', { isActive: newStatus });
+            // Update local state immediately for smooth UX
+            setCategoryData(prev => prev.map(cat =>
+                cat.originalId === itemId
+                    ? { ...cat, status: newStatus ? 'Active' : 'Inactive' }
+                    : cat
+            ));
+        } catch (error) {
+            console.error('Status toggle error:', error);
+        }
     };
 
     const columns = [
@@ -200,6 +219,8 @@ const CategoryList = () => {
                     addButtonLabel="Add New Category"
                     onViewClick={handleToggleExpand}
                     onEditClick={handleEditCategory}
+                    onStatusToggle={handleStatusToggle}
+                    hideDelete={true}
                 />
             )}
         </div>

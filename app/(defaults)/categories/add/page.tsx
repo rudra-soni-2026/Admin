@@ -262,72 +262,46 @@ export default function AddCategory() {
                             </div>
                         )}
 
-                        {/* Image Selection (Conditional) */}
-                        {formData.level > 0 && (
-                            <div className="md:col-span-2">
-                                <label className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-2 block">Category Image</label>
-                                <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-                                    <ImageUploading value={images} onChange={onImageChange} maxNumber={1}>
-                                        {({ imageList, onImageUpload, onImageUpdate, onImageRemove, dragProps }) => (
-                                            <div className="flex items-center gap-4">
-                                                {imageList.length === 0 ? (
-                                                    <button
-                                                        type="button"
-                                                        className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/40 hover:bg-primary/5 transition-all w-full justify-center"
-                                                        onClick={onImageUpload}
-                                                        {...dragProps}
-                                                    >
-                                                        <IconCamera className="w-5 h-5 text-primary" />
-                                                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Click or Drag to Upload Image</span>
-                                                    </button>
-                                                ) : (
-                                                    <div className="flex items-center gap-4 w-full">
-                                                        <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm shrink-0">
-                                                            <img src={imageList[0].dataURL} alt="Preview" className="w-full h-full object-cover" />
-                                                        </div>
-                                                        <div className="flex flex-col gap-2">
-                                                            <div className="text-xs font-bold text-gray-700 dark:text-white-light">Image Selected</div>
-                                                            <div className="flex gap-2">
-                                                                <button type="button" onClick={() => onImageUpdate(0)} className="btn btn-xs btn-outline-primary px-2 py-1 text-[10px]">Change</button>
-                                                                <button type="button" onClick={() => onImageRemove(0)} className="btn btn-xs btn-outline-danger px-2 py-1 text-[10px]">Remove</button>
-                                                            </div>
+                        {/* Image Selection - Show for ALL levels */}
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-2 block">Category Image</label>
+                            <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                <ImageUploading value={images} onChange={onImageChange} maxNumber={1}>
+                                    {({ imageList, onImageUpload, onImageUpdate, onImageRemove, dragProps }) => (
+                                        <div className="flex items-center gap-4">
+                                            {imageList.length === 0 ? (
+                                                <button
+                                                    type="button"
+                                                    className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/40 hover:bg-primary/5 transition-all w-full justify-center"
+                                                    onClick={onImageUpload}
+                                                    {...dragProps}
+                                                >
+                                                    <IconCamera className="w-5 h-5 text-primary" />
+                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Click or Drag to Upload Image</span>
+                                                </button>
+                                            ) : (
+                                                <div className="flex items-center gap-4 w-full">
+                                                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm shrink-0">
+                                                        <img src={imageList[0].dataURL} alt="Preview" className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="text-xs font-bold text-gray-700 dark:text-white-light">Image Selected</div>
+                                                        <div className="flex gap-2">
+                                                            <button type="button" onClick={() => onImageUpdate(0)} className="btn btn-xs btn-outline-primary px-2 py-1 text-[10px]">Change</button>
+                                                            <button type="button" onClick={() => onImageRemove(0)} className="btn btn-xs btn-outline-danger px-2 py-1 text-[10px]">Remove</button>
                                                         </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </ImageUploading>
-                                </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </ImageUploading>
                             </div>
-                        )}
+                        </div>
 
-                        {/* Background Color & Order Row */}
-                        <div className={`grid gap-4 md:col-span-2 ${formData.level > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                            {formData.level > 0 && (
-                                <div>
-                                    <label htmlFor="bg_color" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-2 block">UI Background Color</label>
-                                    <div className="flex items-center gap-2">
-                                        <input 
-                                            id="bg_color" 
-                                            type="color" 
-                                            className="p-1 border border-gray-200 dark:border-gray-700 w-12 h-10 rounded-lg cursor-pointer bg-white dark:bg-black" 
-                                            value={formData.bg_color} 
-                                            onChange={handleChange} 
-                                        />
-                                        <input 
-                                            type="text" 
-                                            className="form-input py-2 text-sm flex-1 uppercase" 
-                                            value={formData.bg_color} 
-                                            onChange={(e) => setFormData({...formData, bg_color: e.target.value})} 
-                                            placeholder="#F4F4F4"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                            <div className={formData.level === 0 ? "md:col-span-1" : ""}>
-                                <label htmlFor="order" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-2 block">Display Priority (Order)</label>
-                                <input id="order" type="number" placeholder="0" className="form-input py-2 text-sm" value={formData.order} onChange={handleChange} />
-                            </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="order" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-2 block">Display Priority (Order)</label>
+                            <input id="order" type="number" placeholder="0" className="form-input py-2 text-sm" value={formData.order} onChange={handleChange} />
                         </div>
 
                         {/* Status Toggle */}

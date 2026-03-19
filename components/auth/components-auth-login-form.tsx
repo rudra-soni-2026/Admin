@@ -20,12 +20,27 @@ const ComponentsAuthLoginForm = () => {
 
             if (response.data && response.data.token) {
                 localStorage.setItem('AdminToken', response.data.token);
+                if (response.data.permissions) {
+                    localStorage.setItem('permissions', JSON.stringify(response.data.permissions));
+                }
+                if (response.data.role) {
+                    localStorage.setItem('role', response.data.role);
+                }
+                localStorage.setItem('userData', JSON.stringify(response.data));
                 router.push('/');
             } else {
                 // If token is directly in response or under a different key, adjust here
                 const token = response.token || response.accessToken || response.data?.accessToken;
+                const permissions = response.data?.permissions || response.permissions;
+                const role = response.data?.role || response.role;
                 if (token) {
                     localStorage.setItem('AdminToken', token);
+                    if (permissions) {
+                        localStorage.setItem('permissions', JSON.stringify(permissions));
+                    }
+                    if (role) {
+                        localStorage.setItem('role', role);
+                    }
                     router.push('/');
                 } else {
                     alert('Token not found in response');

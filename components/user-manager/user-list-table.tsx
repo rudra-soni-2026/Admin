@@ -46,6 +46,7 @@ interface UserListTableProps {
     hideAction?: boolean;
     hideDelete?: boolean;
     hideView?: boolean;
+    hideFilter?: boolean;
 }
 
 const UserListTable = ({
@@ -81,13 +82,14 @@ const UserListTable = ({
     hideAction = false,
     hideDelete = false,
     hideView = false,
+    hideFilter = false,
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
 
     return (
         <div className="mt-1">
-            <div className="panel overflow-visible">
-                <div className="mb-1 flex flex-col items-center justify-between gap-1 sm:flex-row">
+            <div className="panel overflow-hidden shadow-sm border-gray-100 p-0">
+                <div className="mb-1 flex flex-col gap-1 p-2 sm:px-8 sm:py-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2">
                         <h5 className="text-lg font-black text-black dark:text-white-light tracking-tight">{title}</h5>
                         <div className="flex flex-wrap items-center gap-1">
@@ -103,12 +105,12 @@ const UserListTable = ({
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0">
+                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                         <div className="relative flex-1 sm:flex-initial sm:w-48">
                             <input
                                 type="text"
                                 placeholder="Search..."
-                                className="form-input peer !bg-gray-50 !border-gray-100 focus:!border-primary/40 focus:!bg-white transition-all text-xs py-1 rounded-md"
+                                className="form-input peer !bg-gray-50 !border-gray-100 focus:!border-primary/40 focus:!bg-white transition-all text-sm py-2 rounded-lg"
                                 value={search}
                                 onChange={(e) => onSearchChange?.(e.target.value)}
                             />
@@ -116,14 +118,16 @@ const UserListTable = ({
                                 <IconSearch className="h-3.5 w-3.5 opacity-40" />
                             </div>
                         </div>
-                        <button type="button" className="btn btn-primary btn-sm border-primary bg-primary px-2.5 py-1 gap-1 shadow-sm transition-all" onClick={() => setShowFilter(true)}>
-                            <IconFilter className="h-3.5 w-3.5" />
-                            <span className="text-[11px] font-bold uppercase">Filter</span>
-                        </button>
+                        {!hideFilter && (
+                            <button type="button" className="btn btn-outline-primary btn-sm px-4 py-2 gap-2 shadow-sm transition-all" onClick={() => setShowFilter(true)}>
+                                <IconFilter className="h-4 w-4" />
+                                <span className="text-[12px] font-bold uppercase">Filter</span>
+                            </button>
+                        )}
                         {onAddClick && (
-                            <button type="button" className="btn btn-primary btn-sm border-primary bg-primary px-2.5 py-1 gap-1 shadow-sm transition-all" onClick={onAddClick}>
-                                <IconPlus className="h-3.5 w-3.5" />
-                                <span className="text-[11px] font-bold uppercase">{addButtonLabel || 'Add'}</span>
+                            <button type="button" className="btn btn-primary btn-sm px-4 py-2 gap-2 shadow-sm transition-all" onClick={onAddClick}>
+                                <IconPlus className="h-4 w-4" />
+                                <span className="text-[12px] font-bold uppercase">{addButtonLabel || 'Add'}</span>
                             </button>
                         )}
                     </div>
@@ -147,24 +151,24 @@ const UserListTable = ({
                     setMaxPrice={onMaxPriceChange}
                 />
 
-                <div className="table-responsive mb-3 overflow-visible">
-                    <table className="table-hover whitespace-nowrap">
+                <div className="table-responsive mb-0 overflow-x-auto border-t border-gray-100">
+                    <table className="table-hover w-full min-w-[800px]">
                         <thead>
                             <tr>
                                 {columns.map((col) => (
-                                    <th key={col.key} className={`px-1.5 py-1.5 text-[10px] tracking-wider font-bold uppercase text-gray-500 dark:text-white-light border-b border-gray-100 ${col.key === 'status' ? 'text-center' : ''}`}>
+                                    <th key={col.key} className={`px-4 py-2 text-[11px] tracking-[0.05em] font-black uppercase text-gray-600 dark:text-gray-400 border-b border-gray-100 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${col.key === 'name' ? 'min-w-[200px]' : ''} ${col.key === 'image' ? 'w-[70px]' : ''} ${col.key === 'barcode' ? 'w-[140px]' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
                                         {col.label}
                                     </th>
                                 ))}
-                                {!hideAction && <th className="text-center w-1 px-1 py-1 text-[10px] uppercase font-black tracking-tighter">Action</th>}
+                                {!hideAction && <th className="text-center w-1 px-4 py-2 text-[11px] uppercase font-black tracking-[0.05em] text-gray-600 dark:text-gray-400 border-b border-gray-100 sm:pr-8">Action</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {data.length > 0 ? (
                                 data.map((item) => (
-                                    <tr key={item.id}>
+                                    <tr key={item.id} className="bg-white dark:bg-transparent border-t border-gray-100">
                                         {columns.map((col) => (
-                                            <td key={col.key} className={`px-2 py-1.5 ${col.key === 'status' ? 'text-center' : ''}`}>
+                                            <td key={col.key} className={`px-4 py-1.5 sm:py-2 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
                                                 {col.key === 'user' ? (
                                                     <div 
                                                         className={`flex items-center gap-2 ${onViewClick ? 'cursor-pointer group' : ''}`}
@@ -197,7 +201,7 @@ const UserListTable = ({
                                                     )
                                                 ) : col.key === 'image' ? (
                                                     <div 
-                                                        className={`h-8 w-8 overflow-hidden rounded-full shrink-0 shadow-sm border border-gray-100 bg-gray-50 ${onViewClick ? 'cursor-pointer hover:border-primary/50 transition-all' : ''}`}
+                                                        className={`h-8 w-8 overflow-hidden ${userType === 'Product' ? 'rounded-lg' : 'rounded-full'} shrink-0 shadow-sm border border-gray-100 bg-gray-50 mx-auto ${onViewClick ? 'cursor-pointer hover:border-primary/50 transition-all' : ''}`}
                                                         onClick={() => onViewClick?.(item)}
                                                     >
                                                         <img src={item.image || item.user?.image || '/assets/images/profile-5.jpeg'} alt="profile" className="h-full w-full object-cover" />
@@ -283,15 +287,15 @@ const UserListTable = ({
                                                         <span className="block h-full rounded-full border border-[#adb5bd] bg-white before:absolute before:bottom-[2px] before:h-3 before:w-3 before:rounded-full before:bg-[#adb5bd] before:transition-all before:duration-300 ltr:before:left-0.5 peer-checked:border-primary peer-checked:bg-primary peer-checked:before:bg-white ltr:peer-checked:before:left-4.5 rtl:before:right-0.5 rtl:peer-checked:before:right-4.5 dark:bg-dark dark:before:bg-white-dark"></span>
                                                     </label>
                                                 ) : (
-                                                    <div className="text-[12px] font-semibold text-gray-700 dark:text-white-light leading-snug">
+                                                    <div className="text-[12px] font-bold text-gray-700 dark:text-white-light leading-snug">
                                                         {item[col.key]}
                                                     </div>
                                                 )}
                                             </td>
                                         ))}
                                         {!hideAction && (
-                                            <td className="text-center">
-                                                <div className="flex items-center justify-center gap-1.5">
+                                            <td className="text-center sm:pr-8">
+                                                <div className="flex items-center justify-center gap-3">
                                                     {!hideView && userType !== 'Category' && (
                                                         <Tippy content="View">
                                                             <button
@@ -336,8 +340,8 @@ const UserListTable = ({
                 </div>
 
                 {totalRecords > 0 && onPageChange && (
-                    <div className="mt-4 flex flex-col items-center justify-between gap-3 md:flex-row">
-                        <div className="text-[11px] font-medium text-gray-400">
+                    <div className="flex flex-col items-center justify-between gap-4 p-5 border-t border-gray-100 sm:flex-row">
+                        <div className="text-[12px] font-bold text-gray-500">
                             Showing {Math.min((page - 1) * pageSize + 1, totalRecords)} to {Math.min(page * pageSize, totalRecords)} of {totalRecords} entries
                         </div>
                         <ul className="inline-flex items-center space-x-1 rtl:space-x-reverse">

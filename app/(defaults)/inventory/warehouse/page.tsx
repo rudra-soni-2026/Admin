@@ -30,12 +30,11 @@ const WarehouseInventory = () => {
             const response = await callApi(query, 'GET');
             if (response?.data) {
                 const mappedData = response.data.map((item: any) => ({
-                    id: `#WH-${item._id?.slice(-4).toUpperCase() || 'INV'}`,
-                    warehouse: item.warehouse?.name || 'N/A',
-                    product: item.product?.name || 'Unknown',
-                    stock: `${item.stock_count} units`,
-                    lastUpdated: item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'Never',
-                    status: item.stock_count > 20 ? 'Active' : 'Inactive',
+                    id: item.id || `#WH-${item._id?.slice(-4).toUpperCase() || 'INV'}`,
+                    image: item.product?.image || '/assets/images/profile-1.jpeg',
+                    product: item.product?.name || 'Unknown Product',
+                    unit: item.product?.unit_label || 'N/A',
+                    stock: `${item.stock_count || 0} units`,
                 }));
                 setInventoryData(mappedData);
                 setTotalRecords(response.totalCount || 0);
@@ -52,12 +51,10 @@ const WarehouseInventory = () => {
     }, [page, debouncedSearch, pageSize]);
 
     const columns = [
-        { key: 'id', label: 'Batch ID' },
-        { key: 'warehouse', label: 'Warehouse Name' },
+        { key: 'image', label: 'Image' },
         { key: 'product', label: 'Product Name' },
-        { key: 'stock', label: 'In Stock' },
-        { key: 'lastUpdated', label: 'Updated' },
-        { key: 'status', label: 'Stock Health' },
+        { key: 'unit', label: 'Unit' },
+        { key: 'stock', label: 'Total Stock' },
     ];
 
     return (
@@ -87,12 +84,13 @@ const WarehouseInventory = () => {
                     columns={columns} 
                     userType="Inventory" 
                     totalRecords={totalRecords}
+                    totalUsers={totalRecords}
                     page={page}
                     pageSize={pageSize}
                     onPageChange={(p) => setPage(p)}
                     search={search}
                     onSearchChange={setSearch}
-                    onAddClick={() => window.location.href = '/inventory/transfer'}
+                    onAddClick={() => window.location.href = '/inventory/request'}
                     addButtonLabel="Transfer Stock"
                     hideView={true}
                     hideDelete={true}

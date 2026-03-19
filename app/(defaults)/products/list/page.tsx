@@ -66,14 +66,23 @@ const ProductList = () => {
                     brand: product.brand || 'N/A',
                     barcode: product.utc_id || 'N/A',
                     image: product.image || '/assets/images/profile-1.jpeg',
-                    category: product.categoryId?.name || 'N/A',
+                    // categoryId can be a populated object, or a string ID — try all paths
+                    category: product.subcategory_id?.name
+                        || (typeof product.subcategory_id === 'string' && product.subcategory_id ? product.subcategory_id : null)
+                        || product.subcategory_id?.name
+                        || product.subcategory_id
+                        || 'N/A',
                     price: product.price !== undefined ? `₹${product.price}` : '₹0',
-                    mrp: product.original_price ? `₹${product.original_price}` : 'N/A',
+                    mrp: product.original_price !== undefined ? `₹${Number(product.original_price) || 0}` : '₹0',
                     status: product.isActive ? 'Active' : 'Inactive',
                     joinedDate: product.createdAt ? new Date(product.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
                 }));
                 setProductData(mappedData);
-                const count = response.totalCount !== undefined ? response.totalCount : (response.stats?.totalProduct || 0);
+                const count = 
+                    response.pagination?.total_items ??
+                    response.totalCount ??
+                    response.stats?.totalProduct ??
+                    0;
                 setTotalRecords(count);
                 setTotalProducts(count);
 
@@ -106,27 +115,41 @@ const ProductList = () => {
         router.push(`/products/edit/${item.originalId || item.id}`);
     };
 
+    const handleViewProduct = (item: any) => {
+        router.push(`/products/view/${item.originalId || item.id}`);
+    };
+
+    const handleStatusToggle = async (itemId: any, currentStatus: string) => {
+        try {
+            const newStatus = currentStatus === 'Active' ? false : true;
+            await callApi(`/management/admin/products/status/${itemId}`, 'PATCH', { isActive: newStatus });
+            // Refresh list
+            fetchProducts(page);
+        } catch (error) {
+            console.error('Status toggle error:', error);
+        }
+    };
+
     const columns = [
-        { key: 'barcode', label: 'Barcode / UTC' },
         { key: 'image', label: 'Image' },
         { key: 'name', label: 'Product Name' },
+        { key: 'barcode', label: 'Barcode / UTC' },
         { key: 'brand', label: 'Brand' },
         { key: 'category', label: 'Category' },
-        { key: 'price', label: 'Selling Price (Offer Price)' },
         { key: 'mrp', label: 'MRP' },
         { key: 'status', label: 'Status' },
     ];
 
     return (
         <div>
-            <ul className="mb-6 flex space-x-2 rtl:space-x-reverse">
+            <ul className="mb-6 flex flex-wrap items-center gap-2 text-gray-500 font-bold text-sm">
                 <li>
                     <Link href="/" className="text-primary hover:underline">Dashboard</Link>
                 </li>
-                <li>
-                    <span className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">Products</span>
+                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                    <span>Products</span>
                 </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-black dark:text-white-light">
                     <span>Product List</span>
                 </li>
             </ul>
@@ -156,6 +179,8 @@ const ProductList = () => {
                     onAddClick={handleAddProduct}
                     addButtonLabel="Add New Product"
                     onEditClick={handleEditProduct}
+                    onViewClick={handleViewProduct}
+                    onStatusToggle={handleStatusToggle}
                     categoryId={categoryId}
                     onCategoryIdChange={setCategoryId}
                     brand={brand}
@@ -164,6 +189,7 @@ const ProductList = () => {
                     onMinPriceChange={setMinPrice}
                     maxPrice={maxPrice}
                     onMaxPriceChange={setMaxPrice}
+                    hideDelete={true}
                 />
             )}
         </div>

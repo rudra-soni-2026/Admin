@@ -140,6 +140,7 @@ const WarehouseList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddWarehouse}
+                    onEditClick={(item: any) => router.push(`/warehouses/edit/${item.originalId}`)}
                     addButtonLabel="Create New Warehouse"
                 />
             )}
