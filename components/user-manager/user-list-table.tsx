@@ -10,6 +10,9 @@ import IconPlus from '@/components/icon/icon-plus';
 import IconEye from '@/components/icon/icon-eye';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconFolder from '@/components/icon/icon-folder';
+import IconDownload from '@/components/icon/icon-download';
+import IconLock from '@/components/icon/icon-lock';
+import IconBox from '@/components/icon/icon-box';
 import FilterDrawer from '@/components/user-manager/filter-drawer';
 
 interface UserListTableProps {
@@ -29,8 +32,10 @@ interface UserListTableProps {
     dateRange?: any;
     onDateRangeChange?: (val: any) => void;
     onStatusToggle?: (userId: any, currentStatus: string) => void;
+    onStatusClick?: (item: any) => void;
     onViewClick?: (user: any) => void;
     onEditClick?: (item: any) => void;
+    onPermissionEdit?: (item: any) => void;
     userType?: string;
     onAddClick?: () => void;
     addButtonLabel?: string;
@@ -47,6 +52,9 @@ interface UserListTableProps {
     hideDelete?: boolean;
     hideView?: boolean;
     hideFilter?: boolean;
+    onDownloadClick?: (item: any) => void;
+    onStockClick?: (item: any) => void;
+    disableNameClick?: boolean;
 }
 
 const UserListTable = ({
@@ -66,8 +74,12 @@ const UserListTable = ({
     dateRange = '',
     onDateRangeChange,
     onStatusToggle,
+    onStatusClick,
     onViewClick,
     onEditClick,
+    onPermissionEdit,
+    onDownloadClick,
+    onStockClick,
     userType = 'User',
     onAddClick,
     addButtonLabel,
@@ -83,6 +95,7 @@ const UserListTable = ({
     hideDelete = false,
     hideView = false,
     hideFilter = false,
+    disableNameClick = false
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
 
@@ -156,7 +169,7 @@ const UserListTable = ({
                         <thead>
                             <tr>
                                 {columns.map((col) => (
-                                    <th key={col.key} className={`px-4 py-2 text-[11px] tracking-[0.05em] font-black uppercase text-gray-600 dark:text-gray-400 border-b border-gray-100 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${col.key === 'name' ? 'min-w-[200px]' : ''} ${col.key === 'image' ? 'w-[70px]' : ''} ${col.key === 'barcode' ? 'w-[140px]' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
+                                    <th key={col.key} className={`px-4 py-2 text-[11px] tracking-[0.05em] font-black uppercase text-gray-600 dark:text-gray-400 border-b border-gray-100 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${col.key === 'name' ? 'min-w-[120px]' : ''} ${col.key === 'image' ? 'w-[70px]' : ''} ${col.key === 'barcode' ? 'w-[140px]' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
                                         {col.label}
                                     </th>
                                 ))}
@@ -171,8 +184,8 @@ const UserListTable = ({
                                             <td key={col.key} className={`px-4 py-1.5 sm:py-2 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
                                                 {col.key === 'user' ? (
                                                     <div 
-                                                        className={`flex items-center gap-2 ${onViewClick ? 'cursor-pointer group' : ''}`}
-                                                        onClick={() => onViewClick?.(item)}
+                                                        className={`flex items-center gap-2 ${onViewClick && !disableNameClick ? 'cursor-pointer group' : ''}`}
+                                                        onClick={() => !disableNameClick && onViewClick?.(item)}
                                                     >
                                                         {!columns.some(c => c.key === 'image') && (
                                                             <div className="h-8 w-8 overflow-hidden rounded-full shrink-0 shadow-sm border border-gray-100 bg-gray-50 group-hover:border-primary/50 transition-all">
@@ -180,19 +193,16 @@ const UserListTable = ({
                                                             </div>
                                                         )}
                                                         <div className="flex flex-col leading-tight">
-                                                            <div className="text-[12px] font-bold text-black dark:text-white-light group-hover:text-primary transition-colors group-hover:underline">
+                                                            <div className={`text-[12px] font-bold text-black dark:text-white-light ${!disableNameClick ? 'group-hover:text-primary transition-colors group-hover:underline' : ''}`}>
                                                                 {item.user?.name || item.name}
                                                             </div>
-                                                            {!columns.some(c => c.key === 'email') && (
-                                                                <div className="text-[10px] text-gray-400 font-medium">{item.user?.email || item.email}</div>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 ) : col.key === 'id' ? (
                                                     (userType === 'Category' && item.level === 0) || userType !== 'Category' ? (
                                                         <div
-                                                            className={`text-[12px] font-black text-black dark:text-white-light tracking-tight ${onViewClick ? 'cursor-pointer hover:underline' : ''}`}
-                                                            onClick={() => onViewClick?.(item)}
+                                                            className={`text-[12px] font-black text-black dark:text-white-light tracking-tight ${onViewClick && !disableNameClick ? 'cursor-pointer hover:underline' : ''}`}
+                                                            onClick={() => !disableNameClick && onViewClick?.(item)}
                                                         >
                                                             {item.id}
                                                         </div>
@@ -201,17 +211,17 @@ const UserListTable = ({
                                                     )
                                                 ) : col.key === 'image' ? (
                                                     <div 
-                                                        className={`h-8 w-8 overflow-hidden ${userType === 'Product' ? 'rounded-lg' : 'rounded-full'} shrink-0 shadow-sm border border-gray-100 bg-gray-50 mx-auto ${onViewClick ? 'cursor-pointer hover:border-primary/50 transition-all' : ''}`}
-                                                        onClick={() => onViewClick?.(item)}
+                                                        className={`h-8 w-8 overflow-hidden ${userType === 'Product' ? 'rounded-lg' : 'rounded-full'} shrink-0 shadow-sm border border-gray-100 bg-gray-50 mx-auto ${onViewClick && !disableNameClick ? 'cursor-pointer hover:border-primary/50 transition-all' : ''}`}
+                                                        onClick={() => !disableNameClick && onViewClick?.(item)}
                                                     >
                                                         <img src={item.image || item.user?.image || '/assets/images/profile-5.jpeg'} alt="profile" className="h-full w-full object-cover" />
                                                     </div>
                                                 ) : col.key === 'name' ? (
                                                     userType === 'Category' ? (
                                                         <div 
-                                                            className="flex items-center group cursor-pointer relative py-0.5 h-full"
+                                                            className={`flex items-center group relative py-0.5 h-full ${onViewClick && !disableNameClick ? 'cursor-pointer' : ''}`}
                                                             style={{ paddingLeft: `${item.level * 28}px` }}
-                                                            onClick={() => onViewClick?.(item)}
+                                                            onClick={() => !disableNameClick && onViewClick?.(item)}
                                                         >
                                                             {/* Continuous Vertical Tree Line */}
                                                             {item.level > 0 && (
@@ -270,12 +280,17 @@ const UserListTable = ({
                                                         </div>
                                                     ) : (
                                                         <div
-                                                            className={`text-[12px] font-bold text-black dark:text-white-light ${onViewClick && userType !== 'Product' ? 'cursor-pointer hover:text-primary transition-colors hover:underline' : ''}`}
-                                                            onClick={() => userType !== 'Product' && onViewClick?.(item)}
+                                                            className={`text-[12px] font-bold text-black dark:text-white-light ${onViewClick && !disableNameClick && userType !== 'Product' ? 'cursor-pointer hover:text-primary transition-colors hover:underline' : ''}`}
+                                                            onClick={() => userType !== 'Product' && !disableNameClick && onViewClick?.(item)}
                                                         >
                                                             {item.name || item.user?.name}
                                                         </div>
                                                     )
+                                                ) : col.key === 'phone' ? (
+                                                    <div className="flex flex-col leading-tight text-[12px] font-bold text-gray-700 dark:text-white-light leading-snug">
+                                                        <span>{item.phone}</span>
+                                                        {item.email && <span className="text-[10px] text-gray-400 font-medium normal-case">{item.email}</span>}
+                                                    </div>
                                                 ) : col.key === 'status' ? (
                                                     <label className="relative mb-0 inline-block h-4 w-8 cursor-pointer">
                                                         <input
@@ -286,6 +301,25 @@ const UserListTable = ({
                                                         />
                                                         <span className="block h-full rounded-full border border-[#adb5bd] bg-white before:absolute before:bottom-[2px] before:h-3 before:w-3 before:rounded-full before:bg-[#adb5bd] before:transition-all before:duration-300 ltr:before:left-0.5 peer-checked:border-primary peer-checked:bg-primary peer-checked:before:bg-white ltr:peer-checked:before:left-4.5 rtl:before:right-0.5 rtl:peer-checked:before:right-4.5 dark:bg-dark dark:before:bg-white-dark"></span>
                                                     </label>
+                                                ) : col.key === 'purchase_status' ? (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${item[col.key] === 'Received' ? 'bg-success/10 text-success border-success/20' : item[col.key] === 'Pending' ? 'bg-warning/10 text-warning border-warning/20' : 'bg-info/10 text-info border-info/20'}`}>
+                                                        {item[col.key]}
+                                                    </span>
+                                                ) : col.key === 'status_label' ? (
+                                                    <span 
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border cursor-pointer hover:opacity-80 transition-all ${
+                                                            item[col.key] === 'COMPLETED' ? 'bg-success/10 text-success border-success/20' : 
+                                                            item[col.key] === 'PENDING' ? 'bg-warning/10 text-warning border-warning/20' : 
+                                                            item[col.key] === 'OUT_FOR_DELIVERY' ? 'bg-info/10 text-info border-info/20' : 
+                                                            'bg-danger/10 text-danger border-danger/20'
+                                                        }`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onStatusClick?.(item);
+                                                        }}
+                                                    >
+                                                        {item[col.key]}
+                                                    </span>
                                                 ) : (
                                                     <div className="text-[12px] font-bold text-gray-700 dark:text-white-light leading-snug">
                                                         {item[col.key]}
@@ -296,7 +330,7 @@ const UserListTable = ({
                                         {!hideAction && (
                                             <td className="text-center sm:pr-8">
                                                 <div className="flex items-center justify-center gap-3">
-                                                    {!hideView && userType !== 'Category' && (
+                                                    {!hideView && userType !== 'Category' && onViewClick && (
                                                         <Tippy content="View">
                                                             <button
                                                                 type="button"
@@ -307,15 +341,50 @@ const UserListTable = ({
                                                             </button>
                                                         </Tippy>
                                                     )}
-                                                    <Tippy content="Edit">
-                                                        <button 
-                                                            type="button" 
-                                                            className="p-1 text-success hover:text-success-dark transition-colors"
-                                                            onClick={() => onEditClick?.(item)}
-                                                        >
-                                                            <IconPencil className="h-4 w-4" />
-                                                        </button>
-                                                    </Tippy>
+                                                    {onEditClick && (
+                                                        <Tippy content="Edit">
+                                                            <button 
+                                                                type="button" 
+                                                                className="p-1 text-success hover:text-success-dark transition-colors"
+                                                                onClick={() => onEditClick?.(item)}
+                                                            >
+                                                                <IconPencil className="h-4 w-4" />
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
+                                                    {onPermissionEdit && (
+                                                        <Tippy content="Permissions">
+                                                            <button 
+                                                                type="button" 
+                                                                className="p-1 text-warning hover:text-warning-dark transition-colors"
+                                                                onClick={() => onPermissionEdit?.(item)}
+                                                            >
+                                                                <IconLock className="h-4 w-4" />
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
+                                                    {onDownloadClick && (
+                                                        <Tippy content="Download">
+                                                            <button 
+                                                                type="button" 
+                                                                className="p-1 text-info hover:text-info-dark transition-colors"
+                                                                onClick={() => onDownloadClick?.(item)}
+                                                            >
+                                                                <IconDownload className="h-4 w-4" />
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
+                                                    {onStockClick && (
+                                                        <Tippy content="View Stock / Inventory">
+                                                            <button 
+                                                                type="button" 
+                                                                className="p-1 text-info hover:text-info-dark transition-colors"
+                                                                onClick={() => onStockClick?.(item)}
+                                                            >
+                                                                <IconBox className="h-4 w-4" />
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
                                                     {!hideDelete && (
                                                         <Tippy content="Delete">
                                                             <button type="button" className="p-1 text-danger hover:text-danger-dark transition-colors">

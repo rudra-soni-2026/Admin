@@ -132,9 +132,8 @@ const AdminList = () => {
         { key: 'id', label: 'ID' },
         { key: 'image', label: 'Image' },
         { key: 'name', label: 'Admin Name' },
-        { key: 'email', label: 'Email' },
         { key: 'phone', label: 'Phone' },
-        { key: 'role', label: 'Role' },
+        { key: 'joinedDate', label: 'Joined' },
         { key: 'status', label: 'Status' },
     ];
 
@@ -176,7 +175,17 @@ const AdminList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddAdmin}
+                    onEditClick={(item: any) => {
+                        localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/admins/edit/${item.originalId}`);
+                    }}
+                    onPermissionEdit={(item: any) => {
+                        router.push(`/admins/permissions/${item.originalId}`);
+                    }}
+                    hideDelete={true}
+                    hideView={true}
                     addButtonLabel="Create New Admin"
+                    disableNameClick={true}
                 />
             )}
         </div>

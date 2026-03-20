@@ -44,6 +44,8 @@ import { getTranslation } from '@/i18n';
 import IconPlus from '@/components/icon/icon-plus';
 import IconUsers from '@/components/icon/icon-users';
 import IconRefresh from '@/components/icon/icon-refresh';
+import IconBell from '@/components/icon/icon-bell';
+import IconAward from '@/components/icon/icon-award';
 
 const Sidebar = () => {
     const dispatch = useDispatch();
@@ -327,6 +329,59 @@ const Sidebar = () => {
                                                         </div>
                                                     </Link>
                                                 </li>
+                                            )}
+                                        </ul>
+                                    </li>
+                                </>
+                            )}
+
+                            {(hasPermission('notifications') || hasPermission('coupons') || hasPermission('rankings')) && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                        <IconMinus className="hidden h-5 w-4 flex-none" />
+                                        <span className="text-[11px] opacity-70">Promotion & Ranking</span>
+                                    </h2>
+                                    <li className="nav-item">
+                                        <ul>
+                                            {hasPermission('notifications') && (
+                                                <li className="nav-item">
+                                                    <Link href="/notifications/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconBell className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Notification</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('coupons') && (
+                                                <li className="nav-item">
+                                                    <Link href="/coupons/list" className="group">
+                                                        <div className="flex items-center">
+                                                            <IconTag className="shrink-0 group-hover:!text-primary" />
+                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Coupon</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
+                                            {hasPermission('rankings') && (
+                                                <>
+                                                    <li className="nav-item">
+                                                        <Link href="/rankings/products" className="group">
+                                                            <div className="flex items-center">
+                                                                <IconAward className="shrink-0 group-hover:!text-primary" />
+                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Ranking</span>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                    <li className="nav-item">
+                                                        <Link href="/rankings/categories" className="group">
+                                                            <div className="flex items-center">
+                                                                <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
+                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Category Ranking</span>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                </>
                                             )}
                                         </ul>
                                     </li>

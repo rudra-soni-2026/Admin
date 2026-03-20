@@ -51,6 +51,7 @@ export default function AddStore() {
     });
 
     const [polygons, setPolygons] = useState<any[]>([]);
+    const [existingStores, setExistingStores] = useState<any[]>([]);
     const mapRef = useRef<google.maps.Map | null>(null);
 
     const { isLoaded } = useJsApiLoader({
@@ -61,17 +62,36 @@ export default function AddStore() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [whRes, smRes] = await Promise.all([
+                const [whRes, smRes, stRes] = await Promise.all([
                     callApi('/management/admin/warehouses?limit=100', 'GET'),
-                    callApi('/management/admin/list?role=store_manager&limit=100', 'GET')
+                    callApi('/management/admin/list?role=store_manager&limit=100', 'GET'),
+                    callApi('/management/admin/stores?limit=100', 'GET')
                 ]);
                 if (whRes?.data) setWarehouses(whRes.data);
                 if (smRes?.data) setStoreManagers(smRes.data);
+                if (stRes?.data) setExistingStores(stRes.data);
             } catch (error) {
                 console.error('Error fetching dropdown data:', error);
             }
         };
         fetchData();
+
+        // Get user's current location for default coordinates
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    setFormData(prev => ({
+                        ...prev,
+                        latitude: parseFloat(latitude.toFixed(6)),
+                        longitude: parseFloat(longitude.toFixed(6))
+                    }));
+                },
+                (error) => {
+                    console.log('Location access denied/unavailable:', error);
+                }
+            );
+        }
     }, []);
 
     useEffect(() => {
@@ -323,6 +343,31 @@ export default function AddStore() {
                                                 }
                                             }}
                                         />
+                                        {/* Existing Stores Areas */}
+                                        {existingStores.map((s: any) => {
+                                            if (s.coverage_polygon?.coordinates?.[0]) {
+                                                 const path = s.coverage_polygon.coordinates[0].map((coord: any) => ({ 
+                                                     lng: Number(coord[0]), 
+                                                     lat: Number(coord[1]) 
+                                                 }));
+                                                 return (
+                                                     <Polygon 
+                                                         key={s.id} 
+                                                         path={path}
+                                                         options={{
+                                                             fillColor: '#ef4444',
+                                                             fillOpacity: 0.12,
+                                                             strokeColor: '#dc2626',
+                                                             strokeWeight: 1,
+                                                             strokeOpacity: 0.5,
+                                                             clickable: false
+                                                         }}
+                                                     />
+                                                 );
+                                            }
+                                            return null;
+                                        })}
+                                        {/* Current Drawing Area */}
                                         {polygons.map(p => (
                                             <Polygon 
                                                 key={p.id} 

@@ -88,13 +88,12 @@ const SupplierList = () => {
 
     const handleStatusToggle = async (userId: any, currentStatus: string) => {
         try {
-            const isBanned = currentStatus === 'Active' ? 'true' : 'false';
-            const response = await callApi('/management/admin/ban-user', 'POST', {
-                userId: userId,
-                isBanned: isBanned
+            const willBeBanned = currentStatus === 'Active';
+            const response = await callApi(`/management/admin/suppliers/${userId}`, 'PATCH', {
+                isBanned: willBeBanned
             });
 
-            if (response) {
+            if (response && response.status === 'success') {
                 const toast = Swal.mixin({
                     toast: true,
                     position: 'top-end',
@@ -102,20 +101,17 @@ const SupplierList = () => {
                     timer: 3000,
                     timerProgressBar: true,
                     showCloseButton: true,
-                    customClass: {
-                        popup: isBanned === 'true' ? 'color-danger' : 'color-success',
-                    },
                 });
                 toast.fire({
                     icon: 'success',
-                    title: `Supplier ${isBanned === 'true' ? 'Banned' : 'Unbanned'} successfully`,
+                    title: `Supplier ${willBeBanned ? 'Deactivated' : 'Activated'} Successfully`,
                     padding: '10px 20px',
                 });
 
                 setSupplierData((prev) => 
                     prev.map((item) => 
                         item.originalId === userId 
-                            ? { ...item, status: isBanned === 'true' ? 'Inactive' : 'Active' } 
+                            ? { ...item, status: willBeBanned ? 'Inactive' : 'Active' } 
                             : item
                     )
                 );
@@ -129,6 +125,12 @@ const SupplierList = () => {
 
     const handleAddSupplier = () => {
         router.push('/suppliers/add');
+    };
+
+    const handleEditSupplier = (supplier: any) => {
+        // Save the supplier data to localStorage since GET by ID API is not available
+        localStorage.setItem(`edit_supplier_${supplier.originalId}`, JSON.stringify(supplier));
+        router.push(`/suppliers/edit/${supplier.originalId}`);
     };
 
     const columns = [
@@ -179,8 +181,11 @@ const SupplierList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddSupplier}
+                    onEditClick={handleEditSupplier}
                     addButtonLabel="Create New Supplier"
                     hideView={true}
+                    disableNameClick={true}
+                    hideDelete={true}
                 />
             )}
         </div>

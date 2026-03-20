@@ -31,6 +31,7 @@ const InventoryTransfer = () => {
                     } catch (e) { itemsArray = []; }
                     
                     const totalUnits = itemsArray.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 0), 0);
+                    const firstItem = itemsArray[0] || {};
 
                     return {
                         ...item,
@@ -38,8 +39,9 @@ const InventoryTransfer = () => {
                         originalId: item.id,
                         from: item.source_warehouse?.name || '---',
                         to: item.destination_store?.name || '---',
-                        items_summary: `${itemsArray.length} Items (${totalUnits} Qty)`,
-                        date: new Date(item.created_at).toLocaleString(),
+                        image: firstItem.product?.image || firstItem.product_image || '/assets/images/profile-1.jpeg',
+                        items_summary: `${firstItem.product?.name || firstItem.product_name || 'N/A'} ${itemsArray.length > 1 ? `(+${itemsArray.length - 1} more)` : ''} | Total: ${totalUnits}`,
+                        date: item.createdAt ? new Date(item.createdAt).toLocaleString() : (item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'),
                         status_label: item.status,
                     };
                 });
@@ -115,10 +117,11 @@ const InventoryTransfer = () => {
 
     const columns = [
         { key: 'id', label: 'Reference' },
+        { key: 'image', label: 'Item' },
+        { key: 'items_summary', label: 'Product Details' },
         { key: 'from', label: 'From (Warehouse)' },
         { key: 'to', label: 'To (Store)' },
-        { key: 'items_summary', label: 'Products Info' },
-        { key: 'date', label: 'Time Stamp' },
+        { key: 'date', label: 'Time' },
         { key: 'status_label', label: 'Status' },
     ];
 
@@ -151,11 +154,9 @@ const InventoryTransfer = () => {
                     page={historyPage}
                     pageSize={historyPageSize}
                     onPageChange={(p) => setHistoryPage(p)}
-                    onViewClick={(record) => handleApproveTransfer(record)}
-                    addButtonLabel="Refresh History"
-                    onAddClick={() => fetchTransferHistory()}
+                    onStatusClick={(record) => handleApproveTransfer(record)}
                     hideDelete={true}
-                    hideAction={false}
+                    hideAction={true}
                 />
             )}
         </div>

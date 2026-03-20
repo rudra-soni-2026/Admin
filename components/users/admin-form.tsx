@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { callApi } from '@/utils/api';
@@ -11,11 +11,14 @@ interface AdminFormProps {
     role?: string;
     title?: string;
     redirectPath?: string;
+    id?: string;
+    editData?: any;
 }
 
 const AdminForm = (props: AdminFormProps) => {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -23,6 +26,36 @@ const AdminForm = (props: AdminFormProps) => {
         password: '',
         role: props.role || 'admin'
     });
+
+    const isEdit = !!props.id;
+
+    useEffect(() => {
+        if (isEdit) {
+            setLoading(true);
+            const loadData = async () => {
+                try {
+                    // Try localStorage first
+                    const cached = localStorage.getItem(`edit_user_${props.id}`);
+                    if (cached) {
+                        const data = JSON.parse(cached);
+                        setFormData({
+                            name: data.user?.name || data.name || '',
+                            email: data.email || '',
+                            phone: data.phone || '',
+                            password: '', // Password stays empty on edit unless user changes it
+                            role: props.role || data.role || 'admin'
+                        });
+                    }
+                    // In real app, you'd ALSO fetch from API here
+                } catch (e) {
+                    console.error('Error loading edit data', e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            loadData();
+        }
+    }, [props.id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -51,21 +84,34 @@ const AdminForm = (props: AdminFormProps) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+        if (!formData.name || !formData.email || !formData.phone || (!isEdit && !formData.password)) {
             showMessage('Please fill in all required fields.', 'danger');
             return;
         }
 
         try {
             setLoading(true);
-            const response = await callApi('/auth/admin/join', 'POST', formData);
+            let response;
+            if (isEdit) {
+                // Remove password from payload if it's empty during edit
+                const payload: any = { ...formData };
+                if (!payload.password) delete payload.password;
+                
+                // Generic user update endpoint based on role or plural users
+                let endpoint = `/management/admin/users/${props.id}`;
+                if (props.role === 'store_manager') endpoint = `/management/admin/users/${props.id}`; // Common for all
+                
+                response = await callApi(endpoint, 'PATCH', payload);
+            } else {
+                response = await callApi('/auth/admin/join', 'POST', formData);
+            }
 
-            if (response && response.status === 'success') {
-                showMessage(`${props.title || 'Admin'} created successfully`, 'success');
+            if (response && (response.status === 'success' || response.id)) {
+                showMessage(`${props.title || 'Admin'} ${isEdit ? 'updated' : 'created'} successfully`, 'success');
                 router.push(props.redirectPath || '/admins/list');
             }
         } catch (error: any) {
-            showMessage(error.message || 'Error occurred while creating admin.', 'danger');
+            showMessage(error.message || `Error occurred while ${isEdit ? 'updating' : 'creating'} admin.`, 'danger');
         } finally {
             setLoading(false);
         }
@@ -84,21 +130,21 @@ const AdminForm = (props: AdminFormProps) => {
                     <Link href={props.redirectPath || "/admins/list"} className="text-primary hover:underline">{props.title || 'Admin'} List</Link>
                 </li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Add {props.title || 'Admin'}</span>
+                    <span>{isEdit ? 'Edit' : 'Add'} {props.title || 'Admin'}</span>
                 </li>
             </ul>
 
-            <div className="panel flex items-center justify-between mb-4">
-                <h5 className="text-base font-semibold dark:text-white-light">Create New {props.title || 'Admin'}</h5>
-                <Link href={props.redirectPath || "/admins/list"} className="btn btn-outline-primary gap-2">
+            <div className="panel flex items-center justify-between mb-4 shadow-sm">
+                <h5 className="text-base font-bold dark:text-white-light uppercase tracking-tight">{isEdit ? 'Update' : 'Create New'} {props.title || 'Admin'}</h5>
+                <Link href={props.redirectPath || "/admins/list"} className="btn btn-outline-primary gap-2 btn-sm uppercase font-bold text-[10px]">
                     <IconArrowBackward className="h-4 w-4" />
                     Back to List
                 </Link>
             </div>
 
-            <div className="panel">
+            <div className="panel shadow-sm border-none">
                 <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label htmlFor="name" className="text-[12px] font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1">{props.title || 'Admin'} Name</label>
                             <input 
@@ -133,7 +179,9 @@ const AdminForm = (props: AdminFormProps) => {
                             />
                         </div>
                         <div>
-                            <label htmlFor="password" className="text-[12px] font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1">Password</label>
+                            <label htmlFor="password" className="text-[12px] font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1">
+                                {isEdit ? 'New Password (Leave blank to keep current)' : 'Password'}
+                            </label>
                             <input 
                                 id="password" 
                                 type="password" 
@@ -164,7 +212,7 @@ const AdminForm = (props: AdminFormProps) => {
                             ) : (
                                 <IconSave className="h-4 w-4" />
                             )}
-                            {loading ? 'Processing...' : `Save ${props.title || 'Admin'}`}
+                            {loading ? 'Processing...' : isEdit ? `Update ${props.title || 'Admin'}` : `Save ${props.title || 'Admin'}`}
                         </button>
                     </div>
                 </form>

@@ -176,7 +176,6 @@ const CustomerList = () => {
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'User' },
-        { key: 'email', label: 'Email' },
         { key: 'phone', label: 'Phone' },
         { key: 'cartItemsCount', label: 'Cart' },
         { key: 'orders', label: 'Today | Total' },
@@ -223,6 +222,9 @@ const CustomerList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     userType="Customer"
+                    hideDelete={true}
+                    hideView={true}
+                    hideAction={true}
                 />
             )}
         </div>

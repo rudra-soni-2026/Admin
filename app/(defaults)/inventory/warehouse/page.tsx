@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { callApi } from '@/utils/api';
 import UserManagerTable from '@/components/user-manager/user-manager-table';
 
+import { useSearchParams } from 'next/navigation';
+
 const WarehouseInventory = () => {
+    const searchParams = useSearchParams();
+    const warehouseIdParam = searchParams.get('warehouse_id');
     const [inventoryData, setInventoryData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -24,8 +28,9 @@ const WarehouseInventory = () => {
     const fetchData = async (currentPage: number) => {
         try {
             setLoading(true);
-            let query = `management/admin/warehouse-inventory?page=${currentPage}&limit=${pageSize}`;
+            let query = `/management/admin/warehouse-inventory?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
+            if (warehouseIdParam) query += `&warehouse_id=${warehouseIdParam}`;
             
             const response = await callApi(query, 'GET');
             if (response?.data) {

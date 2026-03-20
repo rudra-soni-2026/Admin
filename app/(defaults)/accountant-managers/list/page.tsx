@@ -119,7 +119,6 @@ const AccountantManagerList = () => {
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'Info' },
-        { key: 'email', label: 'Email' },
         { key: 'phone', label: 'Phone' },
         { key: 'joinedDate', label: 'Joined' },
         { key: 'status', label: 'Status' },
@@ -163,7 +162,13 @@ const AccountantManagerList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddAccountantManager}
-                    addButtonLabel="Add"
+                    onEditClick={(item: any) => {
+                        localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/accountant-managers/edit/${item.originalId}`);
+                    }}
+                    hideDelete={true}
+                    hideView={true}
+                    addButtonLabel="Add New Accountant Manager"
                 />
             )}
         </div>

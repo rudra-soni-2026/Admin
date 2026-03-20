@@ -57,9 +57,18 @@ const WarehouseList = () => {
                     phone: warehouse.contact_number || 'N/A',
                     city: warehouse.city || 'N/A',
                     capacity: warehouse.capacity ? `${warehouse.capacity} Units` : 'N/A',
-                    address: warehouse.address || 'N/A',
                     status: warehouse.isActive ? 'Active' : 'Inactive',
                     joinedDate: warehouse.created_at ? new Date(warehouse.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
+                    // Original fields for Edit fallback
+                    contact_number: warehouse.contact_number || '',
+                    email: warehouse.email || '',
+                    address: warehouse.address || '',
+                    capacity_num: warehouse.capacity || '',
+                    warehouse_manager_id: warehouse.warehouse_manager_id || '',
+                    product_manager_id: warehouse.product_manager_id || '',
+                    account_manager_id: warehouse.account_manager_id || '',
+                    latitude: warehouse.latitude || '',
+                    longitude: warehouse.longitude || '',
                 }));
                 setWarehouseData(mappedData);
                 const count = response.totalCount !== undefined ? response.totalCount : (response.stats?.totalWarehouse || 0);
@@ -86,8 +95,38 @@ const WarehouseList = () => {
     }, [page, debouncedSearch, status, dateRange]);
 
     const handleStatusToggle = async (id: any, currentStatus: string) => {
-        // Implementation for warehouse status toggle if needed
-        console.log('Toggle warehouse status:', id, currentStatus);
+        try {
+            const nextStatus = currentStatus === 'Active' ? false : true;
+            // Use PATCH as requested
+            const response = await callApi(`/management/admin/warehouses/${id}`, 'PATCH', {
+                isActive: nextStatus
+            });
+
+            if (response && response.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: `Warehouse ${nextStatus ? 'Activated' : 'Deactivated'}`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    showCloseButton: true,
+                });
+                fetchWarehouses(page); // Refresh list
+            }
+        } catch (error: any) {
+            console.error('Error toggling warehouse status:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Operation Failed',
+                text: error.message || 'Error occurred while updating status.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                showCloseButton: true,
+            });
+        }
     };
 
     const router = useRouter();
@@ -140,8 +179,14 @@ const WarehouseList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddWarehouse}
-                    onEditClick={(item: any) => router.push(`/warehouses/edit/${item.originalId}`)}
+                    onEditClick={(item: any) => {
+                        localStorage.setItem(`edit_warehouse_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/warehouses/edit/${item.originalId}`)
+                    }}
+                    onStockClick={(item: any) => router.push(`/inventory/warehouse?warehouse_id=${item.originalId}`)}
                     addButtonLabel="Create New Warehouse"
+                    hideDelete={true}
+                    hideView={true}
                 />
             )}
         </div>

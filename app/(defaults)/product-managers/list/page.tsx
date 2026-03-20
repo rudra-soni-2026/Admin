@@ -124,7 +124,6 @@ const ProductManagerList = () => {
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'Info' },
-        { key: 'email', label: 'Email' },
         { key: 'phone', label: 'Phone' },
         { key: 'joinedDate', label: 'Joined' },
         { key: 'status', label: 'Status' },
@@ -168,6 +167,12 @@ const ProductManagerList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddProductManager}
+                    onEditClick={(item: any) => {
+                        localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/product-managers/edit/${item.originalId}`);
+                    }}
+                    hideDelete={true}
+                    hideView={true}
                     addButtonLabel="Add New Product Manager"
                 />
             )}

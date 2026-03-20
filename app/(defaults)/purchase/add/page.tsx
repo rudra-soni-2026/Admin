@@ -13,6 +13,7 @@ import IconBox from '@/components/icon/icon-box';
 import IconListCheck from '@/components/icon/icon-list-check';
 import IconNotes from '@/components/icon/icon-notes';
 import IconFile from '@/components/icon/icon-file';
+import IconFolder from '@/components/icon/icon-folder';
 
 const AddPurchase = () => {
     const router = useRouter();
@@ -48,27 +49,20 @@ const AddPurchase = () => {
 
     const fetchInitialData = async () => {
         try {
-            const [sRes, wRes, stRes] = await Promise.all([
+            const [sRes, wRes] = await Promise.all([
                 callApi('/management/admin/suppliers', 'GET'),
-                callApi('/management/admin/warehouse-inventory', 'GET'),
-                callApi('/management/admin/store-inventory', 'GET')
+                callApi('/management/admin/warehouses?limit=100', 'GET')
             ]);
 
             if (sRes?.data) setSuppliers(sRes.data);
             
-            const combinedLocations = [
-                ...(Array.isArray(wRes?.data) ? wRes.data.map((i: any) => ({ 
-                    id: i.warehouse_id || i.warehouse?.id || i.id || i._id,
-                    name: i.warehouse?.name || i.name || 'Unknown Warehouse',
-                    type: 'Warehouse' 
-                })) : []),
-                ...(Array.isArray(stRes?.data) ? stRes.data.map((i: any) => ({ 
-                    id: i.store_id || i.store?.id || i.id || i._id,
-                    name: i.store?.name || i.name || 'Unknown Store',
-                    type: 'Store' 
-                })) : [])
-            ];
-            setWarehouses(combinedLocations);
+            if (Array.isArray(wRes?.data)) {
+                setWarehouses(wRes.data.map((i: any) => ({
+                    id: i.id || i._id,
+                    name: i.name || 'Unknown Warehouse',
+                    type: 'Warehouse'
+                })));
+            }
         } catch (error) {
             console.error('Error fetching initial data:', error);
         }
@@ -77,6 +71,11 @@ const AddPurchase = () => {
     const handleFormChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
+    };
+
+    const handleFileChange = (e: any) => {
+        const file = e.target.files?.[0] || null;
+        setFormData(prev => ({ ...prev, invoice: file }));
     };
 
     const addItem = () => {
@@ -102,7 +101,7 @@ const AddPurchase = () => {
             setOrderItems([...newItems]);
 
             const res = await callApi(`products/utc/${utc}`, 'GET');
-            const product = res?.product || res;
+            const product = res?.product || res?.data || res;
 
             const updatedItems = [...orderItems];
             updatedItems[index].isSearching = false;
@@ -395,35 +394,8 @@ const AddPurchase = () => {
                                     )}
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label htmlFor="invoice" className="text-xs font-bold uppercase mb-1 block">Upload Invoice (PDF/Image)</label>
-                                    <div className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-dark-light/10 rounded-lg border border-dashed border-gray-300 group hover:border-primary transition-colors cursor-pointer relative">
-                                        <div className="bg-white dark:bg-black p-2 rounded-lg shadow-sm group-hover:bg-primary group-hover:text-white transition-colors">
-                                            <IconFile className="w-5 h-5" />
-                                        </div>
-                                        <div className="flex-1 overflow-hidden">
-                                            <p className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary transition-colors">
-                                                {formData.invoice ? 'Filename' : 'Click to upload invoice'}
-                                            </p>
-                                            <p className="text-xs font-bold truncate">
-                                                {formData.invoice ? formData.invoice.name : 'No file selected (Optional)'}
-                                            </p>
-                                        </div>
-                                        {formData.invoice && (
-                                            <button type="button" className="text-danger hover:scale-110 p-1" onClick={(e) => { e.preventDefault(); setFormData(prev => ({ ...prev, invoice: null })); }}>
-                                                <IconTrashLines className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                        <input
-                                            id="invoice"
-                                            type="file"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                            accept=".pdf,image/*"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0] || null;
-                                                setFormData(prev => ({ ...prev, invoice: file }));
-                                            }}
-                                        />
-                                    </div>
+                                    <label htmlFor="notes" className="text-xs font-bold uppercase mb-1 block">Purchase Notes</label>
+                                    <textarea id="notes" rows={2} className="form-textarea" placeholder="Add any details..." value={formData.notes} onChange={handleFormChange}></textarea>
                                 </div>
                             </div>
                         </div>
@@ -456,7 +428,7 @@ const AddPurchase = () => {
                                                 placeholder="Scan..." 
                                                 autoFocus={index === 0}
                                                 readOnly={!!item.product_id}
-                                                className={`form-input h-7 py-0.5 px-2 text-[11px] font-black tracking-widest rounded-lg border-gray-200 dark:border-gray-700 ${item.product_id ? 'bg-transparent border-transparent cursor-default' : 'bg-gray-50 focus:border-primary'}`} 
+                                                className={`form-input h-7 py-0.5 px-2 text-[11px] font-black tracking-widest rounded-lg ${item.product_id ? 'bg-transparent border-transparent text-primary' : 'bg-gray-50 border-gray-200 focus:border-primary'}`} 
                                                 value={item.utc || ''} 
                                                 onChange={(e) => {
                                                     const newItems = [...orderItems];
@@ -530,28 +502,57 @@ const AddPurchase = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="order_tax" className="text-xs font-bold uppercase mb-1 block">Order Tax</label>
-                                        <input id="order_tax" type="number" className="form-input" value={formData.order_tax} onChange={handleFormChange} />
+                                        <label htmlFor="order_tax" className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Order Tax</label>
+                                        <input id="order_tax" type="number" className="form-input h-9 text-xs font-bold" value={formData.order_tax} onChange={handleFormChange} />
                                     </div>
                                     <div>
-                                        <label htmlFor="discount" className="text-xs font-bold uppercase mb-1 block">Discount</label>
-                                        <input id="discount" type="number" className="form-input" value={formData.discount} onChange={handleFormChange} />
+                                        <label htmlFor="discount" className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Discount</label>
+                                        <input id="discount" type="number" className="form-input h-9 text-xs font-bold" value={formData.discount} onChange={handleFormChange} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="shipping" className="text-xs font-bold uppercase mb-1 block">Shipping Cost</label>
-                                    <input id="shipping" type="number" className="form-input" value={formData.shipping} onChange={handleFormChange} />
+                                    <label htmlFor="shipping" className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Shipping Cost</label>
+                                    <input id="shipping" type="number" className="form-input h-9 text-xs font-bold" value={formData.shipping} onChange={handleFormChange} />
                                 </div>
-                                <div className="pt-4 border-t mt-4 flex justify-between items-center px-4 bg-primary/5 py-4 rounded-xl border border-primary/10">
-                                    <span className="text-sm font-bold uppercase text-gray-500">Grand Total</span>
-                                    <span className="text-3xl font-black text-primary">₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                <div className="pt-4 border-t mt-4 flex justify-between items-center px-4 bg-primary/5 py-3 rounded-xl border border-primary/10">
+                                    <span className="text-[10px] font-black uppercase text-gray-400">Grand Total</span>
+                                    <span className="text-2xl font-black text-primary">₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </div>
 
+
                         <div className="panel">
-                            <label htmlFor="notes" className="text-xs font-bold uppercase mb-1 block">Purchase Notes</label>
-                            <textarea id="notes" rows={3} className="form-textarea" placeholder="Add any details..." value={formData.notes} onChange={handleFormChange}></textarea>
+                            <h6 className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest">Document Attachment</h6>
+                            <div className="flex flex-col gap-3">
+                                <label className="text-xs font-bold uppercase mb-1 block">Upload Invoice (PDF/Image)</label>
+                                <div className="relative group overflow-hidden bg-gray-50 dark:bg-black/20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/50 transition-all p-4 text-center cursor-pointer">
+                                    <input 
+                                        type="file" 
+                                        className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                                        onChange={handleFileChange} 
+                                        accept=".pdf,image/*"
+                                    />
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                            <IconFile className="w-5 h-5" />
+                                        </div>
+                                        <span className="text-[11px] font-bold text-gray-500 uppercase">
+                                            {formData.invoice ? formData.invoice.name : 'Click to Upload Document'}
+                                        </span>
+                                        <p className="text-[9px] text-gray-400">Max size: 1MB (PDF, PNG, JPG)</p>
+                                    </div>
+                                </div>
+                                {formData.invoice && (
+                                    <button 
+                                        type="button" 
+                                        className="text-[10px] text-danger hover:underline font-bold self-end"
+                                        onClick={() => setFormData(prev => ({ ...prev, invoice: null }))}
+                                    >
+                                        Remove File
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

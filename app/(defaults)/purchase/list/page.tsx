@@ -4,6 +4,7 @@ import UserManagerTable from '@/components/user-manager/user-manager-table';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { callApi } from '@/utils/api';
+import Swal from 'sweetalert2';
 
 const PurchaseList = () => {
     const [purchaseData, setPurchaseData] = useState<any[]>([]);
@@ -11,6 +12,7 @@ const PurchaseList = () => {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
+    const [productsMap, setProductsMap] = useState<Record<string, string>>({});
     
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -34,14 +36,27 @@ const PurchaseList = () => {
             
             const response = await callApi(query, 'GET');
             if (response && response.data) {
-                const mappedData = response.data.map((item: any) => ({
-                    id: item.id || item._id,
-                    date: item.purchase_date ? new Date(item.purchase_date).toLocaleDateString() : 'N/A',
-                    supplier: item.supplier?.name || 'N/A',
-                    reference: item.reference_no || 'N/A',
-                    status: item.status || 'Received',
-                    total: `₹${Number(item.grand_total || 0).toLocaleString('en-IN')}`,
-                }));
+                const mappedData = response.data.map((item: any) => {
+                    let parsedItems = [];
+                    try {
+                        parsedItems = typeof item.items === 'string' ? JSON.parse(item.items) : (item.items || []);
+                    } catch (e) {
+                        parsedItems = [];
+                    }
+
+                    return {
+                        id: item.id || item._id,
+                        date: item.purchase_date ? new Date(item.purchase_date).toLocaleDateString() : 'N/A',
+                        supplier: item.supplier?.name || 'N/A',
+                        reference: item.reference_no || 'N/A',
+                        location: item.warehouse?.name || 'N/A',
+                        total: `₹${Number(item.grand_total || 0).toLocaleString('en-IN')}`,
+                        invoice_url: item.invoice_url,
+                        products: parsedItems.length > 0 
+                            ? parsedItems.map((pi: any) => productsMap[pi.product_id] || pi.product_name || pi.name || `Item (${pi.product_id?.slice(-6)})`).join(', ') 
+                            : 'N/A'
+                    };
+                });
                 setPurchaseData(mappedData);
                 setTotalRecords(response.totalCount || 0);
             }
@@ -53,8 +68,28 @@ const PurchaseList = () => {
     };
 
     useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    useEffect(() => {
         fetchData(page);
-    }, [page, debouncedSearch, status, dateRange]);
+    }, [page, debouncedSearch, status, dateRange, productsMap]);
+
+    const fetchProducts = async () => {
+        try {
+            const res = await callApi('/management/admin/products?limit=1000', 'GET');
+            if (res && res.data) {
+                const map: Record<string, string> = {};
+                res.data.forEach((p: any) => {
+                    const id = p.id || p._id;
+                    if (id) map[id] = p.name || p.product_name || 'Unknown Item';
+                });
+                setProductsMap(map);
+            }
+        } catch (e) {
+            console.error('Error fetching products for map:', e);
+        }
+    };
 
     const handleAddPurchase = () => {
         router.push('/purchase/add');
@@ -64,25 +99,36 @@ const PurchaseList = () => {
         router.push(`/purchase/view/${item.id}`);
     };
 
+    const handleDownloadInvoice = (item: any) => {
+        if (item.invoice_url) {
+            window.open(item.invoice_url, '_blank');
+        } else {
+            const toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                showCloseButton: true,
+            });
+            toast.fire({ icon: 'info', title: 'No invoice attached to this purchase' });
+        }
+    };
+
     const columns = [
         { key: 'date', label: 'Date' },
         { key: 'reference', label: 'Reference No' },
+        { key: 'products', label: 'Items' },
         { key: 'supplier', label: 'Supplier' },
+        { key: 'location', label: 'Location' },
         { key: 'total', label: 'Grand Total' },
     ];
 
     return (
         <div>
             <ul className="mb-6 flex space-x-2 rtl:space-x-reverse">
-                <li>
-                    <Link href="/" className="text-primary hover:underline">Dashboard</Link>
-                </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Purchase Management</span>
-                </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Purchase List</span>
-                </li>
+                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
+                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Purchase Management</span></li>
+                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Purchase List</span></li>
             </ul>
 
             {loading ? (
@@ -108,7 +154,8 @@ const PurchaseList = () => {
                     onDateRangeChange={setDateRange}
                     onAddClick={handleAddPurchase}
                     addButtonLabel="Add New Purchase"
-                    onViewClick={handleViewPurchase}
+                    onDownloadClick={handleDownloadInvoice}
+                    hideView={true}
                     hideDelete={true}
                 />
             )}

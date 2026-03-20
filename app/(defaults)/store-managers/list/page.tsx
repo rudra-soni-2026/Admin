@@ -123,7 +123,6 @@ const StoreManagerList = () => {
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'Info' },
-        { key: 'email', label: 'Email' },
         { key: 'phone', label: 'Phone' },
         { key: 'joinedDate', label: 'Joined' },
         { key: 'status', label: 'Status' },
@@ -167,6 +166,12 @@ const StoreManagerList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddStoreManager}
+                    onEditClick={(item: any) => {
+                        localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/store-managers/edit/${item.originalId}`);
+                    }}
+                    hideDelete={true}
+                    hideView={true}
                     addButtonLabel="Add New Store Manager"
                 />
             )}

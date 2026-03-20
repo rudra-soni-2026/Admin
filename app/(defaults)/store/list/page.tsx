@@ -57,7 +57,25 @@ const StoreList = () => {
                     email: store.email || 'N/A',
                     city: store.city || 'N/A',
                     status: store.isActive ? 'Active' : 'Inactive',
+                    isActive: store.isActive,
                     joinedDate: store.created_at ? new Date(store.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
+                    // Original fields for Edit/View fallback
+                    address: store.address || '',
+                    contact_number: store.contact_number || '',
+                    latitude: store.latitude || '',
+                    longitude: store.longitude || '',
+                    open_time: store.open_time || '',
+                    close_time: store.close_time || '',
+                    warehouse_id: store.warehouse_id || '',
+                    store_manager_id: store.store_manager_id || '',
+                    is_service_available: store.is_service_available ?? true,
+                    is_cod_enabled: store.is_cod_enabled ?? true,
+                    distance_threshold: store.distance_threshold || 5000,
+                    priority_message: store.priority_message || '',
+                    priority_message_color: store.priority_message_color || '#FF0000',
+                    coverage_polygon: store.coverage_polygon || null,
+                    store_manager: store.store_manager,
+                    warehouse: store.warehouse,
                 }));
                 setStoreData(mappedData);
                 const count = response.totalCount !== undefined ? response.totalCount : (response.stats?.totalStore || 0);
@@ -83,9 +101,38 @@ const StoreList = () => {
         }
     }, [page, debouncedSearch, status, dateRange]);
 
-    const handleStatusToggle = async (userId: any, currentStatus: string) => {
-        // Implementation for store status toggle if needed
-        console.log('Toggle store status:', userId, currentStatus);
+    const handleStatusToggle = async (id: any, currentStatus: string) => {
+        try {
+            const nextStatus = currentStatus === 'Active' ? false : true;
+            const response = await callApi(`/management/admin/stores/${id}`, 'PATCH', {
+                isActive: nextStatus
+            });
+
+            if (response && response.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: `Store ${nextStatus ? 'Activated' : 'Deactivated'}`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    showCloseButton: true,
+                });
+                fetchStores(page); // Refresh list
+            }
+        } catch (error: any) {
+            console.error('Error toggling store status:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Operation Failed',
+                text: error.message || 'Error occurred while updating status.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                showCloseButton: true,
+            });
+        }
     };
 
     const router = useRouter();
@@ -140,6 +187,16 @@ const StoreList = () => {
                     onDateRangeChange={setDateRange}
                     onStatusToggle={handleStatusToggle}
                     onAddClick={handleAddStore}
+                    onEditClick={(item: any) => {
+                        localStorage.setItem(`edit_store_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/store/edit/${item.originalId}`);
+                    }}
+                    onViewClick={(item: any) => {
+                        localStorage.setItem(`edit_store_${item.originalId}`, JSON.stringify(item));
+                        router.push(`/store/view/${item.originalId}`);
+                    }}
+                    onStockClick={(item: any) => router.push(`/inventory/store?store_id=${item.originalId}`)}
+                    hideDelete={true}
                     addButtonLabel="Create New Store"
                 />
             )}

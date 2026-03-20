@@ -1,72 +1,39 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import UserManagerTable from '@/components/user-manager/user-manager-table';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { callApi } from '@/utils/api';
-import Swal from 'sweetalert2';
+import UserManagerTable from '@/components/user-manager/user-manager-table';
+import IconPlus from '@/components/icon/icon-plus';
 
 const RiderList = () => {
-    const [data, setData] = useState<any[]>([]);
+    const router = useRouter();
+    const [riders, setRiders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
-    const [totalUsers, setTotalUsers] = useState(0);
-    const [todayUsers, setTodayUsers] = useState(0);
 
-    // Filter States
-    const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [status, setStatus] = useState('all');
-    const [dateRange, setDateRange] = useState<any>('');
+    const columns = [
+        { key: 'name', label: 'Rider Name' },
+        { key: 'phone', label: 'Phone' },
+        { key: 'email', label: 'Email' },
+        { key: 'vehicleType', label: 'Vehicle' },
+        { key: 'vehicleNumber', label: 'Number' },
+        { key: 'storeName', label: 'Assigned Store' },
+        { key: 'status', label: 'Status' },
+    ];
 
-    // Debounce Search
     useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [search]);
+        fetchRiders();
+    }, [page]);
 
-    const fetchData = async (currentPage: number) => {
+    const fetchRiders = async () => {
         try {
             setLoading(true);
-            let query = `/management/admin/users?page=${currentPage}&limit=${pageSize}&role=rider`;
-            if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
-            if (status === 'active') query += `&isBanned=false`;
-            else if (status === 'inactive') query += `&isBanned=true`;
-
-            if (dateRange && dateRange.length === 2) {
-                const start = new Date(dateRange[0]);
-                start.setHours(0, 0, 0, 0);
-                const end = new Date(dateRange[1]);
-                end.setHours(23, 59, 59, 999);
-                query += `&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
-            }
-
-            const response = await callApi(query, 'GET');
-
+            const response = await callApi(`/management/admin/riders?page=${page}&limit=20`, 'GET');
             if (response && response.data) {
-                const mappedData = response.data.map((user: any) => ({
-                    id: user.id ? `#${String(user.id).substring(0, 8).toUpperCase()}` : '#UNKNOWN',
-                    originalId: user.id,
-                    user: {
-                        name: user.name || 'Unknown User',
-                        image: user.image || '/assets/images/profile-1.jpeg',
-                    },
-                    email: user.email || 'N/A',
-                    phone: user.phone || 'N/A',
-                    joinedDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
-                    status: user.isBanned ? 'Inactive' : 'Active',
-                }));
-                setData(mappedData);
-                setTotalRecords(response.totalCount || 0);
-                
-                if (response.stats) {
-                    setTotalUsers(response.stats.total || response.totalCount || 0);
-                    setTodayUsers(response.stats.today || 0);
-                }
+                setRiders(response.data);
+                setTotalRecords(response.totalRecords || response.data.length);
             }
         } catch (error) {
             console.error('Error fetching riders:', error);
@@ -75,101 +42,31 @@ const RiderList = () => {
         }
     };
 
-    useEffect(() => {
-        if (page !== 1 && (debouncedSearch || status !== 'all' || dateRange)) {
-            setPage(1);
-        } else {
-            fetchData(page);
-        }
-    }, [page, debouncedSearch, status, dateRange]);
-
-    const handleStatusToggle = async (userId: any, currentStatus: string) => {
-        try {
-            const isBanned = currentStatus === 'Active' ? 'true' : 'false';
-            const response = await callApi('/management/admin/ban-user', 'POST', {
-                userId: userId,
-                isBanned: isBanned
-            });
-
-            if (response) {
-                Swal.fire({
-                    icon: 'success',
-                    title: `User ${isBanned === 'true' ? 'Banned' : 'Unbanned'} successfully`,
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000
-                });
-
-                setData((prev) => 
-                    prev.map((item) => 
-                        item.originalId === userId 
-                            ? { ...item, status: isBanned === 'true' ? 'Inactive' : 'Active' } 
-                            : item
-                    )
-                );
-            }
-        } catch (error) {
-            console.error('Error toggling status:', error);
-        }
+    const handleEdit = (rider: any) => {
+        router.push(`/riders/edit/${rider.id || rider._id}`);
     };
-
-    const router = useRouter();
-
-    const handleAddRider = () => {
-        router.push('/admins/add');
-    };
-
-    const columns = [
-        { key: 'id', label: 'ID' },
-        { key: 'user', label: 'Info' },
-        { key: 'email', label: 'Email' },
-        { key: 'phone', label: 'Phone' },
-        { key: 'joinedDate', label: 'Joined' },
-        { key: 'status', label: 'Status' },
-    ];
 
     return (
         <div>
             <ul className="mb-6 flex space-x-2 rtl:space-x-reverse">
-                <li>
-                    <Link href="/" className="text-primary hover:underline">Dashboard</Link>
-                </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>User Manager</span>
-                </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Rider List</span>
-                </li>
+                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
+                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Riders</span></li>
             </ul>
 
-            {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10"></span>
-                </div>
-            ) : (
-                <UserManagerTable 
-                    title="Rider" 
-                    data={data} 
-                    columns={columns} 
-                    userType="Rider" 
-                    totalRecords={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    totalUsers={totalUsers}
-                    todayUsers={todayUsers}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    onStatusChange={setStatus}
-                    dateRange={dateRange}
-                    onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddRider}
-                    addButtonLabel="Add New Rider"
-                />
-            )}
+            <UserManagerTable 
+                title="Rider Management" 
+                data={riders} 
+                columns={columns} 
+                userType="Rider"
+                totalRecords={totalRecords}
+                page={page}
+                onPageChange={(p) => setPage(p)}
+                onEditClick={handleEdit}
+                onAddClick={() => router.push('/riders/add')}
+                addButtonLabel="Register New Rider"
+                hideDelete={true}
+                hideView={true}
+            />
         </div>
     );
 };

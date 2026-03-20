@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
@@ -13,8 +13,9 @@ import IconSettings from '@/components/icon/icon-settings';
 import IconInfoCircle from '@/components/icon/icon-info-circle';
 import IconPhone from '@/components/icon/icon-phone';
 
-const EditWarehouse = ({ params }: { params: any }) => {
-    const id = params.id;
+const EditWarehouse = () => {
+    const params = useParams();
+    const id = typeof params?.id === 'string' ? params.id : '';
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
@@ -40,21 +41,66 @@ const EditWarehouse = ({ params }: { params: any }) => {
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!id) return;
             try {
                 setFetching(true);
-                const [wm, pm, am, warehouseRes] = await Promise.all([
-                    callApi('/management/admin/list?role=warehouse_manager&limit=100', 'GET'),
-                    callApi('/management/admin/list?role=product_manager&limit=100', 'GET'),
-                    callApi('/management/admin/list?role=account_manager&limit=100', 'GET'),
-                    callApi(`/management/admin/warehouses/${id}`, 'GET')
-                ]);
+                
+                // Fetch managers first (non-critical)
+                try {
+                    const [wm, pm, am] = await Promise.all([
+                        callApi('/management/admin/list?role=warehouse_manager&limit=100', 'GET'),
+                        callApi('/management/admin/list?role=product_manager&limit=100', 'GET'),
+                        callApi('/management/admin/list?role=account_manager&limit=100', 'GET')
+                    ]);
+                    if (wm?.data) setWarehouseManagers(wm.data);
+                    if (pm?.data) setProductManagers(pm.data);
+                    if (am?.data) setAccountManagers(am.data);
+                } catch (e) {
+                    console.error('Non-critical error fetching managers:', e);
+                }
 
-                if (wm?.data) setWarehouseManagers(wm.data);
-                if (pm?.data) setProductManagers(pm.data);
-                if (am?.data) setAccountManagers(am.data);
+                // Try to get data from localStorage first (List navigation)
+                const savedData = localStorage.getItem(`edit_warehouse_${id}`);
+                let localLoaded = false;
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    setFormData({
+                        name: data.name || '',
+                        address: data.address || '',
+                        city: data.city || '',
+                        contact_number: data.contact_number || '',
+                        email: data.email || '',
+                        warehouse_manager_id: data.warehouse_manager_id || '',
+                        product_manager_id: data.product_manager_id || '',
+                        account_manager_id: data.account_manager_id || '',
+                        latitude: data.latitude ? String(data.latitude) : '',
+                        longitude: data.longitude ? String(data.longitude) : '',
+                        capacity: data.capacity_num ? String(data.capacity_num) : '',
+                    });
+                    setFetching(false); // Stop main spinner immediately
+                    localLoaded = true;
+                }
 
-                if (warehouseRes?.data) {
-                    const w = warehouseRes.data;
+                // Fetch Warehouse details (critical fallback)
+                let warehouseRes;
+                try {
+                    // Try plural first
+                    warehouseRes = await callApi(`/management/admin/warehouses/${id}`, 'GET');
+                } catch (e: any) {
+                    if (e.message?.includes('404')) {
+                        try {
+                            // Try singular if plural fails with 404
+                            warehouseRes = await callApi(`/management/admin/warehouse/${id}`, 'GET');
+                        } catch (e2: any) {
+                             if (!localLoaded) throw e2;
+                        }
+                    } else if (!localLoaded) {
+                        throw e;
+                    }
+                }
+                const w = warehouseRes?.data || warehouseRes; // Handle both structures
+
+                if (w && (w.id || w._id || w.name)) {
                     setFormData({
                         name: w.name || '',
                         address: w.address || '',
@@ -68,10 +114,12 @@ const EditWarehouse = ({ params }: { params: any }) => {
                         longitude: w.longitude ? String(w.longitude) : '',
                         capacity: w.capacity ? String(w.capacity) : '',
                     });
+                } else if (!localLoaded) {
+                     throw new Error('Warehouse data not found');
                 }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                showMessage('Failed to load warehouse data', 'danger');
+            } catch (error: any) {
+                console.error('Error fetching warehouse details:', error);
+                showMessage(error.message || 'Failed to load warehouse data', 'danger');
             } finally {
                 setFetching(false);
             }
@@ -113,7 +161,7 @@ const EditWarehouse = ({ params }: { params: any }) => {
 
         try {
             setLoading(true);
-            const response = await callApi(`/management/admin/warehouses/${id}`, 'PUT', {
+            const response = await callApi(`/management/admin/warehouses/${id}`, 'PATCH', {
                 ...formData,
                 latitude: formData.latitude ? parseFloat(formData.latitude) : null,
                 longitude: formData.longitude ? parseFloat(formData.longitude) : null,
@@ -144,135 +192,105 @@ const EditWarehouse = ({ params }: { params: any }) => {
 
     return (
         <div className="space-y-6 animate__animated animate__fadeIn">
-            {/* Breadcrumbs - Sharp */}
-            <ul className="flex space-x-2 rtl:space-x-reverse text-xs font-bold uppercase tracking-widest opacity-40">
-                <li><Link href="/" className="hover:text-primary">Admin</Link></li>
-                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><Link href="/warehouses/list" className="hover:text-primary">Warehouses</Link></li>
-                <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Update Facility</span></li>
-            </ul>
-
-            {/* Header Panel - Premium Sharp */}
-            <div className="bg-white dark:bg-black/20 p-6 border border-gray-100 dark:border-white/5 flex items-center justify-between shadow-sm">
+            <div className="panel flex items-center justify-between mb-4 shadow-sm">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 flex items-center justify-center text-primary">
-                        <IconHome className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h5 className="text-xl font-black tracking-tight dark:text-white uppercase">Update Warehouse</h5>
-                        <p className="text-[10px] text-white-dark font-black tracking-widest uppercase mt-1 opacity-60">ID: {id.substring(id.length - 8).toUpperCase()}</p>
+                    <h5 className="text-base font-semibold dark:text-white-light leading-none">Edit Warehouse</h5>
+                    <div className="bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary uppercase tracking-widest">
+                         #{id?.toUpperCase().slice(-8)}
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => router.push('/warehouses/list')} className="px-6 py-2.5 text-xs font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-gray-400">
-                        Cancel
-                    </button>
-                    <button type="submit" form="warehouse-form" className="btn btn-primary gap-2 px-8 py-2.5 rounded-none font-black uppercase tracking-widest shadow-lg shadow-primary/20" disabled={loading}>
-                        {loading ? <span className="animate-spin rounded-full border-2 border-white border-l-transparent w-4 h-4"></span> : <IconSave className="w-4 h-4" />}
-                        {loading ? 'Saving...' : 'Update Facility'}
-                    </button>
-                </div>
+                <Link href="/warehouses/list" className="btn btn-outline-primary gap-2 px-4 py-1.5 text-xs uppercase font-bold">
+                    <IconArrowBackward className="h-4 w-4" /> Back to List
+                </Link>
             </div>
 
-            <form id="warehouse-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Basic Info */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-black/20 p-8 border border-gray-100 dark:border-white/5 space-y-8 shadow-sm">
+            <div className="panel shadow-sm">
+                <form id="warehouse-form" onSubmit={handleSubmit}>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="md:col-span-2 lg:col-span-2">
+                            <label htmlFor="name" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Warehouse Name *</label>
+                            <input id="name" type="text" placeholder="Enter Warehouse Name" className="form-input py-1.5 text-xs" value={formData.name} onChange={handleChange} required />
+                        </div>
+
                         <div>
-                            <div className="flex items-center gap-3 mb-6">
-                                <IconInfoCircle className="w-5 h-5 text-primary" />
-                                <h6 className="font-black tracking-tight text-sm uppercase">Facility Details</h6>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="md:col-span-2 group">
-                                    <label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Warehouse Identity *</label>
-                                    <input id="name" type="text" placeholder="e.g. Mumbai Logistics Hub" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.name} onChange={handleChange} required />
-                                </div>
-                                <div className="md:col-span-2 group">
-                                    <label htmlFor="address" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Physical Location *</label>
-                                    <textarea id="address" rows={3} placeholder="Full street address, building number, etc." className="form-textarea rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.address} onChange={handleChange} required />
-                                </div>
-                                <div className="group">
-                                    <label htmlFor="city" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Operational City</label>
-                                    <input id="city" type="text" placeholder="e.g. Mumbai" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.city} onChange={handleChange} />
-                                </div>
-                                <div className="group">
-                                    <label htmlFor="capacity" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Storage Capacity (Units)</label>
-                                    <input id="capacity" type="number" placeholder="Enter max units" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.capacity} onChange={handleChange} />
-                                </div>
-                            </div>
+                            <label htmlFor="capacity" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Storage Capacity</label>
+                            <input id="capacity" type="number" placeholder="Enter Max Units" className="form-input py-1.5 text-xs" value={formData.capacity} onChange={handleChange} />
                         </div>
 
-                        <div className="pt-8 border-t border-gray-100 dark:border-white/5">
-                            <div className="flex items-center gap-3 mb-6">
-                                <IconMapPin className="w-5 h-5 text-primary" />
-                                <h6 className="font-black tracking-tight text-sm uppercase">Geo-Coordinate Mapping</h6>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="group">
-                                    <label htmlFor="latitude" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Latitude Coordinates</label>
-                                    <input id="latitude" type="text" placeholder="e.g. 19.0760" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.latitude} onChange={handleChange} />
-                                </div>
-                                <div className="group">
-                                    <label htmlFor="longitude" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Longitude Coordinates</label>
-                                    <input id="longitude" type="text" placeholder="e.g. 72.8777" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.longitude} onChange={handleChange} />
-                                </div>
-                            </div>
+                        <div className="md:col-span-2 lg:col-span-3">
+                            <label htmlFor="address" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Full Physical Address *</label>
+                            <textarea id="address" placeholder="Enter Full Address" className="form-textarea py-1.5 text-xs min-h-[80px]" value={formData.address} onChange={handleChange} required />
                         </div>
-                    </div>
-                </div>
 
-                {/* Right Column: Contact & Managers */}
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-black/20 p-8 border border-gray-100 dark:border-white/5 space-y-8 shadow-sm">
                         <div>
-                            <div className="flex items-center gap-3 mb-6">
-                                <IconPhone className="w-5 h-5 text-primary" />
-                                <h6 className="font-black tracking-tight text-sm uppercase">Communication</h6>
-                            </div>
-                            <div className="space-y-5">
-                                <div className="group">
-                                    <label htmlFor="contact_number" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Contact Hotline</label>
-                                    <input id="contact_number" type="text" placeholder="+91 00000 00000" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.contact_number} onChange={handleChange} />
-                                </div>
-                                <div className="group">
-                                    <label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Operational Email</label>
-                                    <input id="email" type="email" placeholder="facility@kuiklo.com" className="form-input rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary px-4 py-3 font-bold" value={formData.email} onChange={handleChange} />
-                                </div>
-                            </div>
+                            <label htmlFor="city" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">City</label>
+                            <input id="city" type="text" placeholder="Enter City" className="form-input py-1.5 text-xs" value={formData.city} onChange={handleChange} />
                         </div>
 
-                        <div className="pt-8 border-t border-gray-100 dark:border-white/5">
-                            <div className="flex items-center gap-3 mb-6">
-                                <IconUser className="w-5 h-5 text-primary" />
-                                <h6 className="font-black tracking-tight text-sm uppercase">Leadership & Ownership</h6>
-                            </div>
-                            <div className="space-y-5">
-                                <div className="group">
-                                    <label htmlFor="warehouse_manager_id" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Facility Manager</label>
-                                    <select id="warehouse_manager_id" className="form-select rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary font-bold" value={formData.warehouse_manager_id} onChange={handleChange}>
-                                        <option value="">No Manager Assigned</option>
+                        <div>
+                            <label htmlFor="contact_number" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Contact Number</label>
+                            <input id="contact_number" type="text" placeholder="Enter Contact Number" className="form-input py-1.5 text-xs" value={formData.contact_number} onChange={handleChange} />
+                        </div>
+
+                        <div>
+                            <label htmlFor="email" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Facility Email</label>
+                            <input id="email" type="email" placeholder="warehouse@kuiklo.com" className="form-input py-1.5 text-xs" value={formData.email} onChange={handleChange} />
+                        </div>
+
+                        <div>
+                            <label htmlFor="latitude" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Latitude</label>
+                            <input id="latitude" type="text" placeholder="e.g. 19.0760" className="form-input py-1.5 text-xs" value={formData.latitude} onChange={handleChange} />
+                        </div>
+
+                        <div>
+                            <label htmlFor="longitude" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Longitude</label>
+                            <input id="longitude" type="text" placeholder="e.g. 72.8777" className="form-input py-1.5 text-xs" value={formData.longitude} onChange={handleChange} />
+                        </div>
+
+                        <div className="hidden lg:block"></div>
+
+                        <div className="md:col-span-2 lg:col-span-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label htmlFor="warehouse_manager_id" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Warehouse Manager</label>
+                                    <select id="warehouse_manager_id" className="form-select py-1.5 text-xs" value={formData.warehouse_manager_id} onChange={handleChange}>
+                                        <option value="">Select Manager</option>
                                         {warehouseManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                     </select>
                                 </div>
-                                <div className="group">
-                                    <label htmlFor="product_manager_id" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Inventory / Product Lead</label>
-                                    <select id="product_manager_id" className="form-select rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary font-bold" value={formData.product_manager_id} onChange={handleChange}>
-                                        <option value="">No Product Lead Assigned</option>
+                                <div>
+                                    <label htmlFor="product_manager_id" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Inventory Lead</label>
+                                    <select id="product_manager_id" className="form-select py-1.5 text-xs" value={formData.product_manager_id} onChange={handleChange}>
+                                        <option value="">Select Lead</option>
                                         {productManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                     </select>
                                 </div>
-                                <div className="group">
-                                    <label htmlFor="account_manager_id" className="text-[10px] font-black uppercase tracking-widest text-white-dark mb-2 block group-focus-within:text-primary transition-colors">Finance / Account Lead</label>
-                                    <select id="account_manager_id" className="form-select rounded-none border-gray-200 dark:border-white/10 bg-transparent focus:border-primary font-bold" value={formData.account_manager_id} onChange={handleChange}>
-                                        <option value="">No Account Lead Assigned</option>
+                                <div>
+                                    <label htmlFor="account_manager_id" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1 block">Finance Lead</label>
+                                    <select id="account_manager_id" className="form-select py-1.5 text-xs" value={formData.account_manager_id} onChange={handleChange}>
+                                        <option value="">Select Lead</option>
                                         {accountManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                     </select>
                                 </div>
-                            </div>
+                             </div>
                         </div>
                     </div>
-                </div>
-            </form>
+
+                    <div className="mt-8 flex justify-end gap-2">
+                        <button type="button" className="btn btn-outline-danger px-4 py-1.5 text-xs uppercase font-bold" onClick={() => router.push('/warehouses/list')} disabled={loading}>
+                            Discard
+                        </button>
+                        <button type="submit" className="btn btn-primary px-4 py-1.5 text-xs gap-1.5 uppercase font-bold shadow-lg shadow-primary/20" disabled={loading}>
+                            {loading ? (
+                                <span className="animate-spin rounded-full border-2 border-white border-l-transparent w-3.5 h-3.5"></span>
+                            ) : (
+                                <IconSave className="h-4 w-4" />
+                            )}
+                            {loading ? 'Processing...' : 'Save Warehouse'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 };

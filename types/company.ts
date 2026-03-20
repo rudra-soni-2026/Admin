@@ -8,7 +8,7 @@ export interface HeaderTabConfig {
     is_festive_active?: boolean;
     festive_title?: string;
     festive_banner_url?: string;
-    festive_accent_color?: string;
+    festive_text_color?: string;
     festive_start_date?: string;
     festive_end_date?: string;
     festive_type?: string;
@@ -29,6 +29,12 @@ export interface HeaderTabConfig {
             original_price?: number;
         }>;
     };
+    screen_data?: Array<{
+        image: string;
+        parent_category_id: string;
+        sub_category_id?: string;
+        category_id?: string;
+    }>;
 
 }
 

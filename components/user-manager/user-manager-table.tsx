@@ -25,12 +25,14 @@ interface UserManagerTableProps {
     dateRange?: any;
     onDateRangeChange?: (val: any) => void;
     onStatusToggle?: (userId: any, currentStatus: string) => void;
+    onStatusClick?: (item: any) => void;
     onRiderAssign?: (orderId: any, riderId: string) => void;
     userType?: string;
     onAddClick?: () => void;
     addButtonLabel?: string;
     onViewClick?: (item: any) => void;
     onEditClick?: (item: any) => void;
+    onPermissionEdit?: (item: any) => void;
     categoryId?: string;
     onCategoryIdChange?: (val: string) => void;
     brand?: string;
@@ -43,6 +45,9 @@ interface UserManagerTableProps {
     hideDelete?: boolean;
     hideView?: boolean;
     hideFilter?: boolean;
+    onDownloadClick?: (item: any) => void;
+    onStockClick?: (item: any) => void;
+    disableNameClick?: boolean;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -77,7 +82,20 @@ const UserManagerTable = (props: UserManagerTableProps) => {
     return props.userType === 'Order' ? (
         <OrderListTable {...props} onViewClick={finalViewClick} />
     ) : (
-        <UserListTable {...props} onViewClick={finalViewClick} onEditClick={props.onEditClick} hideAction={props.hideAction} hideDelete={props.hideDelete} hideView={props.hideView} hideFilter={props.hideFilter} />
+        <UserListTable 
+            {...props} 
+            onViewClick={finalViewClick} 
+            onStatusClick={props.onStatusClick}
+            onEditClick={props.onEditClick} 
+            onPermissionEdit={props.onPermissionEdit}
+            onDownloadClick={props.onDownloadClick}
+            onStockClick={props.onStockClick}
+            hideAction={props.hideAction} 
+            hideDelete={props.hideDelete} 
+            hideView={props.hideView} 
+            hideFilter={props.hideFilter} 
+            disableNameClick={props.disableNameClick} 
+        />
     );
 };
 

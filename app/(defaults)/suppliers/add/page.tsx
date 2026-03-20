@@ -15,7 +15,6 @@ const AddSupplier = () => {
         contact_person: '',
         email: '',
         phone: '',
-        address: '',
         city: '',
         tax_id: '',
         isActive: true,
@@ -165,17 +164,6 @@ const AddSupplier = () => {
                                 value={formData.city}
                                 onChange={handleChange}
                             />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="address" className="text-[12px] font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-1">Full Address</label>
-                            <textarea 
-                                id="address" 
-                                rows={2} 
-                                placeholder="Street, Area, Pincode" 
-                                className="form-textarea py-1.5 text-xs" 
-                                value={formData.address}
-                                onChange={handleChange}
-                            ></textarea>
                         </div>
                     </div>
 

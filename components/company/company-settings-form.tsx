@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import TabSettingsDetail from './tab-settings-detail';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
 import IconSave from '@/components/icon/icon-save';
@@ -16,6 +15,7 @@ import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconPlusCircle from '@/components/icon/icon-plus-circle';
 import IconPlus from '@/components/icon/icon-plus';
 import IconX from '@/components/icon/icon-x';
+import IconArrowLeft from '@/components/icon/icon-arrow-left';
 import IconEdit from '@/components/icon/icon-edit';
 import IconGallery from '@/components/icon/icon-gallery';
 import { ReactSortable } from 'react-sortablejs';
@@ -30,6 +30,24 @@ import IconTruck from '@/components/icon/icon-truck';
 import IconCreditCard from '@/components/icon/icon-credit-card';
 import IconShoppingCart from '@/components/icon/icon-shopping-cart';
 import Select from 'react-select';
+
+const IconCheck = ({ className }: { className?: string }) => (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+    </svg>
+);
+
+const IconSparkles = ({ className }: { className?: string }) => (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3l1.912 3.874L18.18 7.49l-3.09 3.011.729 4.259L12 12.75l-3.819 2.01.729-4.259-3.09-3.011 4.268-.616L12 3z" />
+    </svg>
+);
+
+const IconColorPalette = ({ className }: { className?: string }) => (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+    </svg>
+);
 
 const AVAILABLE_ICONS = ['Home', 'Headphones', 'Sparkles', 'Baby', 'Shirt', 'Dumbbell', 'UtensilsCrossed', 'Pill', 'PawPrint'];
 
@@ -84,9 +102,12 @@ const CompanySettingsForm = () => {
         fetchCategories();
     }, []);
 
-    const fetchCategories = async () => {
+    const [availableCategories, setAvailableCategories] = useState<any[]>([]);
+    const [catSearch, setCatSearch] = useState('');
+
+    const fetchCategories = async (search: string = '') => {
         try {
-            const response = await callApi('/products/parent-categories?level=0&limit=1000', 'GET');
+            const response = await callApi(`/management/admin/all-level-two-categories?search=${search}`, 'GET');
             if (response && response.data) {
                 const cats = response.data.map((c: any) => ({
                     value: c._id,
@@ -94,28 +115,19 @@ const CompanySettingsForm = () => {
                     image: c.image
                 }));
                 setCategoryList(cats);
-
-                // Pre-fetch subcategories for any selected categories in the config
-                if (settings?.header_tabs_config) {
-                    settings.header_tabs_config.forEach(tab => {
-                        if (tab.festive_single_banners) {
-                            tab.festive_single_banners.forEach(b => {
-                                if (b.parent_category_id) fetchSubCategoriesByCategory(b.parent_category_id);
-                                if (b.sub_category_id) fetchNicheCategoriesBySubCategory(b.sub_category_id);
-                            });
-                        }
-                        if (tab.festive_multi_banner?.parent_category_id) {
-                            fetchSubCategoriesByCategory(tab.festive_multi_banner.parent_category_id);
-                            if (tab.festive_multi_banner.sub_category_id) fetchNicheCategoriesBySubCategory(tab.festive_multi_banner.sub_category_id);
-                            fetchProductsByCategory(tab.festive_multi_banner.category_id || tab.festive_multi_banner.sub_category_id || tab.festive_multi_banner.parent_category_id);
-                        }
-                    });
-                }
+                setAvailableCategories(cats);
             }
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
     };
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchCategories(catSearch);
+        }, 500); // Debounce search
+        return () => clearTimeout(timer);
+    }, [catSearch]);
 
     // Automatically fetch subcategories when the active tab's config changes
     useEffect(() => {
@@ -250,10 +262,26 @@ const CompanySettingsForm = () => {
 
                 // Handle festive_config bundling/flattening
                 const fConfig = data.festive_config || {};
+                const rootTabs = data.header_tabs_config || [];
+                const festiveTabs = fConfig.header_tabs_config || [];
+
+                // Merge them into a single state for the UI
+                const combinedTabs = rootTabs.map((rt: any) => {
+                    const ft = festiveTabs.find((t: any) => t.id === rt.id) || {};
+                    return { ...rt, ...ft };
+                });
+
+                // In case there are tabs only in festive_config (shouldn't happen but for safety)
+                festiveTabs.forEach((ft: any) => {
+                    if (!combinedTabs.find((rt: any) => rt.id === ft.id)) {
+                        combinedTabs.push(ft);
+                    }
+                });
+
                 const preparedData = {
                     ...data,
                     festive_sale: fConfig.festive_sale || data.festive_sale || {},
-                    header_tabs_config: fConfig.header_tabs_config || data.header_tabs_config || []
+                    header_tabs_config: combinedTabs.length > 0 ? combinedTabs : []
                 };
 
                 setSettings(preparedData);
@@ -535,34 +563,36 @@ const CompanySettingsForm = () => {
                 payload.promo_banners = null;
             }
 
-            // Festive Sale Banner
-            if (festiveBannerImages.length > 0) {
-                if (festiveBannerImages[0].file) {
-                    const url = await uploadImage(festiveBannerImages[0].file);
-                    if (url) payload.festive_sale = { ...(payload.festive_sale || {}), banner_url: url };
-                } else if (festiveBannerImages[0].dataURL) {
-                    payload.festive_sale = { ...(payload.festive_sale || {}), banner_url: festiveBannerImages[0].dataURL };
-                }
-            } else {
-                if (payload.festive_sale) {
-                    payload.festive_sale.banner_url = null;
-                }
-            }
-
             delete payload.createdAt;
             delete payload.updatedAt;
             delete payload.id;
 
-            // Bundle festive data into festive_config for backend
+            // Clean up header_tabs_config to remove unwanted fields
+            const navigationConfig = (payload.header_tabs_config || []).map((tab: any) => ({
+                id: tab.id,
+                name: tab.name,
+                icon: tab.icon,
+                color: tab.color,
+                chosen: tab.chosen,
+                selected: tab.selected,
+                header_color: tab.header_color
+            }));
+
+            const screenConfig = (payload.header_tabs_config || []).map((tab: any) => {
+                const { color, chosen, selected, header_color, festive_categories, ...rest } = tab;
+                return rest;
+            });
+
+            // Set root navigation config
+            payload.header_tabs_config = navigationConfig;
+
+            // Set festive screen config
             payload.festive_config = {
-                festive_sale: payload.festive_sale,
-                header_tabs_config: payload.header_tabs_config
+                header_tabs_config: screenConfig
             };
 
-            // Remove top-level festive fields to avoid redundancy/backend mismatch if necessary
-            // Note: Keeping them might be fine, but the user specifically asked for 'festive_config'
+            // Remove top-level festive fields to avoid redundancy
             delete payload.festive_sale;
-            delete payload.header_tabs_config;
 
             const response = await callApi('/company/settings', 'POST', payload);
             if (response && response.status === 'success') {
@@ -610,18 +640,18 @@ const CompanySettingsForm = () => {
                             { label: 'Content & Display', isHeader: true },
                             { id: 'banners', label: 'Promotional Banners', icon: <IconGallery className="w-4 h-4" /> },
                             { id: 'secondary_banners', label: 'Row Banners', icon: <IconLayoutGrid className="w-4 h-4" /> },
-                            { id: 'spotlight', label: 'Spotlight Config', icon: <IconStar className="w-4 h-4" /> },
-                            { id: 'festive', label: 'Festive Sale', icon: <IconSparkles className="w-4 h-4" /> },
+                            // { id: 'spotlight', label: 'Spotlight Config', icon: <IconStar className="w-4 h-4" /> },
+                            // { id: 'festive', label: 'Festive Sale', icon: <IconSparkles className="w-4 h-4" /> },
 
-                            { label: 'Screen Management', isHeader: true },
-                            { id: 'tabs', label: 'App Navigation', icon: <IconLayoutGrid className="w-4 h-4" /> },
-                            { id: 'colors', label: 'Screen Colors', icon: <IconColorPalette className="w-4 h-4" /> },
+
 
                             { label: 'Business Logic', isHeader: true },
                             { id: 'system', label: 'System Logic', icon: <IconSettings className="w-4 h-4" /> },
                             { id: 'charges', label: 'Charges', icon: <IconCashBanknotes className="w-4 h-4" /> },
                             { id: 'time', label: 'Time Management', icon: <IconClock className="w-4 h-4" /> },
-
+                            { label: 'Screen Management', isHeader: true },
+                            { id: 'tabs', label: 'App Navigation', icon: <IconLayoutGrid className="w-4 h-4" /> },
+                            { id: 'colors', label: 'Screen Colors', icon: <IconColorPalette className="w-4 h-4" /> },
                             { label: 'Technical & Legal', isHeader: true },
                             { id: 'seo', label: 'SEO & Search', icon: <IconMenuPages className="w-4 h-4" /> },
                             { id: 'policies', label: 'Legal & Policy', icon: <IconFile className="w-4 h-4" /> },
@@ -754,35 +784,442 @@ const CompanySettingsForm = () => {
                                 </ImageUploading>
                             </div>
 
-                            <div className="pt-4 mt-4">
-                                <h6 className="text-lg font-bold mb-6 border-b pb-4 border-gray-100 dark:border-gray-800">Carousel Banners (Multiple)</h6>
-                                <ImageUploading multiple value={bannerImages} onChange={setBannerImages}>
-                                    {({ imageList, onImageUpload, onImageUpdate, onImageRemove, dragProps, isDragging }) => (
-                                        <div className="space-y-6">
-                                            <div
-                                                className={`border-2 border-dashed rounded-3xl p-12 text-center transition-all ${isDragging ? 'border-primary bg-primary/5 scale-95' : 'border-gray-200 dark:border-gray-800 hover:border-primary/50'}`}
-                                                onClick={onImageUpload}
-                                                {...dragProps}
-                                            >
-                                                <IconGallery className="w-16 h-16 text-primary/20 mx-auto mb-4" />
-                                                <h6 className="font-bold text-lg mb-1">Upload Campaign Banners</h6>
-                                                <p className="text-white-dark text-sm">Drag images here or click to browse</p>
+                        </div>
+                    )}
+
+                    {activeTab === 'tabs' && (
+                        <div className="panel animate__animated animate__fadeIn space-y-6">
+                            <div className="flex items-center justify-between border-b pb-4 dark:border-gray-800">
+                                <div>
+                                    <h6 className="text-lg font-bold">App Navigation</h6>
+                                    <p className="text-xs text-white-dark mt-1">Manage and reorder your application's navigation tabs</p>
+                                </div>
+                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={addHeaderTab}>
+                                    <IconPlus /> Add Tab
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <ReactSortable
+                                    list={(settings.header_tabs_config || []).map((t, idx) => ({ ...t, id: t.id || `tab-${idx}` }))}
+                                    setList={(newList) => setSettings(prev => ({ ...prev, header_tabs_config: newList as any }))}
+                                    animation={200}
+                                    handle=".drag-handle"
+                                    className="space-y-4"
+                                >
+                                    {(settings.header_tabs_config || []).map((tab, idx) => (
+                                        <div key={tab.id || idx} className="space-y-3 group">
+                                            <div className={`flex flex-col md:flex-row items-center bg-white dark:bg-black/20 border transition-all rounded-xl p-2 ${tabDetailIdx === idx ? 'border-primary' : 'border-gray-100 dark:border-gray-800 shadow-sm'}`}>
+                                                <div className="drag-handle cursor-grab active:cursor-grabbing p-3 text-gray-400 hover:text-primary transition-colors">
+                                                    <IconMenuDragAndDrop className="w-5 h-5" />
+                                                </div>
+
+                                                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 px-2">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Tab Name</label>
+                                                        <input type="text" value={tab.name} onChange={(e) => updateHeaderTab(idx, 'name', e.target.value)} className="form-input text-xs" placeholder="Tab Name" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Icon Style</label>
+                                                        <select value={tab.icon} onChange={(e) => updateHeaderTab(idx, 'icon', e.target.value)} className="form-select text-xs">
+                                                            {AVAILABLE_ICONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Icon Color</label>
+                                                        <input type="color" value={tab.color || '#000000'} onChange={(e) => updateHeaderTab(idx, 'color', e.target.value)} className="w-full h-9 rounded-lg border-gray-200 dark:border-gray-800 cursor-pointer p-1" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Header BG</label>
+                                                        <input type="color" value={tab.header_color || '#ffffff'} onChange={(e) => updateHeaderTab(idx, 'header_color', e.target.value)} className="w-full h-9 rounded-lg border-gray-200 dark:border-gray-800 cursor-pointer p-1" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 p-2 border-l border-gray-100 dark:border-gray-800 ml-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setTabDetailIdx(idx);
+                                                            setActiveTab('festive-setup');
+                                                        }}
+                                                        className={`btn btn-sm ${tab.is_festive_active ? 'btn-primary shadow-md shadow-primary/20' : 'btn-outline-primary'} gap-2 px-4 transition-all hover:scale-105 active:scale-95`}
+                                                    >
+                                                        <IconSparkles className="w-4 h-4" />
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-inherit">Screen</span>
+                                                    </button>
+                                                    <button type="button" onClick={() => removeHeaderTab(idx)} className="btn btn-outline-danger btn-sm p-2 rounded-full">
+                                                        <IconX className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                                {imageList.map((image, index) => (
-                                                    <div key={index} className="relative group rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 aspect-video bg-gray-50">
-                                                        <img src={image.dataURL} alt="" className="w-full h-full object-cover" />
-                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                                                            <button type="button" onClick={() => onImageUpdate(index)} className="btn btn-primary btn-sm">Replace</button>
-                                                            <button type="button" onClick={() => onImageRemove(index)} className="btn btn-danger btn-sm">Remove</button>
-                                                        </div>
+                                        </div>
+                                    ))}
+                                </ReactSortable>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'festive-setup' && tabDetailIdx !== null && settings.header_tabs_config?.[tabDetailIdx] && (
+                        <div className="panel animate__animated animate__fadeIn space-y-4">
+                            <div className="flex items-center justify-between border-b pb-3 dark:border-gray-800">
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-secondary btn-sm p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
+                                        onClick={() => {
+                                            setActiveTab('tabs');
+                                            setTabDetailIdx(null);
+                                        }}
+                                    >
+                                        <IconArrowLeft className="w-4 h-4" />
+                                    </button>
+                                    <div>
+                                        <h6 className="text-base font-bold flex items-center gap-2 uppercase tracking-wide">
+                                            Screen: <span className="text-primary">{settings.header_tabs_config[tabDetailIdx].name}</span>
+                                        </h6>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 rounded-xl border border-primary/20">
+                                    <label className="text-[10px] font-bold text-primary uppercase tracking-wider">Active</label>
+                                    <Toggle
+                                        checked={!!settings.header_tabs_config[tabDetailIdx].is_festive_active}
+                                        onChange={(v) => updateTabFestive(tabDetailIdx!, 'is_festive_active', v)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className={`space-y-6 ${!settings.header_tabs_config[tabDetailIdx].is_festive_active ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+                                {/* Header Config */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Theme Color</label>
+                                        <div className="flex items-center gap-3 bg-white dark:bg-black p-2 rounded-xl border border-gray-100 dark:border-gray-800">
+                                            <input type="color" className="w-8 h-8 rounded-lg cursor-pointer p-0" value={settings.header_tabs_config[tabDetailIdx].festive_text_color || '#000000'} onChange={(e) => updateTabFestive(tabDetailIdx!, 'festive_text_color', e.target.value)} />
+                                            <span className="text-[11px] font-mono text-gray-500 uppercase">{settings.header_tabs_config[tabDetailIdx].festive_text_color || '#000000'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="md:col-span-2 space-y-2">
+                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Hero Banner (1000x240)</label>
+                                        <div className="aspect-[1000/240] rounded-2xl border-2 border-dashed border-gray-100 dark:border-gray-800 overflow-hidden relative group bg-gray-50 dark:bg-black/20">
+                                            {settings.header_tabs_config[tabDetailIdx].festive_banner_url ? (
+                                                <>
+                                                    <img src={settings.header_tabs_config[tabDetailIdx].festive_banner_url} alt="" className="w-full h-full object-cover" />
+                                                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
+                                                        <IconCamera className="w-6 h-6 text-white" />
+                                                        <input type="file" className="hidden" onChange={async (e) => {
+                                                            if (e.target.files?.[0]) {
+                                                                const url = await uploadImage(e.target.files[0]);
+                                                                if (url) updateTabFestive(tabDetailIdx!, 'festive_banner_url', url);
+                                                            }
+                                                        }} />
+                                                    </label>
+                                                </>
+                                            ) : (
+                                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all gap-2">
+                                                    <IconCamera className="w-6 h-6 text-primary opacity-30" />
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">Click to upload</span>
+                                                    <input type="file" className="hidden" onChange={async (e) => {
+                                                        if (e.target.files?.[0]) {
+                                                            const url = await uploadImage(e.target.files[0]);
+                                                            if (url) updateTabFestive(tabDetailIdx!, 'festive_banner_url', url);
+                                                        }
+                                                    }} />
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Single Banners Side by Side */}
+                                <div className="space-y-4">
+                                    <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Featured Slots (1-4)</h6>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(settings.header_tabs_config[tabDetailIdx].festive_single_banners || [{}, {}, {}, {}]).map((banner: any, bIdx: number) => (
+                                            <div key={bIdx} className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex gap-4">
+                                                <div className="w-16 h-16 rounded-xl overflow-hidden bg-white dark:bg-black border border-gray-100 dark:border-gray-800 relative group flex-shrink-0">
+                                                    {banner.image ? <img src={banner.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><IconPlus className="w-4 h-4 opacity-10" /></div>}
+                                                    <label className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
+                                                        <IconCamera className="w-5 h-5 text-white" />
+                                                        <input type="file" className="hidden" onChange={async (e) => {
+                                                            if (e.target.files?.[0]) {
+                                                                const url = await uploadImage(e.target.files[0]);
+                                                                if (url) {
+                                                                    const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                    newBanners[bIdx] = { ...newBanners[bIdx], image: url };
+                                                                    updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                }
+                                                            }
+                                                        }} />
+                                                    </label>
+                                                </div>
+                                                <div className="flex-1 space-y-2 min-w-0">
+                                                    <Select
+                                                        placeholder="Main Category"
+                                                        options={categoryList}
+                                                        value={categoryList.find(c => c.value === banner.parent_category_id)}
+                                                        onChange={(opt: any) => {
+                                                            const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                            newBanners[bIdx] = { ...newBanners[bIdx], parent_category_id: opt?.value, sub_category_id: '', category_id: '' };
+                                                            updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                            if (opt?.value) fetchSubCategoriesByCategory(opt.value);
+                                                        }}
+                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                    />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <Select
+                                                            placeholder="Sub"
+                                                            options={categorySubCategories[banner.parent_category_id] || []}
+                                                            value={(categorySubCategories[banner.parent_category_id] || []).find(s => s.value === banner.sub_category_id)}
+                                                            onChange={(opt: any) => {
+                                                                const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                newBanners[bIdx] = { ...newBanners[bIdx], sub_category_id: opt?.value, category_id: '' };
+                                                                updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
+                                                            }}
+                                                            styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                        />
+                                                        <Select
+                                                            placeholder="Niche"
+                                                            options={subCategoryNicheCategories[banner.sub_category_id] || []}
+                                                            value={(subCategoryNicheCategories[banner.sub_category_id] || []).find(n => n.value === banner.category_id)}
+                                                            onChange={(opt: any) => {
+                                                                const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                newBanners[bIdx] = { ...newBanners[bIdx], category_id: opt?.value };
+                                                                updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                            }}
+                                                            styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                        />
                                                     </div>
-                                                ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+
+                                {/* Product Wall Showcase */}
+                                <div className="space-y-4 pt-4 border-t dark:border-gray-800">
+                                    <div className="flex items-center justify-between">
+                                        <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Product Wall (Multi-Banner)</h6>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary btn-xs px-4"
+                                            onClick={() => {
+                                                const multi = { ...(settings.header_tabs_config![tabDetailIdx!].festive_multi_banner || { parent_category_id: '', sub_category_id: '', category_id: '', items: [] }) };
+                                                const currentItems = Array.isArray((multi as any).items) ? (multi as any).items : [];
+                                                (multi as any).items = [...currentItems, { image: '', product_id: '' }];
+                                                updateTabFestive(tabDetailIdx!, 'festive_multi_banner', multi);
+                                            }}
+                                        >
+                                            <IconPlus className="w-3 h-3 mr-1" /> Add Product
+                                        </button>
+                                    </div>
+
+                                    {(() => {
+                                        const multiBlock = (settings.header_tabs_config![tabDetailIdx!]?.festive_multi_banner || { parent_category_id: '', sub_category_id: '', category_id: '', items: [] }) as any;
+                                        return (
+                                            <>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                    <Select
+                                                        placeholder="Source Category"
+                                                        options={categoryList}
+                                                        value={categoryList.find(c => c.value === multiBlock.parent_category_id)}
+                                                        onChange={(opt: any) => {
+                                                            const updated = { ...multiBlock, parent_category_id: opt?.value, sub_category_id: '', category_id: '' };
+                                                            updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                            if (opt?.value) fetchSubCategoriesByCategory(opt.value);
+                                                        }}
+                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                    />
+                                                    <Select
+                                                        placeholder="Sub Category"
+                                                        options={categorySubCategories[multiBlock.parent_category_id] || []}
+                                                        value={(categorySubCategories[multiBlock.parent_category_id] || []).find(s => s.value === multiBlock.sub_category_id)}
+                                                        onChange={(opt: any) => {
+                                                            const updated = { ...multiBlock, sub_category_id: opt?.value, category_id: '' };
+                                                            updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                            if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
+                                                        }}
+                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                    />
+                                                    <Select
+                                                        placeholder="Niche Selection"
+                                                        options={subCategoryNicheCategories[multiBlock.sub_category_id] || []}
+                                                        value={(subCategoryNicheCategories[multiBlock.sub_category_id] || []).find(n => n.value === multiBlock.category_id)}
+                                                        onChange={(opt: any) => {
+                                                            const updated = { ...multiBlock, category_id: opt?.value };
+                                                            updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                        }}
+                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                    />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                                                    {(multiBlock.items || []).map((item: any, iIdx: number) => (
+                                                        <div key={iIdx} className="bg-white dark:bg-black/20 p-2 rounded-xl border border-gray-100 dark:border-gray-800 relative group shadow-sm transition-all hover:border-primary/30">
+                                                            <button
+                                                                type="button"
+                                                                className="absolute -top-2 -right-2 bg-danger text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-all z-10"
+                                                                onClick={() => {
+                                                                    const updated = { ...multiBlock };
+                                                                    updated.items = updated.items.filter((_: any, i: number) => i !== iIdx);
+                                                                    updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                                }}
+                                                            >
+                                                                <IconX className="w-3 h-3" />
+                                                            </button>
+                                                            <div className="aspect-square rounded-lg overflow-hidden bg-gray-50 dark:bg-black border border-gray-100 dark:border-gray-800 mb-2 relative group">
+                                                                {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-10"><IconPlus /></div>}
+                                                                <label className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
+                                                                    <IconCamera className="w-5 h-5 text-white" />
+                                                                    <input type="file" className="hidden" onChange={async (e) => {
+                                                                        if (e.target.files?.[0]) {
+                                                                            const url = await uploadImage(e.target.files[0]);
+                                                                            if (url) {
+                                                                                const updated = { ...multiBlock };
+                                                                                updated.items[iIdx] = { ...updated.items[iIdx], image: url };
+                                                                                updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                                            }
+                                                                        }
+                                                                    }} />
+                                                                </label>
+                                                            </div>
+                                                            <Select
+                                                                placeholder="Pick..."
+                                                                options={categoryProducts[multiBlock.category_id || multiBlock.sub_category_id || multiBlock.parent_category_id || ''] || []}
+                                                                value={(categoryProducts[multiBlock.category_id || multiBlock.sub_category_id || multiBlock.parent_category_id || ''] || []).find(p => p.value === item.product_id)}
+                                                                onChange={(opt: any) => {
+                                                                    const updated = { ...multiBlock };
+                                                                    updated.items[iIdx] = { ...updated.items[iIdx], product_id: opt?.value, image: opt?.image || updated.items[iIdx].image };
+                                                                    updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                                }}
+                                                                components={{ Option: CustomProductOption }}
+                                                                styles={{ control: base => ({ ...base, minHeight: '28px', borderRadius: '8px', fontSize: '10px' }) }}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )
+                                    })()}
+                                </div>
+
+
+                                {/* Category Row Showcase - Multi-Select Grid */}
+                                <div className="space-y-6 pt-4 border-t dark:border-gray-800">
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex flex-col gap-1">
+                                                <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Sequence Selection (Drag to Reorder)</h6>
+                                                <p className="text-[9px] text-white-dark uppercase tracking-wider ml-3 italic opacity-60">Reorder selected categories by dragging them</p>
                                             </div>
                                         </div>
-                                    )}
-                                </ImageUploading>
+
+                                        {/* Drag and Drop Sequence List */}
+                                        <div className="p-3 bg-gray-50 dark:bg-black/20 rounded-2xl min-h-[60px] border border-gray-100 dark:border-gray-800">
+                                            <ReactSortable 
+                                                list={(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((c: any, i: number) => ({ ...c, id: c.parent_category_id || i }))} 
+                                                setList={(newList) => {
+                                                    const updated = newList.map(item => ({ 
+                                                        image: item.image, 
+                                                        parent_category_id: item.parent_category_id 
+                                                    }));
+                                                    updateTabFestive(tabDetailIdx!, 'screen_data', updated);
+                                                }}
+                                                animation={200}
+                                                className="flex flex-wrap gap-2"
+                                                ghostClass="opacity-50"
+                                            >
+                                                {(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((cat: any, i: number) => {
+                                                    const fullCat = categoryList.find(c => c.value === cat.parent_category_id);
+                                                    return (
+                                                        <div key={cat.parent_category_id} className="bg-white dark:bg-black flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm cursor-move hover:border-primary/50 transition-all select-none group">
+                                                            <div className="w-1.5 h-1.5 bg-primary/20 rounded-full group-hover:bg-primary transition-colors" />
+                                                            <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">{fullCat?.label || 'Loading...'}</span>
+                                                            <button 
+                                                                type="button" 
+                                                                className="ml-1 text-gray-400 hover:text-danger"
+                                                                onClick={() => {
+                                                                    const updated = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).filter((_: any, idx: number) => idx !== i);
+                                                                    updateTabFestive(tabDetailIdx!, 'screen_data', updated);
+                                                                }}
+                                                            >
+                                                                <IconX className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </ReactSortable>
+                                            {(settings.header_tabs_config![tabDetailIdx!].screen_data || []).length === 0 && (
+                                                <div className="flex items-center justify-center p-4 text-[10px] text-gray-400 italic">No categories selected. Select from below to start.</div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between mt-2">
+                                            <div className="flex flex-col gap-1">
+                                                <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Available Categories</h6>
+                                                <p className="text-[9px] text-white-dark uppercase tracking-wider ml-3 italic opacity-60">Pick categories to add them to the sequence</p>
+                                            </div>
+                                            <div className="relative w-48">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search categories..."
+                                                    className="form-input text-xs pr-8 rounded-xl h-8 bg-gray-50 dark:bg-black/20"
+                                                    value={catSearch}
+                                                    onChange={(e) => setCatSearch(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[250px] overflow-y-auto p-1 custom-scrollbar">
+                                        {categoryList.map((cat: any) => {
+                                            const isSelected = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).some((c: any) => c.parent_category_id === cat.value);
+                                            return (
+                                                <div
+                                                    key={cat.value}
+                                                    onClick={() => {
+                                                        const current = [...(settings.header_tabs_config![tabDetailIdx!].screen_data || [])];
+                                                        if (isSelected) {
+                                                            const updated = current.filter((c: any) => c.parent_category_id !== cat.value);
+                                                            updateTabFestive(tabDetailIdx!, 'screen_data', updated);
+                                                        } else {
+                                                            current.push({ image: cat.image, parent_category_id: cat.value });
+                                                            updateTabFestive(tabDetailIdx!, 'screen_data', current);
+                                                        }
+                                                    }}
+                                                    className={`group p-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 relative overflow-hidden ${isSelected
+                                                            ? 'bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20'
+                                                            : 'bg-white dark:bg-black/20 border-gray-100 dark:border-gray-800 hover:border-primary/30'
+                                                        }`}
+                                                >
+                                                    <div className={`w-3 h-3 rounded flex items-center justify-center border ${isSelected ? 'bg-primary border-primary' : 'bg-white dark:bg-black/40 border-gray-200 dark:border-gray-700'}`}>
+                                                        {isSelected && <IconCheck className="w-2 h-2 text-white" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-[11px] font-bold truncate ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}>{cat.label}</p>
+                                                    </div>
+                                                    {isSelected && <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary" />}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-center pt-8">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary px-10 rounded-xl"
+                                        onClick={() => {
+                                            setActiveTab('tabs');
+                                            setTabDetailIdx(null);
+                                        }}
+                                    >
+                                        Save & Return
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1451,8 +1888,8 @@ const CompanySettingsForm = () => {
                                                 <div className="flex items-center gap-3 pr-6 border-r border-gray-100 dark:border-gray-800">
                                                     <span className="text-[9px] font-bold uppercase text-white-dark tracking-tighter">Theme Color</span>
                                                     <div className="flex items-center gap-2 bg-gray-50 dark:bg-black/40 p-1.5 rounded-xl border border-gray-100 dark:border-gray-800">
-                                                        <input type="color" className="w-6 h-6 rounded-lg border-2 border-white cursor-pointer shadow-sm" value={currentTab.festive_accent_color || '#ffffff'} onChange={(e) => updateTabFestive(selectedFestiveTabIdx, 'festive_accent_color', e.target.value)} />
-                                                        <input type="text" className="bg-transparent border-none text-[10px] font-mono w-16 p-0 focus:ring-0 uppercase" value={currentTab.festive_accent_color || '#ffffff'} onChange={(e) => updateTabFestive(selectedFestiveTabIdx, 'festive_accent_color', e.target.value)} />
+                                                        <input type="color" className="w-6 h-6 rounded-lg border-2 border-white cursor-pointer shadow-sm" value={currentTab.festive_text_color || '#ffffff'} onChange={(e) => updateTabFestive(selectedFestiveTabIdx, 'festive_text_color', e.target.value)} />
+                                                        <input type="text" className="bg-transparent border-none text-[10px] font-mono w-16 p-0 focus:ring-0 uppercase" value={currentTab.festive_text_color || '#ffffff'} onChange={(e) => updateTabFestive(selectedFestiveTabIdx, 'festive_text_color', e.target.value)} />
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
@@ -1883,6 +2320,7 @@ const CompanySettingsForm = () => {
                             })()}
                         </div>
                     )}
+
                 </div>
             </div>
         </form>
@@ -1904,16 +2342,5 @@ const TabIcon = ({ name, className }: { name: string, className?: string }) => {
     }
 };
 
-const IconSparkles = ({ className }: { className?: string }) => (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3l1.912 3.874L18.18 7.49l-3.09 3.011.729 4.259L12 12.75l-3.819 2.01.729-4.259-3.09-3.011 4.268-.616L12 3z" />
-    </svg>
-);
-
-const IconColorPalette = ({ className }: { className?: string }) => (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-    </svg>
-);
 
 export default CompanySettingsForm;

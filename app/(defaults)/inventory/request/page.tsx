@@ -144,7 +144,9 @@ const StockTransfer = () => {
             setTransferLoading(true);
             const items = validRecords.map(record => ({
                 product_id: record.product_id,
-                quantity: quantities[record.product_id] || 1
+                quantity: quantities[record.product_id] || 1,
+                product_name: record.product?.name || 'N/A',
+                product_image: record.product?.image || ''
             }));
 
             const payload = {
