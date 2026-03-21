@@ -39,6 +39,11 @@ const Header = () => {
     const dispatch = useDispatch();
     const router = useRouter();
     const { t, i18n } = getTranslation();
+    const [role, setRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        setRole(localStorage.getItem('role'));
+    }, []);
 
     useEffect(() => {
         const selector = document.querySelector('ul.horizontal-menu a[href="' + window.location.pathname + '"]');
@@ -150,7 +155,13 @@ const Header = () => {
             <div className="shadow-sm">
                 <div className="relative flex w-full items-center bg-white px-4 py-1.5 dark:bg-black">
                     <div className="horizontal-logo flex items-center lg:hidden flex-1 relative">
-                        <Link href="/" className="main-logo flex shrink-0 items-center">
+                        <Link href={
+                            role === 'super_admin' || role === 'admin' ? '/' : 
+                            role === 'product_manager' ? '/products/list' : 
+                            role === 'warehouse_manager' ? '/warehouses/list' : 
+                            role === 'store_manager' ? '/store/list' : 
+                            role === 'account_manager' ? '/purchase/list' : '/'
+                        } className="main-logo flex shrink-0 items-center">
                             <img className="inline w-14 flex-none" src="/assets/images/logo.png" alt="logo" />
                         </Link>
                         <button
@@ -329,7 +340,7 @@ const Header = () => {
                                 </ul>
                             </Dropdown>
                         </div> */}
-                        <div className="dropdown shrink-0">
+                        {/* <div className="dropdown shrink-0">
                             <Dropdown
                                 offset={[0, 8]}
                                 placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`}
@@ -358,7 +369,7 @@ const Header = () => {
                                                     <li key={notification.id} className="dark:text-white-light/90" onClick={(e) => e.stopPropagation()}>
                                                         <div className="group flex items-center px-4 py-2">
                                                             <div className="grid place-content-center rounded">
-                                                                <div className="relative h-12 w-12">
+                                                                  <div className="relative h-12 w-12">
                                                                     <img className="h-12 w-12 rounded-full object-cover" alt="profile" src={`/assets/images/${notification.profile}`} />
                                                                     <span className="absolute bottom-0 right-[6px] block h-2 w-2 rounded-full bg-success"></span>
                                                                 </div>
@@ -402,7 +413,7 @@ const Header = () => {
                                     )}
                                 </ul>
                             </Dropdown>
-                        </div>
+                        </div> */}
                         <div className="dropdown flex shrink-0">
                             <Dropdown
                                 offset={[0, 8]}
@@ -416,16 +427,34 @@ const Header = () => {
                                             <img className="h-10 w-10 rounded-md object-cover" src="/assets/images/user-profile.jpeg" alt="userProfile" />
                                             <div className="truncate ltr:pl-4 rtl:pr-4">
                                                 <h4 className="text-base">
-                                                    John Doe
-                                                    <span className="rounded bg-success-light px-1 text-xs text-success ltr:ml-2 rtl:ml-2">Pro</span>
+                                                    {(() => {
+                                                        const userDataString = typeof window !== 'undefined' ? localStorage.getItem('userData') : null;
+                                                        if (userDataString) {
+                                                            try {
+                                                                const userData = JSON.parse(userDataString);
+                                                                return userData.name || userData.user?.name || 'User';
+                                                            } catch(e) {}
+                                                        }
+                                                        return 'User';
+                                                    })()}
+                                                    <span className="rounded bg-success-light px-1 text-xs text-success ltr:ml-2 rtl:ml-2">Active</span>
                                                 </h4>
-                                                <button type="button" className="text-black/60 hover:text-primary dark:text-dark-light/60 dark:hover:text-white">
-                                                    johndoe@gmail.com
+                                                <button type="button" className="text-black/60 hover:text-primary dark:text-dark-light/60 dark:hover:text-white truncate max-w-[150px]">
+                                                    {(() => {
+                                                        const userDataString = typeof window !== 'undefined' ? localStorage.getItem('userData') : null;
+                                                        if (userDataString) {
+                                                            try {
+                                                                const userData = JSON.parse(userDataString);
+                                                                return userData.email || userData.user?.email || '';
+                                                            } catch(e) {}
+                                                        }
+                                                        return '';
+                                                    })()}
                                                 </button>
                                             </div>
                                         </div>
                                     </li>
-                                    <li>
+                                    {/* <li>
                                         <Link href="/users/profile" className="dark:hover:text-white">
                                             <IconUser className="h-4.5 w-4.5 shrink-0 ltr:mr-2 rtl:ml-2" />
                                             Profile
@@ -442,9 +471,9 @@ const Header = () => {
                                             <IconLockDots className="h-4.5 w-4.5 shrink-0 ltr:mr-2 rtl:ml-2" />
                                             Lock Screen
                                         </Link>
-                                    </li>
+                                    </li> */}
                                     <li className="border-t border-white-light dark:border-white-light/10">
-                                        <Link href="/auth/boxed-signin" className="!py-3 text-danger">
+                                        <Link href="/auth/boxed-signin" className="!py-3 text-danger" onClick={() => localStorage.clear()}>
                                             <IconLogout className="h-4.5 w-4.5 shrink-0 rotate-90 ltr:mr-2 rtl:ml-2" />
                                             Sign Out
                                         </Link>

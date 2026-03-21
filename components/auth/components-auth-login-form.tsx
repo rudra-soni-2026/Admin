@@ -27,7 +27,21 @@ const ComponentsAuthLoginForm = () => {
                     localStorage.setItem('role', response.data.role);
                 }
                 localStorage.setItem('userData', JSON.stringify(response.data));
-                router.push('/');
+                
+                const role = response.data.role;
+                if (role === 'super_admin' || role === 'admin') {
+                    router.push('/');
+                } else if (role === 'product_manager') {
+                    router.push('/products/list');
+                } else if (role === 'warehouse_manager') {
+                    router.push('/warehouses/list');
+                } else if (role === 'store_manager') {
+                    router.push('/orders/list');
+                } else if (role === 'account_manager') {
+                    router.push('/purchase/list');
+                } else {
+                    router.push('/');
+                }
             } else {
                 // If token is directly in response or under a different key, adjust here
                 const token = response.token || response.accessToken || response.data?.accessToken;
@@ -41,7 +55,22 @@ const ComponentsAuthLoginForm = () => {
                     if (role) {
                         localStorage.setItem('role', role);
                     }
-                    router.push('/');
+                    localStorage.setItem('userData', JSON.stringify(response.data || response));
+                    
+                    // Redirect based on role
+                    if (role === 'super_admin' || role === 'admin') {
+                        router.push('/');
+                    } else if (role === 'product_manager') {
+                        router.push('/products/list');
+                    } else if (role === 'warehouse_manager') {
+                        router.push('/warehouses/list');
+                    } else if (role === 'store_manager') {
+                        router.push('/orders/list');
+                    } else if (role === 'account_manager') {
+                        router.push('/purchase/list');
+                    } else {
+                        router.push('/');
+                    }
                 } else {
                     alert('Token not found in response');
                 }

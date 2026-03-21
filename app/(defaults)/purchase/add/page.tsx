@@ -68,6 +68,30 @@ const AddPurchase = () => {
         }
     };
 
+    // Auto-select warehouse for Accountant Manager
+    useEffect(() => {
+        if (warehouses.length > 0) {
+            const userDataStr = localStorage.getItem('userData');
+            const storedRole = localStorage.getItem('role');
+            if (userDataStr) {
+                const userData = JSON.parse(userDataStr);
+                const userRole = (storedRole || userData.role || '').toLowerCase().replace(' ', '_');
+                const assignedId = userData.assignedId || userData.assigned_id || userData.warehouse_id || userData.assigned_warehouse_id;
+                
+                // Flexible check for account_manager role and assignedId presence
+                if ((userRole.includes('account_manager') || userRole.includes('accountant')) && assignedId) {
+                    setFormData(prev => {
+                        // Matching state with assignedId from userData
+                        if (!prev.warehouse_id) {
+                            return { ...prev, warehouse_id: assignedId };
+                        }
+                        return prev;
+                    });
+                }
+            }
+        }
+    }, [warehouses]);
+
     const handleFormChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
@@ -362,14 +386,20 @@ const AddPurchase = () => {
                                 </div>
                                 <div>
                                     <label htmlFor="warehouse_id" className="text-xs font-bold uppercase mb-1 block">Location *</label>
-                                    <select id="warehouse_id" className="form-select font-semibold" value={formData.warehouse_id} onChange={handleFormChange} required>
-                                        <option value="">Select Location</option>
-                                        {warehouses.map(w => (
-                                            <option key={w.id || w._id} value={w.id || w._id}>
-                                                {w.name} ({w.type})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    {((localStorage.getItem('role') || '').toLowerCase().includes('account_manager') || (localStorage.getItem('role') || '').toLowerCase().includes('accountant')) && formData.warehouse_id ? (
+                                        <div className="form-input bg-gray-50 border-gray-200 font-black uppercase text-xs h-10 flex items-center">
+                                            {warehouses.find(w => w.id === formData.warehouse_id)?.name || 'Fetching Location...'}
+                                        </div>
+                                    ) : (
+                                        <select id="warehouse_id" className="form-select font-semibold" value={formData.warehouse_id} onChange={handleFormChange} required>
+                                            <option value="">Select Location</option>
+                                            {warehouses.map(w => (
+                                                <option key={w.id || w._id} value={w.id || w._id}>
+                                                    {w.name} ({w.type})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
                                 <div>
                                     <label htmlFor="supplier_id" className="text-xs font-bold uppercase mb-1 block flex justify-between items-center">

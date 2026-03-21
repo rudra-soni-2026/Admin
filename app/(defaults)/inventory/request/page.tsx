@@ -34,6 +34,31 @@ const StockTransfer = () => {
         fetchInitialData();
     }, []);
 
+    // Auto-select Warehouse for Warehouse Manager
+    useEffect(() => {
+        if (warehouses.length > 0) {
+            const userDataString = localStorage.getItem('userData');
+            const storedRole = localStorage.getItem('role');
+            if (userDataString) {
+                try {
+                    const userData = JSON.parse(userDataString);
+                    const userRole = (storedRole || userData.role || '').toLowerCase();
+                    if (userRole.includes('warehouse_manager')) {
+                        const assignedId = userData.assignedId || userData.assigned_id || userData.warehouse_id || userData.assigned_warehouse_id;
+                        if (assignedId) {
+                            const matched = warehouses.find(w => w.value === assignedId);
+                            if (matched && !selectedWarehouse) {
+                                setSelectedWarehouse(matched);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing userData:', e);
+                }
+            }
+        }
+    }, [warehouses, selectedWarehouse]);
+
     const fetchInitialData = async () => {
         try {
             const [whResponse, storeResponse] = await Promise.all([
@@ -200,14 +225,20 @@ const StockTransfer = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-bold mb-1 block uppercase tracking-wider text-gray-500">Source Warehouse</label>
-                                <Select
-                                    placeholder="Which warehouse has the stock?"
-                                    options={warehouses}
-                                    value={selectedWarehouse}
-                                    onChange={(val) => setSelectedWarehouse(val)}
-                                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-                                />
+                                {(typeof window !== 'undefined' && localStorage.getItem('role')?.toLowerCase().includes('warehouse_manager')) && selectedWarehouse ? (
+                                    <div className="form-input bg-gray-50 border-gray-200 font-black uppercase text-xs h-10 flex items-center shadow-sm">
+                                        {selectedWarehouse.label}
+                                    </div>
+                                ) : (
+                                    <Select
+                                        placeholder="Which warehouse has the stock?"
+                                        options={warehouses}
+                                        value={selectedWarehouse}
+                                        onChange={(val) => setSelectedWarehouse(val)}
+                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                        styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                                    />
+                                )}
                             </div>
                             <div>
                                 <label className="text-xs font-bold mb-1 block uppercase tracking-wider text-gray-500">Target Store</label>

@@ -30,7 +30,22 @@ const StoreInventory = () => {
             setLoading(true);
             let query = `/management/admin/store-inventory?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
-            if (storeIdParam) query += `&store_id=${storeIdParam}`;
+            
+            // Check for store_manager assignedId
+            const storedRole = localStorage.getItem('role');
+            const userDataString = localStorage.getItem('userData');
+            let assignedStoreId = storeIdParam;
+
+            if (storedRole?.toLowerCase().includes('store_manager') && userDataString) {
+                try {
+                    const userData = JSON.parse(userDataString);
+                    assignedStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || assignedStoreId;
+                } catch (e) {
+                    console.error('Error parsing userData:', e);
+                }
+            }
+
+            if (assignedStoreId) query += `&store_id=${assignedStoreId}`;
             
             const response = await callApi(query, 'GET');
             if (response?.data) {

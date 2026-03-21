@@ -72,8 +72,23 @@ const OrderList = () => {
     const fetchOrders = (currentPage: number) => {
         try {
             setLoading(true);
+            
+            // Determine storeId based on role
+            const storedRole = localStorage.getItem('role');
+            const userDataString = localStorage.getItem('userData');
+            let storeId = 'all';
+            
+            if (storedRole === 'store_manager' && userDataString) {
+                try {
+                    const userData = JSON.parse(userDataString);
+                    storeId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || 'all';
+                } catch (e) {
+                    console.error('Error parsing userData:', e);
+                }
+            }
+
             const params: any = {
-                storeId: 'all',
+                storeId: storeId,
                 page: currentPage,
                 limit: pageSize,
                 search: debouncedSearch,
@@ -133,7 +148,16 @@ const OrderList = () => {
         });
 
         // 2️⃣ Then join/fetch initial data
-        joinStore('all');
+        const storedRole = localStorage.getItem('role');
+        const userDataString = localStorage.getItem('userData');
+        let joinId = 'all';
+        if (storedRole === 'store_manager' && userDataString) {
+            try {
+                const userData = JSON.parse(userDataString);
+                joinId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || 'all';
+            } catch(e) {}
+        }
+        joinStore(joinId);
         fetchOrders(pageRef.current);
 
         // Fetch Riders

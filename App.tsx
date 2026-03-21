@@ -42,6 +42,19 @@ function App({ children }: PropsWithChildren) {
                 audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                 audioRef.current.load();
                 console.log('🎵 Notification audio pre-loaded');
+
+                // Unlock audio context on first user interaction
+                const unlockAudio = () => {
+                    if (audioRef.current) {
+                        audioRef.current.play().then(() => {
+                            audioRef.current?.pause();
+                            if (audioRef.current) audioRef.current.currentTime = 0;
+                            window.removeEventListener('click', unlockAudio);
+                            console.log('🔊 Audio context unlocked by user interaction');
+                        }).catch(e => console.log('🔇 Unlock interaction failed:', e));
+                    }
+                };
+                window.addEventListener('click', unlockAudio);
             }
 
             // Global Notification Listener
@@ -55,14 +68,20 @@ function App({ children }: PropsWithChildren) {
                 console.log('📡 Global Socket Event:', data.type || data.eventType);
                 
                 const orderInfo = data.order || data;
-                if (data.type === 'NEW_ORDER') {
+                if (data.type === 'NEW_ORDER' || data.eventType === 'NEW_ORDER') {
                     console.log('🔔 NEW_ORDER Detected! Playing sound...');
                     if (audioRef.current) {
+                        // Force stop and restart
+                        audioRef.current.pause();
                         audioRef.current.currentTime = 0;
                         audioRef.current.play().then(() => {
                             console.log('🔊 Sound played successfully');
                         }).catch(e => {
                             console.log('🔇 Audio blocked by browser policy. Interaction needed.', e);
+                            // Fallback: try playing again with a small delay
+                            setTimeout(() => {
+                                audioRef.current?.play().catch(() => {});
+                            }, 500);
                         });
                     }
                     toast.fire({ icon: 'info', title: `🔔 New Order: ${orderInfo.order_id || 'ID N/A'}` });

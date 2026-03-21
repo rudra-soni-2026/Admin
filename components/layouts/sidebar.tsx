@@ -129,7 +129,13 @@ const Sidebar = () => {
             >
                 <div className="h-full bg-white dark:bg-black">
                     <div className="flex items-center justify-center px-4 py-3 relative">
-                        <Link href="/" className="main-logo flex shrink-0 items-center">
+                        <Link href={
+                            role === 'super_admin' || role === 'admin' ? '/' : 
+                            role === 'product_manager' ? '/products/list' : 
+                            role === 'warehouse_manager' ? '/warehouses/list' : 
+                            role === 'store_manager' ? '/store/list' : 
+                            role === 'account_manager' ? '/purchase/list' : '/'
+                        } className="main-logo flex shrink-0 items-center">
                             <img className="inline w-20 flex-none" src="/assets/images/logo.png" alt="logo" />
                         </Link>
 
@@ -143,7 +149,7 @@ const Sidebar = () => {
                     </div>
                     <PerfectScrollbar className="relative h-[calc(100vh-80px)]">
                         <ul className="relative space-y-0.5 p-4 py-0 font-semibold">
-                            {hasPermission('dashboard') && (
+                            {hasPermission('dashboard') && role !== 'account_manager' && (
                                 <li className="menu nav-item">
                                     <button type="button" className={`${currentMenu === 'dashboard' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('dashboard')}>
                                         <div className="flex items-center">
@@ -416,7 +422,7 @@ const Sidebar = () => {
                                                     </Link>
                                                 </li>
                                             )}
-                                            {hasPermission('products') && (
+                                            {hasPermission('products') && role !== 'product_manager' && (
                                                 <li className="nav-item">
                                                     <Link href="/offers/list" className="group">
                                                         <div className="flex items-center">
@@ -430,7 +436,7 @@ const Sidebar = () => {
                                     </li>
                                 </>
                             )}
-                            {(hasPermission('suppliers') || hasPermission('purchases') || hasPermission('inventory')) && (
+                            {(hasPermission('suppliers') || hasPermission('purchases') || hasPermission('inventory') || hasPermission('warehouse_inventory') || hasPermission('inventory_transfer') || hasPermission('store_inventory')) && (
                                 <>
                                     <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                         <IconMinus className="hidden h-5 w-4 flex-none" />
@@ -460,32 +466,42 @@ const Sidebar = () => {
                                                 </li>
                                             )}
 
-                                            {hasPermission('inventory') && (
+                                            {(hasPermission('inventory') || hasPermission('warehouse_inventory') || hasPermission('inventory_transfer') || hasPermission('store_inventory')) && (
                                                 <>
-                                                    <li className="nav-item">
-                                                        <Link href="/inventory/warehouse" className="group">
-                                                            <div className="flex items-center">
-                                                                <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span>
-                                                            </div>
-                                                        </Link>
-                                                    </li>
-                                                    <li className="nav-item">
-                                                        <Link href="/inventory/store" className="group">
-                                                            <div className="flex items-center">
-                                                                <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
-                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span>
-                                                            </div>
-                                                        </Link>
-                                                    </li>
-                                                    <li className="nav-item">
-                                                        <Link href="/inventory/transfer" className="group">
-                                                            <div className="flex items-center">
-                                                                <IconRefresh className="shrink-0 group-hover:!text-primary" />
-                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span>
-                                                            </div>
-                                                        </Link>
-                                                    </li>
+                                                    {role !== 'super_admin' && role !== 'admin' && (
+                                                        <>
+                                                            {(hasPermission('warehouse_inventory') || hasPermission('inventory')) && (
+                                                                <li className="nav-item">
+                                                                    <Link href="/inventory/warehouse" className="group">
+                                                                        <div className="flex items-center">
+                                                                            <IconBox className="shrink-0 group-hover:!text-primary" />
+                                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span>
+                                                                        </div>
+                                                                    </Link>
+                                                                </li>
+                                                            )}
+                                                            {(hasPermission('store_inventory') || hasPermission('inventory')) && (
+                                                                <li className="nav-item">
+                                                                    <Link href="/inventory/store" className="group">
+                                                                        <div className="flex items-center">
+                                                                            <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
+                                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span>
+                                                                        </div>
+                                                                    </Link>
+                                                                </li>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                    {(hasPermission('inventory_transfer') || hasPermission('inventory') || hasPermission('store_inventory')) && (
+                                                        <li className="nav-item">
+                                                            <Link href="/inventory/transfer" className="group">
+                                                                <div className="flex items-center">
+                                                                    <IconRefresh className="shrink-0 group-hover:!text-primary" />
+                                                                    <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span>
+                                                                </div>
+                                                            </Link>
+                                                        </li>
+                                                    )}
                                                 </>
                                             )}
 

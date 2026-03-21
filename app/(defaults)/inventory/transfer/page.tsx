@@ -21,7 +21,29 @@ const InventoryTransfer = () => {
     const fetchTransferHistory = async () => {
         try {
             setHistoryLoading(true);
-            const response = await callApi(`/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}`, 'GET');
+            
+            const storedRole = localStorage.getItem('role');
+            const userDataString = localStorage.getItem('userData');
+            let query = `/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}`;
+
+            if (userDataString) {
+                try {
+                    const userData = JSON.parse(userDataString);
+                    const assignedId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id;
+                    
+                    if (assignedId) {
+                        if (storedRole === 'store_manager') {
+                            query += `&storeId=${assignedId}`;
+                        } else if (storedRole === 'warehouse_manager') {
+                            query += `&warehouseId=${assignedId}`;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing userData:', e);
+                }
+            }
+
+            const response = await callApi(query, 'GET');
             if (response?.data) {
                 const mapped = response.data.map((item: any) => {
                     let itemsArray = [];
