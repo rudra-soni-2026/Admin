@@ -17,6 +17,15 @@ const EditRider = () => {
     const fetchRider = async () => {
         try {
             setLoading(true);
+            
+            // Try to get data from localStorage first
+            const savedData = localStorage.getItem(`edit_rider_${id}`);
+            if (savedData) {
+                setRiderData(JSON.parse(savedData));
+                setLoading(false);
+                return;
+            }
+
             const response = await callApi(`/management/admin/riders/${id}`, 'GET');
             if (response && response.data) setRiderData(response.data);
         } catch (error) {

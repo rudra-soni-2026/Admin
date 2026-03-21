@@ -48,6 +48,7 @@ interface UserManagerTableProps {
     onDownloadClick?: (item: any) => void;
     onStockClick?: (item: any) => void;
     disableNameClick?: boolean;
+    hideTotal?: boolean;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -95,6 +96,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             hideView={props.hideView} 
             hideFilter={props.hideFilter} 
             disableNameClick={props.disableNameClick} 
+            hideTotal={props.hideTotal}
         />
     );
 };

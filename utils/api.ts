@@ -1,5 +1,4 @@
-
-const BASE_URL = 'https://testingdomain.store/api/v1/'; // अपनी API का URL यहाँ डालें
+const BASE_URL = '/api/v1'; // Using relative path for proxying
 
 /**
  * Universal API calling function
@@ -8,7 +7,6 @@ const BASE_URL = 'https://testingdomain.store/api/v1/'; // अपनी API क�
  * @param body - Request body (for POST/PUT)
  * @param customHeaders - Any extra headers you want to pass
  */
-
 
 export const callApi = async (endpoint: string, method: string = 'GET', body: any = null, customHeaders: any = {}) => {
     try {
@@ -34,7 +32,10 @@ export const callApi = async (endpoint: string, method: string = 'GET', body: an
             config.body = isFormData ? body : JSON.stringify(body);
         }
 
-        const response = await fetch(`${BASE_URL}${endpoint}`, config);
+        // Ensure leading slash for cleaning
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+        const response = await fetch(`${BASE_URL}${cleanEndpoint}`, config);
 
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {

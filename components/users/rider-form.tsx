@@ -45,14 +45,38 @@ const RiderForm = (props: RiderFormProps) => {
     useEffect(() => {
         fetchStores();
         if (isEdit && props.editData) {
+            let parsedDocs = props.editData.documents || {
+                license_url: '',
+                aadhar_url: '',
+                insurance_url: ''
+            };
+            
+            if (typeof parsedDocs === 'string') {
+                try {
+                    parsedDocs = JSON.parse(parsedDocs);
+                } catch (e) {
+                    console.error("Error parsing documents", e);
+                    parsedDocs = {
+                        license_url: '',
+                        aadhar_url: '',
+                        insurance_url: ''
+                    };
+                }
+            }
+
             setFormData({
                 ...formData,
                 ...props.editData,
+                name: props.editData.user?.name || props.editData.name || '',
+                phone: props.editData.user?.phone || props.editData.phone || '',
+                email: props.editData.user?.email || props.editData.email || '',
+                documents: parsedDocs,
                 password: '' // Keep password empty on edit
             });
-            if (props.editData.documents?.license_url) setLicenseImages([{ dataURL: props.editData.documents.license_url }]);
-            if (props.editData.documents?.aadhar_url) setAadharImages([{ dataURL: props.editData.documents.aadhar_url }]);
-            if (props.editData.documents?.insurance_url) setInsuranceImages([{ dataURL: props.editData.documents.insurance_url }]);
+            
+            if (parsedDocs.license_url) setLicenseImages([{ dataURL: parsedDocs.license_url }]);
+            if (parsedDocs.aadhar_url) setAadharImages([{ dataURL: parsedDocs.aadhar_url }]);
+            if (parsedDocs.insurance_url) setInsuranceImages([{ dataURL: parsedDocs.insurance_url }]);
         }
     }, [props.id, props.editData]);
 
@@ -125,7 +149,8 @@ const RiderForm = (props: RiderFormProps) => {
             const response = await callApi(isEdit ? `/management/admin/riders/${props.id}` : '/management/admin/riders', isEdit ? 'PATCH' : 'POST', payload);
 
             if (response) {
-                showMessage(`Rider ${isEdit ? 'updated' : 'created'} successfully`, 'success');
+                if (isEdit) localStorage.removeItem(`edit_rider_${props.id}`);
+                showMessage(`Rider ${isEdit ? 'updated' : 'create'} successfully`, 'success');
                 router.push('/riders/list');
             }
         } catch (error: any) {

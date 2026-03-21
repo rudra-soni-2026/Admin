@@ -25,7 +25,6 @@ const CouponForm = (props: CouponFormProps) => {
         minOrder: 0,
         maxDiscount: 0,
         expiryDate: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), 
-        description: '',
         targetType: 'ALL', 
         targetIds: [] as any[],
         usageLimit: 0,
@@ -41,7 +40,7 @@ const CouponForm = (props: CouponFormProps) => {
                 ...formData,
                 ...props.editData,
                 expiryDate: props.editData.expiryDate ? new Date(props.editData.expiryDate) : formData.expiryDate,
-                targetIds: props.editData.targetIds || []
+                targetIds: typeof props.editData.targetIds === 'string' ? JSON.parse(props.editData.targetIds) : (props.editData.targetIds || [])
             });
         }
     }, [props.id, props.editData]);
@@ -49,7 +48,7 @@ const CouponForm = (props: CouponFormProps) => {
     const loadUserOptions = async (inputValue: string) => {
         try {
             // Using a higher limit for default display
-            const response = await callApi(`/management/admin/users?role=customer&search=${inputValue || ''}&limit=50`, 'GET');
+            const response = await callApi(`/management/admin/users?role=user&search=${inputValue || ''}&limit=50`, 'GET');
             if (response && response.data) {
                 return response.data.map((u: any) => ({
                     value: u.id || u._id,
@@ -79,6 +78,7 @@ const CouponForm = (props: CouponFormProps) => {
             };
             const response = await callApi(isEdit ? `/management/admin/coupons/${props.id}` : '/management/admin/coupons', isEdit ? 'PATCH' : 'POST', payload);
             if (response) {
+                if (isEdit) localStorage.removeItem(`edit_coupon_${props.id}`);
                 Swal.fire({ icon: 'success', title: `Coupon ${isEdit ? 'Updated' : 'Created'}`, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
                 router.push('/coupons/list');
             }
@@ -174,11 +174,6 @@ const CouponForm = (props: CouponFormProps) => {
                                 <span className="outline_switch bg-gray-200 dark:bg-dark block h-full rounded-full before:absolute before:left-0.5 before:bg-white before:bottom-0.5 before:w-4 before:h-4 before:rounded-full before:transition-all before:duration-300 peer-checked:before:left-5 peer-checked:bg-primary"></span>
                             </label>
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="text-[11px] font-bold uppercase text-gray-500 mb-1">Description</label>
-                        <textarea id="description" rows={2} className="form-textarea text-xs" value={formData.description} onChange={handleChange}></textarea>
                     </div>
 
                     <div className="flex gap-2 pt-4 justify-end border-t mt-4">

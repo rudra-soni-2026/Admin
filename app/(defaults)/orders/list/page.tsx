@@ -1,8 +1,13 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import UserManagerTable from '@/components/user-manager/user-manager-table';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import UserManagerTable from '@/components/user-manager/user-manager-table';
+import { callApi } from '@/utils/api';
+import Swal from 'sweetalert2';
+import { subscribeToOrders, joinStore, unsubscribeFromOrders, getOrders } from '@/utils/socket';
+import { useRef } from 'react';
+
 
 const OrderList = () => {
     const router = useRouter();
@@ -11,6 +16,8 @@ const OrderList = () => {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
+    
+    // Stats
     const [totalOrders, setTotalOrders] = useState(0);
     const [todayOrders, setTodayOrders] = useState(0);
     const [todayRevenue, setTodayRevenue] = useState(0);
@@ -20,154 +27,148 @@ const OrderList = () => {
 
     // Filter States
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [status, setStatus] = useState('all');
     const [dateRange, setDateRange] = useState<any>('');
+    
+    // Refs for stable socket callback values
+    const pageRef = useRef(1);
 
-    // Dummy Data matching the screenshot requirements
-    const fetchDummyOrders = () => {
-        setLoading(true);
-        setTimeout(() => {
-            const dummyData = [
-                {
-                    id: '1',
-                    originalId: '1',
-                    order_id: '69B1515D0DAE6',
-                    orderTime: '11 Mar, 16:56',
-                    deliveryTime: '17:10',
-                    duration: '14 min',
-                    customerName: 'Guriya singh',
-                    customerPhone: '7857899468',
-                    isNewCustomer: true,
-                    rider: 'Pradeep',
-                    pay: 'COD',
-                    amount: '₹47.00',
-                    status: 'In_transit',
-                    store: 'Pat-4'
-                },
-                {
-                    id: '2',
-                    originalId: '2',
-                    order_id: '69B150EACF637',
-                    orderTime: '11 Mar, 16:54',
-                    deliveryTime: '17:05',
-                    duration: '11 min',
-                    customerName: 'Prashant Kumar Acha',
-                    customerPhone: '7667908461',
-                    isNewCustomer: true,
-                    rider: 'Krishna',
-                    pay: 'UPI',
-                    amount: '₹62.00',
-                    status: 'Delivered',
-                    store: 'PAT-2'
-                },
-                {
-                    id: '3',
-                    originalId: '3',
-                    order_id: '69B14E5B1F7AC',
-                    orderTime: '11 Mar, 16:43',
-                    deliveryTime: '17:03',
-                    duration: '20 min',
-                    customerName: 'Alka Mishra',
-                    customerPhone: '7654664961',
-                    isNewCustomer: true,
-                    rider: 'Rajnish',
-                    pay: 'PAYU',
-                    amount: '₹121.00',
-                    status: 'In_transit',
-                    store: 'PAT-1'
-                },
-                {
-                    id: '4',
-                    originalId: '4',
-                    order_id: '69B14DBF4DFA1',
-                    orderTime: '11 Mar, 16:40',
-                    deliveryTime: '17:20',
-                    duration: '40 min',
-                    customerName: 'Umesh Kumar',
-                    customerPhone: '9308845286',
-                    isNewCustomer: false,
-                    rider: 'Niket Kumar',
-                    pay: 'COD',
-                    amount: '₹999.00',
-                    status: 'In_transit',
-                    store: 'PAT-1'
-                },
-                {
-                    id: '5',
-                    originalId: '5',
-                    order_id: '69B14D2D65D97',
-                    orderTime: '11 Mar, 16:38',
-                    deliveryTime: '16:50',
-                    duration: '12 min',
-                    customerName: 'Kalpana Sahni',
-                    customerPhone: '7033970263',
-                    isNewCustomer: false,
-                    rider: 'Nitish Kumar',
-                    pay: 'QR',
-                    amount: '₹124.00',
-                    status: 'Delivered',
-                    store: 'PAT-3'
-                },
-                {
-                    id: '6',
-                    originalId: '6',
-                    order_id: '69B14BB759473',
-                    orderTime: '11 Mar, 16:32',
-                    deliveryTime: '16:45',
-                    duration: '13 min',
-                    customerName: 'Vijay Prakash',
-                    customerPhone: '7004754809',
-                    isNewCustomer: false,
-                    rider: 'Shravan',
-                    pay: 'Multi',
-                    amount: '₹273.00',
-                    status: 'Delivered',
-                    store: 'PAT-1'
-                },
-                {
-                    id: '7',
-                    originalId: '7',
-                    order_id: '69B14B6B0D4ED',
-                    orderTime: '11 Mar, 16:30',
-                    deliveryTime: '--:--',
-                    duration: '--',
-                    customerName: 'Utkarsh Singh',
-                    customerPhone: '7488297438',
-                    isNewCustomer: true,
-                    rider: '-',
-                    pay: 'COD',
-                    amount: '₹143.00',
-                    status: 'Cancelled',
-                    store: 'PAT-2'
-                }
-            ];
-            
-            setOrderData(dummyData);
-            setTotalRecords(dummyData.length);
-            setTotalOrders(150);
-            setTodayOrders(12);
-            setTodayRevenue(15420);
-            setQrRevenue(8200);
-            setCashRevenue(4120);
-            setPgRevenue(3100);
-            setLoading(false);
+    useEffect(() => {
+        pageRef.current = page;
+    }, [page]);
+
+
+    // Debounce Search
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search);
         }, 500);
+        return () => clearTimeout(handler);
+    }, [search]);
+
+    const mapOrderData = (orders: any[]) => {
+        return orders.map((order: any) => ({
+            id: order.id || order._id,
+            originalId: order.id || order._id,
+            order_id: order.order_id || order.id || order._id,
+            orderTime: order.created_at ? new Date(order.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
+            deliveryTime: order.delivery_at ? new Date(order.delivery_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--',
+            duration: order.delivery_duration || '--',
+            customerName: order.user?.name || 'Unknown',
+            customerPhone: order.user?.phone || 'N/A',
+            isNewCustomer: order.isNewCustomer || false,
+            rider: order.rider?.name || '-',
+            pay: order.paymentMethod || 'COD',
+            amount: `₹${order.totalAmount || 0}`,
+            status: order.status || 'Pending',
+            store: order.store?.name || 'N/A'
+        }));
+    };
+
+    const fetchOrders = (currentPage: number) => {
+        try {
+            setLoading(true);
+            const params: any = {
+                storeId: 'all',
+                page: currentPage,
+                limit: pageSize,
+                search: debouncedSearch,
+            }
+
+            if (status !== 'all') params.status = status;
+
+            if (dateRange && dateRange.length === 2) {
+                // Formatting dates to YYYY-MM-DD as requested
+                const start = new Date(dateRange[0]);
+                const end = new Date(dateRange[1]);
+                params.startDate = start.toISOString().split('T')[0];
+                params.endDate = end.toISOString().split('T')[0];
+            }
+
+            // Emit the get_orders event via socket
+            getOrders(params);
+        } catch (error) {
+            console.error('Error initiating socket fetch:', error);
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        fetchDummyOrders();
-    }, [page, search, status, dateRange]);
+        fetchOrders(page);
+    }, [page, debouncedSearch, status, dateRange]);
 
-    const handleStatusUpdate = (orderId: any, newStatus: string) => {
-        setOrderData((prev) => 
-            prev.map(order => order.originalId === orderId ? { ...order, status: newStatus } : order)
-        );
+    // Socket Listener
+    useEffect(() => {
+        // 1️⃣ First attach the listener for data updates only
+        subscribeToOrders((err, data) => {
+            if (err) {
+                setLoading(false);
+                return;
+            }
+            
+            if (data.type === 'NEW_ORDER') {
+                fetchOrders(pageRef.current); // Refresh table for new order
+            } else if (data.type === 'STATUS_CHANGE' || data.type === 'ORDER_STATUS_CHANGED' || data.type === 'ORDER_CANCELLED') {
+                fetchOrders(pageRef.current); // Refresh table for status change
+            } else if (data.eventType === 'INITIAL_BATCH' || data.type === 'INITIAL_BATCH') {
+                const orders = data.orders || data.data || [];
+                const mappedData = mapOrderData(orders);
+                setOrderData(mappedData);
+                setTotalRecords(data.totalCount || orders.length);
+                
+                if (data.stats) {
+                    setTotalOrders(data.stats.totalOrder || 0);
+                    setTodayOrders(data.stats.todayOrder || 0);
+                    setTodayRevenue(data.stats.todayRevenue || 0);
+                    setQrRevenue(data.stats.qrRevenue || 0);
+                    setCashRevenue(data.stats.cashRevenue || 0);
+                    setPgRevenue(data.stats.pgRevenue || 0);
+                }
+                setLoading(false);
+            }
+        });
+
+        // 2️⃣ Then join/fetch initial data
+        joinStore('all');
+        fetchOrders(pageRef.current);
+
+        return () => {
+            // Only unsubscribe locally if we want, but App.tsx also has a sub
+            // Note: unsubscribeFromOrders removes ALL listeners for those events
+            // So if multiple components use it, they might interfere.
+            // In a better design, we'd use separate event names or a publisher-subscriber pattern.
+            // For now, let's just leave it to keep the table updated.
+        };
+    }, []);
+
+
+    const handleStatusUpdate = async (orderId: any, newStatus: string) => {
+        try {
+            const response = await callApi(`/management/admin/orders/${orderId}/status`, 'PATCH', {
+                status: newStatus
+            });
+            if (response) {
+                fetchOrders(page);
+                Swal.fire({ icon: 'success', title: 'Status Updated', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+            }
+        } catch (error) {
+             console.error('Error updating status:', error);
+        }
     };
 
-    const handleRiderAssign = (orderId: any, newRider: string) => {
-        setOrderData((prev) => 
-            prev.map(order => order.originalId === orderId ? { ...order, rider: newRider } : order)
-        );
+    const handleRiderAssign = async (orderId: any, riderId: string) => {
+        try {
+            const response = await callApi(`/management/admin/orders/${orderId}/assign-rider`, 'POST', {
+                riderId: riderId
+            });
+            if (response) {
+                fetchOrders(page);
+                Swal.fire({ icon: 'success', title: 'Rider Assigned', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+            }
+        } catch (error) {
+             console.error('Error assigning rider:', error);
+        }
     };
 
     const columns = [
@@ -201,15 +202,15 @@ const OrderList = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Today's Orders" 
-                    data={orderData} 
-                    columns={columns} 
-                    userType="Order" 
+                <UserManagerTable
+                    title="Today's Orders"
+                    data={orderData}
+                    columns={columns}
+                    userType="Order"
                     totalRecords={totalRecords}
                     page={page}
                     pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
+                    onPageChange={(p: number) => setPage(p)}
                     totalUsers={totalOrders}
                     todayUsers={todayOrders}
                     todayRevenue={todayRevenue}

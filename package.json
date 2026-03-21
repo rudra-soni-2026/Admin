@@ -55,6 +55,7 @@
         "react-simplemde-editor": "^5.2.0",
         "react-sortablejs": "^6.1.4",
         "react-text-mask": "^5.5.0",
+        "socket.io-client": "^4.8.3",
         "sortablejs": "^1.15.0",
         "sweetalert2": "^11.7.1",
         "sweetalert2-react-content": "^5.0.7",

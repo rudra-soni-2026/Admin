@@ -14,12 +14,13 @@ const RiderList = () => {
     const [totalRecords, setTotalRecords] = useState(0);
 
     const columns = [
-        { key: 'name', label: 'Rider Name' },
+        { key: 'user', label: 'Rider' },
         { key: 'phone', label: 'Phone' },
-        { key: 'email', label: 'Email' },
-        { key: 'vehicleType', label: 'Vehicle' },
+        { key: 'vehicleType', label: 'Type' },
         { key: 'vehicleNumber', label: 'Number' },
-        { key: 'storeName', label: 'Assigned Store' },
+        { key: 'vehicleModel', label: 'Model' },
+        { key: 'rating', label: 'Rating' },
+        { key: 'totalEarned', label: 'Earned' },
         { key: 'status', label: 'Status' },
     ];
 
@@ -32,7 +33,17 @@ const RiderList = () => {
             setLoading(true);
             const response = await callApi(`/management/admin/riders?page=${page}&limit=20`, 'GET');
             if (response && response.data) {
-                setRiders(response.data);
+                const mappedData = response.data.map((item: any) => ({
+                    ...item,
+                    name: item.user?.name || item.name,
+                    phone: item.user?.phone || item.phone,
+                    status: item.isActive ? 'Active' : 'Inactive',
+                    originalId: item.id || item._id,
+                    totalEarned: `₹${item.totalEarned || 0}`,
+                    balance: `₹${item.balance || 0}`,
+                    rating: `${item.rating || 0} ★`
+                }));
+                setRiders(mappedData);
                 setTotalRecords(response.totalRecords || response.data.length);
             }
         } catch (error) {
@@ -43,7 +54,18 @@ const RiderList = () => {
     };
 
     const handleEdit = (rider: any) => {
+        localStorage.setItem(`edit_rider_${rider.id || rider._id}`, JSON.stringify(rider));
         router.push(`/riders/edit/${rider.id || rider._id}`);
+    };
+
+    const handleStatusToggle = async (id: any, currentStatus: string) => {
+        try {
+            const nextStatus = currentStatus === 'Active' ? false : true;
+            await callApi(`/management/admin/riders/${id}`, 'PATCH', { isActive: nextStatus });
+            fetchRiders();
+        } catch (error) {
+            console.error('Error toggling status:', error);
+        }
     };
 
     return (
@@ -59,10 +81,12 @@ const RiderList = () => {
                 columns={columns} 
                 userType="Rider"
                 totalRecords={totalRecords}
+                totalUsers={totalRecords}
                 page={page}
                 onPageChange={(p) => setPage(p)}
                 onEditClick={handleEdit}
                 onAddClick={() => router.push('/riders/add')}
+                onStatusToggle={handleStatusToggle}
                 addButtonLabel="Register New Rider"
                 hideDelete={true}
                 hideView={true}

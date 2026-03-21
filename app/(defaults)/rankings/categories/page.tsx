@@ -72,7 +72,7 @@ const CategoryRanking = () => {
             }));
 
             // Using the new bulk update endpoint
-            const response = await callApi('/management/admin/categories/bulk-order', 'PATCH', { 
+            const response = await callApi('/management/admin/categoriess/bulk-order', 'PATCH', { 
                 orders,
                 level
             });

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import CouponForm from '@/components/coupons/coupon-form';
 import { useParams } from 'next/navigation';
+import { callApi } from '@/utils/api';
 
 const CouponEdit = () => {
     const params = useParams();
@@ -9,8 +10,30 @@ const CouponEdit = () => {
     const [editData, setEditData] = useState(null);
 
     useEffect(() => {
-        // Here you would typically fetch real data if needed
-        // For now, looking at list page patterns
+        const fetchCoupon = async () => {
+             // 1. Try local cache first (from list page)
+             const cached = localStorage.getItem(`edit_coupon_${id}`);
+             if (cached) {
+                 setEditData(JSON.parse(cached));
+                 return;
+             }
+             
+             // 2. Fallback to API
+             try {
+                // Assuming /admin/coupons/:code or similar
+                // But list page uses a mapped item with id: item.code
+                // Let's assume the backend takes the code as param?
+                // The route in management.routes.js was router.patch('/admin/coupons/:code', authMiddleware, updateCoupon);
+                // So id here is actually the code.
+                const response = await callApi(`/management/admin/coupons/${id}`, 'GET');
+                if (response && response.data) {
+                    setEditData(response.data);
+                }
+             } catch (error) {
+                console.error("Error fetching coupon", error);
+             }
+        };
+        if (id) fetchCoupon();
     }, [id]);
 
     return (

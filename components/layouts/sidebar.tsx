@@ -161,15 +161,15 @@ const Sidebar = () => {
                                             <li>
                                                 <Link href="/">{t('sales')}</Link>
                                             </li>
-                                            <li>
+                                            {/* <li>
                                                 <Link href="/analytics">{t('analytics')}</Link>
-                                            </li>
-                                            <li>
+                                            </li> */}
+                                            {/* <li>
                                                 <Link href="/finance">{t('finance')}</Link>
-                                            </li>
-                                            <li>
+                                            </li> */}
+                                            {/* <li>
                                                 <Link href="/crypto">{t('crypto')}</Link>
-                                            </li>
+                                            </li> */}
                                         </ul>
                                     </AnimateHeight>
                                 </li>
@@ -320,7 +320,7 @@ const Sidebar = () => {
                                                     </Link>
                                                 </li>
                                             )}
-                                            {hasPermission('reports') && (
+                                            {/* {hasPermission('reports') && (
                                                 <li className="nav-item">
                                                     <Link href="/analytics" className="group">
                                                         <div className="flex items-center">
@@ -329,7 +329,7 @@ const Sidebar = () => {
                                                         </div>
                                                     </Link>
                                                 </li>
-                                            )}
+                                            )} */}
                                         </ul>
                                     </li>
                                 </>

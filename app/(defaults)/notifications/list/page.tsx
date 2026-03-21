@@ -11,7 +11,7 @@ import IconBell from '@/components/icon/icon-bell';
 const NotificationSend = () => {
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
-    const [targetType, setTargetType] = useState('ALL'); // 'ALL', 'SINGLE', 'MULTIPLE'
+    const [targetType, setTargetType] = useState('all'); // 'ALL', 'SINGLE', 'MULTIPLE'
     const [targetIds, setTargetIds] = useState<any[]>([]);
     const [image, setImage] = useState('');
     const [type, setType] = useState('PROMOTIONAL'); // TRANSACTIONAL, PROMOTIONAL, etc.
@@ -20,7 +20,7 @@ const NotificationSend = () => {
 
     const loadUserOptions = async (inputValue: string) => {
         try {
-            const response = await callApi(`/management/admin/users?role=customer&search=${inputValue || ''}&limit=50`, 'GET');
+            const response = await callApi(`/management/admin/users?role=user&search=${inputValue || ''}&limit=50`, 'GET');
             if (response && response.data) {
                 return response.data.map((u: any) => ({
                     value: u.id || u._id,
@@ -31,14 +31,33 @@ const NotificationSend = () => {
         } catch (error) { return []; }
     };
 
+    const showMessage = (msg = '', type = 'success') => {
+        const toast: any = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            showCloseButton: true,
+            customClass: {
+                popup: `color-${type}`,
+            },
+        });
+        toast.fire({
+            icon: type,
+            title: msg,
+            padding: '10px 20px',
+        });
+    };
+
     const handleSendNotification = async () => {
         if (!title || !message) {
-            Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Title and Message are required' });
+            showMessage('Title and Message are required', 'danger');
             return;
         }
 
-        if (targetType !== 'ALL' && targetIds.length === 0) {
-            Swal.fire({ icon: 'error', title: 'Target Required', text: 'Please select at least one customer' });
+        if (targetType !== 'all' && targetIds.length === 0) {
+            showMessage('Please select at least one customer', 'danger');
             return;
         }
 
@@ -48,16 +67,17 @@ const NotificationSend = () => {
                 title,
                 message,
                 targetType,
-                targetIds: targetIds.map(u => typeof u === 'object' ? u.value : u),
-                image,
+                targetIds: targetType === 'single' 
+                    ? (targetIds[0]?.value || targetIds[0] || null) 
+                    : targetIds.map(u => typeof u === 'object' ? u.value : u),
                 type,
                 metadata: metadata ? JSON.parse(metadata) : {}
             };
 
             const response = await callApi('/management/admin/send-notification', 'POST', payload);
-
+            console.log(response,"response")
             if (response) {
-                Swal.fire({ icon: 'success', title: 'Broadcast Sent!', text: 'Your notification has been successfully queued for delivery.' });
+                showMessage('Broadcast Sent Successfully!', 'success');
                 // Reset form
                 setTitle('');
                 setMessage('');
@@ -66,7 +86,7 @@ const NotificationSend = () => {
                 setMetadata('');
             }
         } catch (error: any) {
-            Swal.fire({ icon: 'error', title: 'Delivery Failed', text: error.message || 'Something went wrong' });
+            showMessage(error.message || 'Something went wrong', 'danger');
         } finally {
             setLoading(false);
         }
@@ -111,10 +131,6 @@ const NotificationSend = () => {
                                     <option value="ALERT">System Alert</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Image URL (Optional)</label>
-                                <input type="text" placeholder="https://..." className="form-input text-xs" value={image} onChange={(e) => setImage(e.target.value)} />
-                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
@@ -124,17 +140,17 @@ const NotificationSend = () => {
                                     setTargetType(e.target.value);
                                     setTargetIds([]);
                                 }}>
-                                    <option value="ALL">All Customers</option>
-                                    <option value="SINGLE">Single Specific User</option>
-                                    <option value="MULTIPLE">Selected User Group</option>
+                                    <option value="all">All Customers</option>
+                                    <option value="single">Single Specific User</option>
+                                    <option value="multiple">Selected User Group</option>
                                 </select>
                             </div>
 
-                            {(targetType === 'SINGLE' || targetType === 'MULTIPLE') && (
+                            {(targetType === 'single' || targetType === 'multiple') && (
                                 <div className="space-y-1">
                                     <label className="text-[11px] font-black uppercase text-primary mb-1">Select User(s)</label>
                                     <AsyncSelect
-                                        isMulti={targetType === 'MULTIPLE'}
+                                        isMulti={targetType === 'multiple'}
                                         cacheOptions
                                         loadOptions={loadUserOptions}
                                         defaultOptions
@@ -145,10 +161,10 @@ const NotificationSend = () => {
                                 </div>
                             )}
 
-                             <div className="md:col-span-2">
+                             {/* <div className="md:col-span-2">
                                 <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Metadata (JSON format - Optional)</label>
                                 <input type="text" placeholder='{"link": "/offers", "category": "beauty"}' className="form-input text-[10px] font-mono" value={metadata} onChange={(e) => setMetadata(e.target.value)} />
-                            </div>
+                            </div> */}
                         </div>
 
                         <div className="pt-6 flex items-center gap-3">

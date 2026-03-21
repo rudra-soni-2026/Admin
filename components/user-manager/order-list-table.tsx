@@ -105,25 +105,25 @@ const OrderListTable = ({
                         <h5 className="text-lg font-black text-black dark:text-white-light tracking-tight">{title}</h5>
                         {userType === 'Order' && (
                             <div className="flex flex-wrap items-center gap-1">
-                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-success/10 border border-success/20 shadow-sm transition-all">
-                                    <span className="text-[8px] font-bold uppercase tracking-wider text-success">Today</span>
-                                    <span className="text-[11px] font-bold text-black dark:text-white">{todayUsers}</span>
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-100 shadow-sm font-bold">
+                                    <span className="text-[9px] uppercase text-gray-400">TOT</span>
+                                    <span className="text-xs text-black dark:text-white">{todayUsers}</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20 shadow-sm transition-all">
-                                    <span className="text-[8px] font-bold uppercase tracking-wider text-primary">Rev</span>
-                                    <span className="text-[11px] font-bold text-black dark:text-white">₹{todayRevenue?.toLocaleString()}</span>
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-100 shadow-sm font-bold font-nunito">
+                                    <span className="text-[9px] uppercase text-primary">REV</span>
+                                    <span className="text-xs text-black dark:text-white">₹{todayRevenue?.toLocaleString()}</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-info/10 border border-info/20 shadow-sm transition-all">
-                                    <span className="text-[8px] font-bold uppercase tracking-wider text-info">QR</span>
-                                    <span className="text-[11px] font-bold text-black dark:text-white">₹{qrRevenue?.toLocaleString()}</span>
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-100 shadow-sm font-bold font-nunito text-warning">
+                                    <span className="text-[9px] uppercase">CASH</span>
+                                    <span className="text-xs text-black dark:text-white">₹{cashRevenue?.toLocaleString()}</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-warning/10 border border-warning/20 shadow-sm transition-all">
-                                    <span className="text-[8px] font-bold uppercase tracking-wider text-warning">Cash</span>
-                                    <span className="text-[11px] font-bold text-black dark:text-white">₹{cashRevenue?.toLocaleString()}</span>
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-100 shadow-sm font-bold font-nunito text-info">
+                                    <span className="text-[9px] uppercase">QR</span>
+                                    <span className="text-xs text-black dark:text-white">₹{qrRevenue?.toLocaleString()}</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary/10 border border-secondary/20 shadow-sm transition-all">
-                                    <span className="text-[8px] font-bold uppercase tracking-wider text-secondary">PG</span>
-                                    <span className="text-[11px] font-bold text-black dark:text-white">₹{pgRevenue?.toLocaleString()}</span>
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-100 shadow-sm font-bold font-nunito text-secondary">
+                                    <span className="text-[9px] uppercase">PG</span>
+                                    <span className="text-xs text-black dark:text-white">₹{pgRevenue?.toLocaleString()}</span>
                                 </div>
                             </div>
                         )}
@@ -163,12 +163,15 @@ const OrderListTable = ({
                     setStatus={onStatusChange || (() => { })}
                 />
 
-                <div className="table-responsive mb-3 overflow-visible">
-                    <table className="table-hover whitespace-nowrap">
+                    <div className="table-responsive mb-3 overflow-x-auto">
+                        <table className="table-hover whitespace-nowrap min-w-[1000px]">
                         <thead>
                             <tr>
                                 {columns.map((col) => (
-                                    <th key={col.key} className={`px-1.5 py-1.5 text-[10px] tracking-wider font-bold uppercase text-gray-500 dark:text-white-light border-b border-gray-100 ${col.key === 'status' ? 'text-center' : ''} ${['Cart', 'Today | Total', 'Joined', 'Status'].includes(col.label) ? 'w-1' : ''}`}>
+                                    <th key={col.key} className={`px-2 py-2 text-[10px] tracking-wider font-bold uppercase text-gray-400 dark:text-white-light border-b border-gray-100 
+                                        ${col.key === 'status' || col.key === 'order_status' ? 'text-center' : ''} 
+                                        ${['ID', 'Status', 'PAY', 'ACTION', 'STORE'].includes(col.label) ? 'w-1' : ''}
+                                    `}>
                                         {col.label}
                                     </th>
                                 ))}
@@ -182,7 +185,7 @@ const OrderListTable = ({
                                         {columns.map((col) => (
                                             <td key={col.key} className={`px-2 py-1.5 ${col.key === 'status' ? 'text-center' : ''}`}>
                                                 {col.key === 'order_id' ? (
-                                                    <div className="text-[12px] font-bold text-black dark:text-white">
+                                                    <div className="text-[12px] font-bold text-black dark:text-white tracking-tighter">
                                                         #{item.order_id?.toString().slice(-6)}
                                                     </div>
                                                 ) : col.key === 'user' || col.key === 'image' ? (
@@ -201,17 +204,17 @@ const OrderListTable = ({
                                                         <div className="text-[10px] font-medium text-gray-400">{item.customerPhone}</div>
                                                     </div>
                                                 ) : col.key === 'order_timing' || col.key === 'joinedDate' ? (
-                                                    <div className="flex flex-col leading-[1.1]">
-                                                        <div className="text-[12px] font-bold text-gray-800 dark:text-white-light">{item.orderTime || item[col.key]}</div>
+                                                    <div className="flex flex-col leading-[1.0] min-w-[100px]">
+                                                        <div className="text-[11px] font-bold text-gray-800 dark:text-white-light">{item.orderTime || item[col.key]}</div>
                                                         {item.deliveryTime && (
-                                                            <div className="text-[10px] font-medium text-gray-400">
+                                                            <div className="text-[9px] font-medium text-gray-400">
                                                                 DEL: {item.deliveryTime} {item.duration && <span className="ml-0.5 text-success/80">({item.duration})</span>}
                                                             </div>
                                                         )}
                                                     </div>
                                                 ) : col.key === 'payment_method' || col.key === 'pay' ? (
-                                                    <div className="flex items-center">
-                                                        <span className={`rounded border px-1.5 py-0.1 text-[9px] font-black uppercase tracking-wider ${(item.paymentMethod || item.pay) === 'Cash' || (item.paymentMethod || item.pay) === 'COD' ? 'border-orange-200 bg-orange-50 text-orange-600' :
+                                                    <div className="flex items-center min-w-[50px]">
+                                                        <span className={`rounded border px-1 py-0.5 text-[9px] font-black uppercase tracking-wider ${(item.paymentMethod || item.pay) === 'Cash' || (item.paymentMethod || item.pay) === 'COD' ? 'border-orange-200 bg-orange-50 text-orange-600' :
                                                             (item.paymentMethod || item.pay) === 'QR' || (item.paymentMethod || item.pay) === 'UPI' ? 'border-cyan-200 bg-cyan-50 text-cyan-600' :
                                                                 (item.paymentMethod || item.pay) === 'PG' || (item.paymentMethod || item.pay) === 'PAYU' ? 'border-indigo-200 bg-indigo-50 text-indigo-600' :
                                                                     'border-slate-200 bg-slate-50 text-slate-600'
@@ -312,29 +315,31 @@ const OrderListTable = ({
                                                         )} */}
                                                     </div>
                                                 ) : col.key === 'order_status' ? (
-                                                    <div className="text-center">
-                                                        <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold uppercase ${item.status === 'Delivered' ? 'bg-success/10 text-success' :
+                                                    <div className="text-center min-w-[70px]">
+                                                        <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold uppercase w-full ${item.status === 'Delivered' ? 'bg-success/10 text-success' :
                                                             item.status === 'Canceled' || item.status === 'Cancelled' ? 'bg-danger/10 text-danger' :
                                                                 'bg-gray-100 text-gray-600'
                                                             }`}>
                                                             {item.status?.replace('_', ' ')}
                                                         </span>
                                                     </div>
+                                                ) : col.key === 'store' ? (
+                                                    <div className="text-[12px] font-bold text-black dark:text-white-light">{item.store}</div>
                                                 ) : col.key === 'actions' && userType === 'Order' ? (
-                                                    <div className="flex items-center gap-1.5">
+                                                    <div className="flex items-center gap-1">
                                                         <Tippy content="Print Bill">
-                                                            <button type="button" className="group flex h-7 w-7 items-center justify-center rounded-lg border border-gray-100 bg-white shadow-sm transition-all hover:border-primary/50 hover:bg-primary/5">
-                                                                <IconPrinter className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-primary" />
+                                                            <button type="button" className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-primary/50 hover:bg-primary/5">
+                                                                <IconPrinter className="h-3 w-3 text-gray-400 transition-colors group-hover:text-primary" />
                                                             </button>
                                                         </Tippy>
                                                         <Tippy content="Cancel Order">
-                                                            <button type="button" className="group flex h-7 w-7 items-center justify-center rounded-lg border border-gray-100 bg-white shadow-sm transition-all hover:border-danger/50 hover:bg-danger/5">
-                                                                <IconXCircle className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-danger" />
+                                                            <button type="button" className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-danger/50 hover:bg-danger/5">
+                                                                <IconXCircle className="h-3 w-3 text-gray-400 transition-colors group-hover:text-danger" />
                                                             </button>
                                                         </Tippy>
                                                         <Tippy content="Out for Delivery">
-                                                            <button type="button" className="group flex h-7 w-7 items-center justify-center rounded-lg border border-gray-100 bg-white shadow-sm transition-all hover:border-success/50 hover:bg-success/5">
-                                                                <IconTruck className="h-3.5 w-3.5 text-gray-400 transition-colors group-hover:text-success" />
+                                                            <button type="button" className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-success/50 hover:bg-success/5">
+                                                                <IconTruck className="h-3 w-3 text-gray-400 transition-colors group-hover:text-success" />
                                                             </button>
                                                         </Tippy>
                                                     </div>
@@ -349,7 +354,7 @@ const OrderListTable = ({
                                                         <span className="block h-full rounded-full border border-[#adb5bd] bg-white before:absolute before:bottom-[2px] before:h-4 before:w-4 before:rounded-full before:bg-[#adb5bd] before:transition-all before:duration-300 ltr:before:left-0.5 peer-checked:border-primary peer-checked:bg-primary peer-checked:before:bg-white ltr:peer-checked:before:left-5 rtl:before:right-0.5 rtl:peer-checked:before:right-5 dark:bg-dark dark:before:bg-white-dark"></span>
                                                     </label>
                                                 ) : col.key === 'rider' && userType === 'Order' ? (
-                                                    <div className="flex items-center gap-1.5 min-w-[100px]">
+                                                    <div className="flex items-center gap-1.5 min-w-[120px]">
                                                         <div className="dropdown flex-1">
                                                             <Menu as="div" className="relative inline-block text-left w-full">
                                                                 <Menu.Button className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-primary/40 transition-all w-full group/btn shadow-sm ${stagedRiders[item.originalId] ? 'border-success/40 bg-success/5' : ''}`}>

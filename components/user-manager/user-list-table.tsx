@@ -55,6 +55,7 @@ interface UserListTableProps {
     onDownloadClick?: (item: any) => void;
     onStockClick?: (item: any) => void;
     disableNameClick?: boolean;
+    hideTotal?: boolean;
 }
 
 const UserListTable = ({
@@ -95,7 +96,8 @@ const UserListTable = ({
     hideDelete = false,
     hideView = false,
     hideFilter = false,
-    disableNameClick = false
+    disableNameClick = false,
+    hideTotal = false
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
 
@@ -106,10 +108,12 @@ const UserListTable = ({
                     <div className="flex flex-wrap items-center gap-2">
                         <h5 className="text-lg font-black text-black dark:text-white-light tracking-tight">{title}</h5>
                         <div className="flex flex-wrap items-center gap-1">
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-success/10 border border-success/20 shadow-sm transition-all">
-                                <span className="text-[8px] font-bold uppercase tracking-wider text-success">Total</span>
-                                <span className="text-[11px] font-bold text-black dark:text-white">{totalUsers}</span>
-                            </div>
+                            {!hideTotal && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-success/10 border border-success/20 shadow-sm transition-all">
+                                    <span className="text-[8px] font-bold uppercase tracking-wider text-success">Total</span>
+                                    <span className="text-[11px] font-bold text-black dark:text-white">{totalUsers}</span>
+                                </div>
+                            )}
                             {(userType === 'Customer' || (todayUsers > 0 && userType !== 'Product' && userType !== 'Admin')) && (
                                 <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20 shadow-sm transition-all">
                                     <span className="text-[8px] font-bold uppercase tracking-wider text-primary">Today</span>

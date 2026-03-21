@@ -3,7 +3,9 @@ import Dropdown from '@/components/dropdown';
 import IconArrowLeft from '@/components/icon/icon-arrow-left';
 import IconBolt from '@/components/icon/icon-bolt';
 import IconCaretDown from '@/components/icon/icon-caret-down';
+import IconCalendar from '@/components/icon/icon-calendar';
 import IconCashBanknotes from '@/components/icon/icon-cash-banknotes';
+import IconEdit from '@/components/icon/icon-edit';
 import IconCreditCard from '@/components/icon/icon-credit-card';
 import IconDollarSign from '@/components/icon/icon-dollar-sign';
 import IconHorizontalDots from '@/components/icon/icon-horizontal-dots';
@@ -14,21 +16,64 @@ import IconPlus from '@/components/icon/icon-plus';
 import IconShoppingCart from '@/components/icon/icon-shopping-cart';
 import IconTag from '@/components/icon/icon-tag';
 import IconUser from '@/components/icon/icon-user';
+import IconTruck from '@/components/icon/icon-truck';
+import IconBox from '@/components/icon/icon-box';
+import IconFile from '@/components/icon/icon-file';
+import IconDownload from '@/components/icon/icon-download';
 import { IRootState } from '@/store';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import { useSelector } from 'react-redux';
 import PerfectScrollbar from 'react-perfect-scrollbar';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/flatpickr.css';
+import IconPrinter from '@/components/icon/icon-printer';
+import IconPrinterLine from '@/components/icon/icon-printer'; // Using printer as placeholder for presentation
 
 const ComponentsDashboardSales = () => {
     const isDark = useSelector((state: IRootState) => state.themeConfig.theme === 'dark' || state.themeConfig.isDarkMode);
     const isRtl = useSelector((state: IRootState) => state.themeConfig.rtlClass) === 'rtl';
 
     const [isMounted, setIsMounted] = useState(false);
+    const [date1, setDate1] = useState<any>('2026-03-01 to 2026-03-21');
+    const [isEditable, setIsEditable] = useState(false);
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    const exportTable = () => {
+        let columnDelimiter = ',';
+        let lineDelimiter = '\n';
+        let keys = ['Metric', 'Value'];
+        let data = [
+            { Metric: 'Total Customers', Value: '1280' },
+            { Metric: 'Today Orders', Value: '245' },
+            { Metric: 'Delivered Orders', Value: '212' },
+            { Metric: 'Cancelled Orders', Value: '12' },
+            { Metric: 'Active Stores', Value: '8' },
+            { Metric: 'Online Payment', Value: '6420' },
+            { Metric: 'Cash Payment', Value: '3180' },
+        ];
+        let result = keys.join(columnDelimiter) + lineDelimiter;
+        data.map((item: any) => {
+            keys.map((key, index) => {
+                if (index > 0) result += columnDelimiter;
+                result += item[key];
+            });
+            result += lineDelimiter;
+        });
+
+        if (result == null) return;
+        if (!result.match(/^data:text\/csv/i)) {
+            result = 'data:text/csv;charset=utf-8,' + result;
+        }
+        let encodedUri = encodeURI(result);
+        let link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', 'dashboard-report.csv');
+        link.click();
+    };
 
     //Revenue Chart
     const revenueChart: any = {
@@ -113,8 +158,8 @@ const ComponentsDashboardSales = () => {
             yaxis: {
                 tickAmount: 7,
                 labels: {
-                    formatter: (value: number) => {
-                        return value / 1000 + 'K';
+                    formatter: (value: any) => {
+                        return value ? (value / 1000 + 'K') : '0K';
                     },
                     offsetX: isRtl ? -30 : -10,
                     offsetY: 0,
@@ -228,7 +273,7 @@ const ComponentsDashboardSales = () => {
                                 color: isDark ? '#bfc9d4' : undefined,
                                 offsetY: 16,
                                 formatter: (val: any) => {
-                                    return val;
+                                    return val ? val.toString() : '0';
                                 },
                             },
                             total: {
@@ -237,9 +282,9 @@ const ComponentsDashboardSales = () => {
                                 color: '#888ea8',
                                 fontSize: '29px',
                                 formatter: (w: any) => {
-                                    return w.globals.seriesTotals.reduce(function (a: any, b: any) {
+                                    return w?.globals?.seriesTotals ? w.globals.seriesTotals.reduce(function (a: any, b: any) {
                                         return a + b;
-                                    }, 0);
+                                    }, 0) : 0;
                                 },
                             },
                         },
@@ -402,46 +447,176 @@ const ComponentsDashboardSales = () => {
 
     return (
         <>
+            <style>
+                {`
+                    @media print {
+                        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        #sidebar, .navbar, .header, .no-print, .dropdown, button { display: none !important; }
+                        body, .main-container, .main-content { background: #ffffff !important; background-color: #ffffff !important; padding: 0 !important; margin: 0 !important; width: 100% !important; overflow: visible !important; }
+                        .panel { box-shadow: none !important; border: none !important; page-break-inside: avoid; margin-bottom: 30px !important; }
+                        .grid { display: grid !important; gap: 20px !important; }
+                        .xl\\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+                        .xl\\:grid-cols-3 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
+                        .xl\\:col-span-2 { grid-column: span 1 / span 1 !important; }
+                        @page { size: landscape; margin: 1cm; }
+                    }
+                    .edit-active { border: 1px dashed rgba(255,255,255,0.5); padding: 0 4px; border-radius: 4px; cursor: text; }
+                `}
+            </style>
             <div>
-                <ul className="flex space-x-2 rtl:space-x-reverse">
-                    <li>
-                        <Link href="/" className="text-primary hover:underline">
-                            Dashboard
-                        </Link>
-                    </li>
-                    <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                        <span>Sales</span>
-                    </li>
-                </ul>
+                <div className="flex items-center justify-between flex-wrap gap-4 no-print">
+                    <ul className="flex space-x-2 rtl:space-x-reverse">
+                        <li>
+                            <Link href="/" className="text-primary hover:underline">
+                                Dashboard
+                            </Link>
+                        </li>
+                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                            <span>Sales</span>
+                        </li>
+                    </ul>
+                    <div className="flex items-center gap-4 ltr:ml-auto rtl:mr-auto">
+                        <div className="relative">
+                            <Flatpickr
+                                options={{
+                                    mode: 'range',
+                                    dateFormat: 'Y-m-d',
+                                    position: isRtl ? 'auto right' : 'auto left',
+                                }}
+                                value={date1}
+                                className="form-input w-52 ltr:pr-10 rtl:pl-10 h-10"
+                                onChange={(date) => setDate1(date)}
+                            />
+                            <span className="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-white-dark pointer-events-none">
+                                <IconCalendar className="w-4 h-4" />
+                            </span>
+                        </div>
+                        <div className="dropdown">
+                            <Dropdown
+                                placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`}
+                                btnClassName="btn btn-primary dropdown-toggle gap-2"
+                                button={
+                                    <>
+                                        <IconDownload className="w-4 h-4" />
+                                        Export
+                                        <IconCaretDown className="w-4 h-4" />
+                                    </>
+                                }
+                            >
+                                <ul className="!min-w-[170px]">
+                                    <li>
+                                        <button type="button" onClick={exportTable}>
+                                            <IconFile className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
+                                            Export to Excel
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button type="button" onClick={() => window.print()}>
+                                            <IconPrinter className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
+                                            Download PDF
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button type="button" onClick={() => window.print()}>
+                                            <IconBolt className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
+                                            Presentation View
+                                        </button>
+                                    </li>
+                                </ul>
+                            </Dropdown>
+                        </div>
+                        <button 
+                            type="button" 
+                            className={`btn ${isEditable ? 'btn-danger' : 'btn-outline-primary'} gap-2`}
+                            onClick={() => setIsEditable(!isEditable)}
+                        >
+                            <IconEdit className="w-4 h-4" />
+                            {isEditable ? 'Finish Editing' : 'Edit Mode'}
+                        </button>
+                    </div>
+                </div>
 
                 <div className="pt-5">
+                    {/* Real-time Operations Tracking */}
+                    <div className="mb-6 grid grid-cols-1 gap-6 text-white sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="panel bg-gradient-to-r from-blue-500 to-blue-400">
+                            <div className="flex justify-between">
+                                <div className="text-md font-semibold uppercase opacity-90">Total Customers</div>
+                                <IconUser className="w-5 h-5" />
+                            </div>
+                            <div className="mt-5 flex items-center">
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 1,280 </div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">+45 Today</div>
+                            </div>
+                        </div>
+
+                        <div className="panel bg-gradient-to-r from-emerald-500 to-emerald-400">
+                            <div className="flex justify-between">
+                                <div className="text-md font-semibold uppercase opacity-90">Today's Orders</div>
+                                <IconShoppingCart className="w-5 h-5" />
+                            </div>
+                            <div className="mt-5 flex items-center">
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 245 </div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Live Tracking</div>
+                            </div>
+                        </div>
+
+                        <div className="panel bg-gradient-to-r from-cyan-500 to-cyan-400">
+                            <div className="flex justify-between">
+                                <div className="text-md font-semibold uppercase opacity-90">Delivered Orders</div>
+                                <IconTruck className="w-5 h-5" />
+                            </div>
+                            <div className="mt-5 flex items-center">
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 212 </div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Success Rate: 92%</div>
+                            </div>
+                        </div>
+
+                        <div className="panel bg-gradient-to-r from-rose-500 to-rose-400">
+                            <div className="flex justify-between">
+                                <div className="text-md font-semibold uppercase opacity-90">Cancelled Orders</div>
+                                <IconHorizontalDots className="w-5 h-5" />
+                            </div>
+                            <div className="mt-5 flex items-center">
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 12 </div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Immediate Review</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Infrastructure & Payments Overview */}
+                    <div className="mb-6 grid grid-cols-1 gap-6 text-white sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="panel bg-indigo-600">
+                            <div className="flex items-center justify-between">
+                                <div className="font-semibold uppercase opacity-90">Active Stores</div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 08 Stores </div>
+                            </div>
+                        </div>
+                        <div className="panel bg-amber-500">
+                            <div className="flex items-center justify-between">
+                                <div className="font-semibold uppercase opacity-90">Catalogs</div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 15 Categories | 420 Products </div>
+                            </div>
+                        </div>
+                        <div className="panel bg-sky-600">
+                            <div className="flex items-center justify-between">
+                                <div className="font-semibold uppercase opacity-90">Online Payment</div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> ₹6,420 (65%) </div>
+                            </div>
+                        </div>
+                        <div className="panel bg-slate-700">
+                            <div className="flex items-center justify-between">
+                                <div className="font-semibold uppercase opacity-90">Cash Payment</div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> ₹3,180 (35%) </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="mb-6 grid gap-6 xl:grid-cols-3">
                         <div className="panel h-full xl:col-span-2">
                             <div className="mb-5 flex items-center justify-between dark:text-white-light">
-                                <h5 className="text-lg font-semibold">Revenue</h5>
-                                <div className="dropdown">
-                                    <Dropdown
-                                        offset={[0, 1]}
-                                        placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`}
-                                        button={<IconHorizontalDots className="text-black/70 hover:!text-primary dark:text-white/70" />}
-                                    >
-                                        <ul>
-                                            <li>
-                                                <button type="button">Weekly</button>
-                                            </li>
-                                            <li>
-                                                <button type="button">Monthly</button>
-                                            </li>
-                                            <li>
-                                                <button type="button">Yearly</button>
-                                            </li>
-                                        </ul>
-                                    </Dropdown>
-                                </div>
+                                <h5 className="text-lg font-semibold">Store-wise Sales Performance (Live)</h5>
                             </div>
-                            <p className="text-lg dark:text-white-light/90">
-                                Total Profit <span className="ml-2 text-primary">$10,840</span>
-                            </p>
                             <div className="relative">
                                 <div className="rounded-lg bg-white dark:bg-black">
                                     {isMounted ? (
@@ -456,15 +631,15 @@ const ComponentsDashboardSales = () => {
                         </div>
 
                         <div className="panel h-full">
-                            <div className="mb-5 flex items-center">
-                                <h5 className="text-lg font-semibold dark:text-white-light">Sales By Category</h5>
+                            <div className="mb-5 flex items-center justify-between dark:text-white-light">
+                                <h5 className="text-lg font-semibold dark:text-white-light">Sales Mix by Store</h5>
                             </div>
                             <div>
                                 <div className="rounded-lg bg-white dark:bg-black">
                                     {isMounted ? (
-                                        <ReactApexChart series={salesByCategory.series} options={salesByCategory.options} type="donut" height={460} width={'100%'} />
+                                        <ReactApexChart series={salesByCategory.series} options={salesByCategory.options} type="donut" height={420} width={'100%'} />
                                     ) : (
-                                        <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
+                                        <div className="grid min-h-[420px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
                                             <span className="inline-flex h-5 w-5 animate-spin rounded-full  border-2 border-black !border-l-transparent dark:border-white"></span>
                                         </div>
                                     )}
@@ -596,294 +771,6 @@ const ComponentsDashboardSales = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="mb-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                        <div className="panel h-full pb-0 sm:col-span-2 xl:col-span-1">
-                            <h5 className="mb-5 text-lg font-semibold dark:text-white-light">Recent Activities</h5>
-                            <PerfectScrollbar className="relative mb-4 h-[290px] ltr:-mr-3 ltr:pr-3 rtl:-ml-3 rtl:pl-3" options={{ suppressScrollX: true }}>
-                                <div className="cursor-pointer text-sm">
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Updated Server Logs</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">Just Now</div>
-
-                                        <span className="badge badge-outline-primary absolute bg-primary-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Pending
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-success ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Send Mail to HR and Admin</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">2 min ago</div>
-
-                                        <span className="badge badge-outline-success absolute bg-success-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Completed
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-danger ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Backup Files EOD</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">14:00</div>
-
-                                        <span className="badge badge-outline-danger absolute bg-danger-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Pending
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-black ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Collect documents from Sara</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">16:00</div>
-
-                                        <span className="badge badge-outline-dark absolute bg-dark-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Completed
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-warning ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Conference call with Marketing Manager.</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">17:00</div>
-
-                                        <span className="badge badge-outline-warning absolute bg-warning-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            In progress
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-info ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Rebooted Server</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">17:00</div>
-
-                                        <span className="badge badge-outline-info absolute bg-info-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Completed
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-secondary ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Send contract details to Freelancer</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">18:00</div>
-
-                                        <span className="badge badge-outline-secondary absolute bg-secondary-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Pending
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Updated Server Logs</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">Just Now</div>
-
-                                        <span className="badge badge-outline-primary absolute bg-primary-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Pending
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-success ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Send Mail to HR and Admin</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">2 min ago</div>
-
-                                        <span className="badge badge-outline-success absolute bg-success-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Completed
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-danger ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Backup Files EOD</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">14:00</div>
-
-                                        <span className="badge badge-outline-danger absolute bg-danger-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Pending
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-black ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Collect documents from Sara</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">16:00</div>
-
-                                        <span className="badge badge-outline-dark absolute bg-dark-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Completed
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-warning ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Conference call with Marketing Manager.</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">17:00</div>
-
-                                        <span className="badge badge-outline-warning absolute bg-warning-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            In progress
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-info ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Rebooted Server</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">17:00</div>
-
-                                        <span className="badge badge-outline-info absolute bg-info-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Completed
-                                        </span>
-                                    </div>
-                                    <div className="group relative flex items-center py-1.5">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-secondary ltr:mr-1 rtl:ml-1.5"></div>
-                                        <div className="flex-1">Send contract details to Freelancer</div>
-                                        <div className="text-xs text-white-dark ltr:ml-auto rtl:mr-auto dark:text-gray-500">18:00</div>
-
-                                        <span className="badge badge-outline-secondary absolute bg-secondary-light text-xs opacity-0 group-hover:opacity-100 ltr:right-0 rtl:left-0 dark:bg-black">
-                                            Pending
-                                        </span>
-                                    </div>
-                                </div>
-                            </PerfectScrollbar>
-                            <div className="border-t border-white-light dark:border-white/10">
-                                <button type="button" className="group group flex w-full items-center justify-center p-4 font-semibold hover:text-primary">
-                                    View All
-                                    <IconArrowLeft className="transition duration-300 group-hover:translate-x-1 ltr:ml-1 rtl:mr-1 rtl:rotate-180 rtl:group-hover:-translate-x-1" />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="panel h-full">
-                            <div className="mb-5 flex items-center justify-between dark:text-white-light">
-                                <h5 className="text-lg font-semibold">Transactions</h5>
-                                <div className="dropdown">
-                                    <Dropdown placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`} button={<IconHorizontalDots className="text-black/70 hover:!text-primary dark:text-white/70" />}>
-                                        <ul>
-                                            <li>
-                                                <button type="button">View Report</button>
-                                            </li>
-                                            <li>
-                                                <button type="button">Edit Report</button>
-                                            </li>
-                                            <li>
-                                                <button type="button">Mark as Done</button>
-                                            </li>
-                                        </ul>
-                                    </Dropdown>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="space-y-6">
-                                    <div className="flex">
-                                        <span className="grid h-9 w-9 shrink-0 place-content-center rounded-md bg-success-light text-base text-success dark:bg-success dark:text-success-light">
-                                            SP
-                                        </span>
-                                        <div className="flex-1 px-3">
-                                            <div>Shaun Park</div>
-                                            <div className="text-xs text-white-dark dark:text-gray-500">10 Jan 1:00PM</div>
-                                        </div>
-                                        <span className="whitespace-pre px-1 text-base text-success ltr:ml-auto rtl:mr-auto">+$36.11</span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="grid h-9 w-9 shrink-0 place-content-center rounded-md bg-warning-light text-warning dark:bg-warning dark:text-warning-light">
-                                            <IconCashBanknotes />
-                                        </span>
-                                        <div className="flex-1 px-3">
-                                            <div>Cash withdrawal</div>
-                                            <div className="text-xs text-white-dark dark:text-gray-500">04 Jan 1:00PM</div>
-                                        </div>
-                                        <span className="whitespace-pre px-1 text-base text-danger ltr:ml-auto rtl:mr-auto">-$16.44</span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="grid h-9 w-9 shrink-0 place-content-center rounded-md bg-danger-light text-danger dark:bg-danger dark:text-danger-light">
-                                            <IconUser className="h-6 w-6" />
-                                        </span>
-                                        <div className="flex-1 px-3">
-                                            <div>Amy Diaz</div>
-                                            <div className="text-xs text-white-dark dark:text-gray-500">10 Jan 1:00PM</div>
-                                        </div>
-                                        <span className="whitespace-pre px-1 text-base text-success ltr:ml-auto rtl:mr-auto">+$66.44</span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="grid h-9 w-9 shrink-0 place-content-center rounded-md bg-secondary-light text-secondary dark:bg-secondary dark:text-secondary-light">
-                                            <IconNetflix />
-                                        </span>
-                                        <div className="flex-1 px-3">
-                                            <div>Netflix</div>
-                                            <div className="text-xs text-white-dark dark:text-gray-500">04 Jan 1:00PM</div>
-                                        </div>
-                                        <span className="whitespace-pre px-1 text-base text-danger ltr:ml-auto rtl:mr-auto">-$32.00</span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="grid h-9 w-9 shrink-0 place-content-center rounded-md bg-info-light text-base text-info dark:bg-info dark:text-info-light">DA</span>
-                                        <div className="flex-1 px-3">
-                                            <div>Daisy Anderson</div>
-                                            <div className="text-xs text-white-dark dark:text-gray-500">10 Jan 1:00PM</div>
-                                        </div>
-                                        <span className="whitespace-pre px-1 text-base text-success ltr:ml-auto rtl:mr-auto">+$10.08</span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="grid h-9 w-9 shrink-0 place-content-center rounded-md bg-primary-light text-primary dark:bg-primary dark:text-primary-light">
-                                            <IconBolt />
-                                        </span>
-                                        <div className="flex-1 px-3">
-                                            <div>Electricity Bill</div>
-                                            <div className="text-xs text-white-dark dark:text-gray-500">04 Jan 1:00PM</div>
-                                        </div>
-                                        <span className="whitespace-pre px-1 text-base text-danger ltr:ml-auto rtl:mr-auto">-$22.00</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="panel h-full overflow-hidden border-0 p-0">
-                            <div className="min-h-[190px] bg-gradient-to-r from-[#4361ee] to-[#160f6b] p-6">
-                                <div className="mb-6 flex items-center justify-between">
-                                    <div className="flex items-center rounded-full bg-black/50 p-1 font-semibold text-white ltr:pr-3 rtl:pl-3">
-                                        <img className="block h-8 w-8 rounded-full border-2 border-white/50 object-cover ltr:mr-1 rtl:ml-1" src="/assets/images/profile-34.jpeg" alt="avatar" />
-                                        Alan Green
-                                    </div>
-                                    <button type="button" className="flex h-9 w-9 items-center justify-between rounded-md bg-black text-white hover:opacity-80 ltr:ml-auto rtl:mr-auto">
-                                        <IconPlus className="m-auto h-6 w-6" />
-                                    </button>
-                                </div>
-                                <div className="flex items-center justify-between text-white">
-                                    <p className="text-xl">Wallet Balance</p>
-                                    <h5 className="text-2xl ltr:ml-auto rtl:mr-auto">
-                                        <span className="text-white-light">$</span>2953
-                                    </h5>
-                                </div>
-                            </div>
-                            <div className="-mt-12 grid grid-cols-2 gap-2 px-8">
-                                <div className="rounded-md bg-white px-4 py-2.5 shadow dark:bg-[#060818]">
-                                    <span className="mb-4 flex items-center justify-between dark:text-white">
-                                        Received
-                                        <IconCaretDown className="h-4 w-4 rotate-180 text-success" />
-                                    </span>
-                                    <div className="btn w-full  border-0 bg-[#ebedf2] py-1 text-base text-[#515365] shadow-none dark:bg-black dark:text-[#bfc9d4]">$97.99</div>
-                                </div>
-                                <div className="rounded-md bg-white px-4 py-2.5 shadow dark:bg-[#060818]">
-                                    <span className="mb-4 flex items-center justify-between dark:text-white">
-                                        Spent
-                                        <IconCaretDown className="h-4 w-4 text-danger" />
-                                    </span>
-                                    <div className="btn w-full  border-0 bg-[#ebedf2] py-1 text-base text-[#515365] shadow-none dark:bg-black dark:text-[#bfc9d4]">$53.00</div>
-                                </div>
-                            </div>
-                            <div className="p-5">
-                                <div className="mb-5">
-                                    <span className="rounded-full bg-[#1b2e4b] px-4 py-1.5 text-xs text-white before:inline-block before:h-1.5 before:w-1.5 before:rounded-full before:bg-white ltr:before:mr-2 rtl:before:ml-2">
-                                        Pending
-                                    </span>
-                                </div>
-                                <div className="mb-5 space-y-1">
-                                    <div className="flex items-center justify-between">
-                                        <p className="font-semibold text-[#515365]">Netflix</p>
-                                        <p className="text-base">
-                                            <span>$</span> <span className="font-semibold">13.85</span>
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <p className="font-semibold text-[#515365]">BlueHost VPN</p>
-                                        <p className="text-base">
-                                            <span>$</span> <span className="font-semibold ">15.66</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex justify-around px-2 text-center">
-                                    <button type="button" className="btn btn-secondary ltr:mr-2 rtl:ml-2">
-                                        View Details
-                                    </button>
-                                    <button type="button" className="btn btn-success">
-                                        Pay Now $29.51
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         <div className="panel h-full w-full">
@@ -995,15 +882,16 @@ const ComponentsDashboardSales = () => {
                                 <table>
                                     <thead>
                                         <tr className="border-b-0">
-                                            <th className="ltr:rounded-l-md rtl:rounded-r-md">Product</th>
+                                            <th className="ltr:rounded-l-md rtl:rounded-r-md">Store</th>
+                                            <th>Product</th>
                                             <th>Price</th>
-                                            <th>Discount</th>
                                             <th>Sold</th>
-                                            <th className="ltr:rounded-r-md rtl:rounded-l-md">Source</th>
+                                            <th className="ltr:rounded-r-md rtl:rounded-l-md">Trend</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
+                                            <td className="text-secondary font-bold">Store A</td>
                                             <td className="min-w-[150px] text-black dark:text-white">
                                                 <div className="flex">
                                                     <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-headphones.jpg" alt="avatar" />
@@ -1013,8 +901,7 @@ const ComponentsDashboardSales = () => {
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td>$168.09</td>
-                                            <td>$60.09</td>
+                                            <td>₹168</td>
                                             <td>170</td>
                                             <td>
                                                 <button type="button" className="flex items-center text-danger">
@@ -1024,16 +911,16 @@ const ComponentsDashboardSales = () => {
                                             </td>
                                         </tr>
                                         <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
+                                            <td className="text-secondary font-bold">Store B</td>
                                             <td className="text-black dark:text-white">
                                                 <div className="flex">
                                                     <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-shoes.jpg" alt="avatar" />
                                                     <p className="whitespace-nowrap">
-                                                        Shoes <span className="block text-xs text-warning">Faishon</span>
+                                                        Shoes <span className="block text-xs text-warning">Fashion</span>
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td>$126.04</td>
-                                            <td>$47.09</td>
+                                            <td>₹126</td>
                                             <td>130</td>
                                             <td>
                                                 <button type="button" className="flex items-center text-success">
@@ -1043,6 +930,7 @@ const ComponentsDashboardSales = () => {
                                             </td>
                                         </tr>
                                         <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
+                                            <td className="text-secondary font-bold">Store C</td>
                                             <td className="text-black dark:text-white">
                                                 <div className="flex">
                                                     <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-watch.jpg" alt="avatar" />
@@ -1051,8 +939,7 @@ const ComponentsDashboardSales = () => {
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td>$56.07</td>
-                                            <td>$20.00</td>
+                                            <td>₹56</td>
                                             <td>66</td>
                                             <td>
                                                 <button type="button" className="flex items-center text-warning">
@@ -1062,6 +949,7 @@ const ComponentsDashboardSales = () => {
                                             </td>
                                         </tr>
                                         <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
+                                            <td className="text-secondary font-bold">Store D</td>
                                             <td className="text-black dark:text-white">
                                                 <div className="flex">
                                                     <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-laptop.jpg" alt="avatar" />
@@ -1070,8 +958,7 @@ const ComponentsDashboardSales = () => {
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td>$110.00</td>
-                                            <td>$33.00</td>
+                                            <td>₹110</td>
                                             <td>35</td>
                                             <td>
                                                 <button type="button" className="flex items-center text-secondary">
@@ -1081,6 +968,7 @@ const ComponentsDashboardSales = () => {
                                             </td>
                                         </tr>
                                         <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
+                                            <td className="text-secondary font-bold">Store E</td>
                                             <td className="text-black dark:text-white">
                                                 <div className="flex">
                                                     <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-camera.jpg" alt="avatar" />
@@ -1089,8 +977,7 @@ const ComponentsDashboardSales = () => {
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td>$56.07</td>
-                                            <td>$26.04</td>
+                                            <td>₹56</td>
                                             <td>30</td>
                                             <td>
                                                 <button type="button" className="flex items-center text-primary">

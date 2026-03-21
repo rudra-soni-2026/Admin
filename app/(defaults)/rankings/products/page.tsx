@@ -59,7 +59,7 @@ const ProductRanking = () => {
         try {
             setSaving(true);
             const orders = products.map((p, index) => ({ id: p._id || p.id, order: index + 1 }));
-            await callApi('/management/admin/products/bulk-order', 'PATCH', { orders, categoryId: selectedCategoryId });
+            await callApi('/management/admin/productss/bulk-order', 'PATCH', { orders, categoryId: selectedCategoryId });
             Swal.fire({ icon: 'success', title: 'Ranking Saved', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
         } catch (error: any) {
             Swal.fire({ icon: 'error', title: 'Failed to Save', text: error.message });
