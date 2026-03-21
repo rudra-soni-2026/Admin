@@ -173,6 +173,7 @@ const StoreManagerList = () => {
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Add New Store Manager"
+                    disableNameClick={true}
                 />
             )}
         </div>

@@ -25,6 +25,7 @@ interface UserManagerTableProps {
     dateRange?: any;
     onDateRangeChange?: (val: any) => void;
     onStatusUpdate?: (userId: any, newStatus: string) => void;
+    onStatusToggle?: (userId: any, currentStatus: string) => void;
     onStatusClick?: (item: any) => void;
     onRiderAssign?: (orderId: any, riderId: string | null, status: string | null) => void;
     userType?: string;
@@ -88,6 +89,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
         <UserListTable 
             {...props} 
             onViewClick={finalViewClick} 
+            onStatusToggle={props.onStatusToggle}
             onStatusClick={props.onStatusClick}
             onEditClick={props.onEditClick} 
             onPermissionEdit={props.onPermissionEdit}

@@ -188,7 +188,10 @@ const OrderListTable = ({
                                         {columns.map((col) => (
                                             <td key={col.key} className={`px-2 py-1.5 ${col.key === 'status' ? 'text-center' : ''}`}>
                                                 {col.key === 'order_id' ? (
-                                                    <div className="text-[12px] font-bold text-black dark:text-white tracking-tighter">
+                                                    <div 
+                                                        className="text-[12px] font-bold text-black dark:text-white tracking-tighter cursor-pointer hover:text-primary hover:underline transition-all"
+                                                        onClick={() => onViewClick?.(item)}
+                                                    >
                                                         #{item.order_id?.toString().slice(-6)}
                                                     </div>
                                                 ) : col.key === 'user' || col.key === 'image' ? (

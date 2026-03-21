@@ -225,6 +225,7 @@ const CustomerList = () => {
                     hideDelete={true}
                     hideView={true}
                     hideAction={true}
+                    disableNameClick={true}
                 />
             )}
         </div>

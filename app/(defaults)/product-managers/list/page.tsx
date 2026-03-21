@@ -174,6 +174,7 @@ const ProductManagerList = () => {
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Add New Product Manager"
+                    disableNameClick={true}
                 />
             )}
         </div>

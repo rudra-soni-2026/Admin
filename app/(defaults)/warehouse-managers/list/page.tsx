@@ -173,6 +173,7 @@ const WarehouseManagerList = () => {
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Add New Warehouse Manager"
+                    disableNameClick={true}
                 />
             )}
         </div>

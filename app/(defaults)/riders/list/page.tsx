@@ -90,6 +90,7 @@ const RiderList = () => {
                 addButtonLabel="Register New Rider"
                 hideDelete={true}
                 hideView={true}
+                disableNameClick={true}
             />
         </div>
     );

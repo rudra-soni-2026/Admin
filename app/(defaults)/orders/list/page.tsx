@@ -188,6 +188,11 @@ const OrderList = () => {
         }
     };
 
+    const handleViewOrder = (order: any) => {
+        localStorage.setItem(`view_order_${order.originalId || order.id || order._id}`, JSON.stringify(order));
+        router.push(`/orders/view/${order.originalId || order.id || order._id}`);
+    };
+
     const handlePrint = (order: any) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
@@ -202,7 +207,7 @@ const OrderList = () => {
         const itemsList = order.items || order.products || order.orderItems || [];
         if (itemsList.length > 0) {
             itemsHtml = itemsList.map((item: any) => {
-                const name = item.product?.name || item.product_name || item.name || item.item_name || item.productName || 'Product';
+                const name = item.product_name || item.Product_name || item.item_name || item.productName || item.name || item.product?.name || item.item?.name || 'Product';
                 const price = Number(item.unit_amount || item.price || item.unit_price || item.product_price || item.product?.price || item.amount || item.selling_price || 0);
                 const quantity = Number(item.quantity || 1);
                 const total = Number(item.total_item_amount || item.total || item.product_total || (price * quantity) || 0);
@@ -366,6 +371,7 @@ const OrderList = () => {
                     onStatusUpdate={handleStatusUpdate}
                     onRiderAssign={handleRiderAssign}
                     onPrint={handlePrint}
+                    onViewClick={handleViewOrder}
                     riders={riders}
                     addButtonLabel="Create New Order"
                 />

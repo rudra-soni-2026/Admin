@@ -169,6 +169,7 @@ const AccountantManagerList = () => {
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Add New Accountant Manager"
+                    disableNameClick={true}
                 />
             )}
         </div>
