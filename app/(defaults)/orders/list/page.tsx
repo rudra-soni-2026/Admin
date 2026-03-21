@@ -177,7 +177,8 @@ const OrderList = () => {
 
     const handleStatusUpdate = async (orderId: any, newStatus: string) => {
         try {
-            const response = await callApi(`/management/admin/orders/${orderId}/status`, 'PATCH', {
+            const response = await callApi(`/management/store-manager/order-status`, 'PATCH', {
+                orderId: orderId,
                 status: newStatus
             });
             if (response) {
