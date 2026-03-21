@@ -24,9 +24,9 @@ interface UserManagerTableProps {
     onStatusChange?: (val: string) => void;
     dateRange?: any;
     onDateRangeChange?: (val: any) => void;
-    onStatusToggle?: (userId: any, currentStatus: string) => void;
+    onStatusUpdate?: (userId: any, newStatus: string) => void;
     onStatusClick?: (item: any) => void;
-    onRiderAssign?: (orderId: any, riderId: string) => void;
+    onRiderAssign?: (orderId: any, riderId: string | null, status: string | null) => void;
     userType?: string;
     onAddClick?: () => void;
     addButtonLabel?: string;
@@ -49,6 +49,8 @@ interface UserManagerTableProps {
     onStockClick?: (item: any) => void;
     disableNameClick?: boolean;
     hideTotal?: boolean;
+    riders?: any[];
+    onPrint?: (item: any) => void;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -81,7 +83,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
     const finalViewClick = props.onViewClick || (props.userType === 'Category' ? undefined : handleViewUser);
 
     return props.userType === 'Order' ? (
-        <OrderListTable {...props} onViewClick={finalViewClick} />
+        <OrderListTable {...props} riders={props.riders} onPrint={props.onPrint} onStatusUpdate={props.onStatusUpdate} onViewClick={finalViewClick} />
     ) : (
         <UserListTable 
             {...props} 

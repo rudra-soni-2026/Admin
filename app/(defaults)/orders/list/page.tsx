@@ -16,7 +16,7 @@ const OrderList = () => {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
-    
+
     // Stats
     const [totalOrders, setTotalOrders] = useState(0);
     const [todayOrders, setTodayOrders] = useState(0);
@@ -25,12 +25,14 @@ const OrderList = () => {
     const [cashRevenue, setCashRevenue] = useState(0);
     const [pgRevenue, setPgRevenue] = useState(0);
 
+    const [riders, setRiders] = useState<any[]>([]);
+
     // Filter States
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [status, setStatus] = useState('all');
     const [dateRange, setDateRange] = useState<any>('');
-    
+
     // Refs for stable socket callback values
     const pageRef = useRef(1);
 
@@ -49,10 +51,11 @@ const OrderList = () => {
 
     const mapOrderData = (orders: any[]) => {
         return orders.map((order: any) => ({
+            ...order,
             id: order.id || order._id,
             originalId: order.id || order._id,
-            order_id: order.order_id || order.id || order._id,
-            orderTime: order.created_at ? new Date(order.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
+            order_id: order.order_id || order.id || order._id || order.shortId || 'N/A',
+            orderTime: (order.createdAt || order.created_at) ? new Date(order.createdAt || order.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
             deliveryTime: order.delivery_at ? new Date(order.delivery_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--',
             duration: order.delivery_duration || '--',
             customerName: order.user?.name || 'Unknown',
@@ -62,7 +65,7 @@ const OrderList = () => {
             pay: order.paymentMethod || 'COD',
             amount: `₹${order.totalAmount || 0}`,
             status: order.status || 'Pending',
-            store: order.store?.name || 'N/A'
+            storeName: order.store?.name || 'N/A'
         }));
     };
 
@@ -106,7 +109,7 @@ const OrderList = () => {
                 setLoading(false);
                 return;
             }
-            
+
             if (data.type === 'NEW_ORDER') {
                 fetchOrders(pageRef.current); // Refresh table for new order
             } else if (data.type === 'STATUS_CHANGE' || data.type === 'ORDER_STATUS_CHANGED' || data.type === 'ORDER_CANCELLED') {
@@ -116,7 +119,7 @@ const OrderList = () => {
                 const mappedData = mapOrderData(orders);
                 setOrderData(mappedData);
                 setTotalRecords(data.totalCount || orders.length);
-                
+
                 if (data.stats) {
                     setTotalOrders(data.stats.totalOrder || 0);
                     setTodayOrders(data.stats.todayOrder || 0);
@@ -132,6 +135,11 @@ const OrderList = () => {
         // 2️⃣ Then join/fetch initial data
         joinStore('all');
         fetchOrders(pageRef.current);
+
+        // Fetch Riders
+        callApi('/management/admin/riders', 'GET').then((res: any) => {
+            if (res && res.data) setRiders(res.data);
+        });
 
         return () => {
             // Only unsubscribe locally if we want, but App.tsx also has a sub
@@ -153,22 +161,154 @@ const OrderList = () => {
                 Swal.fire({ icon: 'success', title: 'Status Updated', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             }
         } catch (error) {
-             console.error('Error updating status:', error);
+            console.error('Error updating status:', error);
         }
     };
 
-    const handleRiderAssign = async (orderId: any, riderId: string) => {
+    const handleRiderAssign = async (orderId: any, riderId: string | null, status: string | null = null) => {
         try {
-            const response = await callApi(`/management/admin/orders/${orderId}/assign-rider`, 'POST', {
-                riderId: riderId
-            });
+            const payload: { orderId: any; riderId?: string | null; status?: string | null } = {
+                orderId: orderId,
+            };
+
+            if (riderId !== null) {
+                payload.riderId = riderId;
+            }
+            if (status !== null) {
+                payload.status = status;
+            }
+
+            const response = await callApi(`/management/store-manager/assign-rider`, 'POST', payload);
             if (response) {
                 fetchOrders(page);
                 Swal.fire({ icon: 'success', title: 'Rider Assigned', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             }
         } catch (error) {
-             console.error('Error assigning rider:', error);
+            console.error('Error assigning rider:', error);
         }
+    };
+
+    const handlePrint = (order: any) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        // Parse JSON strings if they are strings
+        let calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
+        let addr = typeof order.order_address === 'string' ? JSON.parse(order.order_address) : (order.order_address || order.address || {});
+
+        const finalDateTime = order.orderTime && order.orderTime !== 'N/A' ? order.orderTime : 'N/A';
+
+        let itemsHtml = '';
+        const itemsList = order.items || order.products || order.orderItems || [];
+        if (itemsList.length > 0) {
+            itemsHtml = itemsList.map((item: any) => {
+                const name = item.product?.name || item.product_name || item.name || item.item_name || item.productName || 'Product';
+                const price = Number(item.unit_amount || item.price || item.unit_price || item.product_price || item.product?.price || item.amount || item.selling_price || 0);
+                const quantity = Number(item.quantity || 1);
+                const total = Number(item.total_item_amount || item.total || item.product_total || (price * quantity) || 0);
+
+                return `
+                    <div class="item">
+                        <div class="item-left">
+                            ${name} (${price.toFixed(2)} x ${quantity})
+                        </div>
+                        <div class="item-right">
+                            ${total.toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        const formattedAddress = addr ? `
+            ${addr.house_no || addr.address_line_1 || ''} ${addr.street || addr.address_line_2 || ''}<br/>
+            ${addr.landmark ? 'Landmark: ' + addr.landmark : ''}
+        ` : 'Address Not Provided';
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Receipt # ${order.order_id}</title>
+                <style>
+                    body { font-family: monospace; background: #fff; margin: 0; padding: 0; }
+                    .receipt { width: 260px; margin: auto; padding: 10px; color: #000; font-size: 11px; }
+                    .center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .small { font-size: 10px; }
+                    .line { border-top: 1px dashed #000; margin: 6px 0; }
+                    .item { display: flex; justify-content: space-between; align-items: flex-start; margin: 2px 0; }
+                    .item-left { width: 75%; word-break: break-word; }
+                    .item-right { width: 25%; text-align: right; }
+                    .row { display: flex; justify-content: space-between; margin: 2px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="receipt">
+                    <div class="center bold">Kuiklo Dark Store</div>
+                    <div class="center small">ORDER • QUALITY CHECK • PAY</div>
+                    <div class="line"></div>
+                    <div class="center bold">Order #${order.order_id}</div>
+                    <div class="row">
+                        <span class="bold">Date/Time:</span>
+                        <span>${finalDateTime}</span>
+                    </div>
+                    <div class="line"></div>
+                    <div>Delivery Partner: ${(typeof order.rider === 'object' ? order.rider?.name : (order.rider !== '-' ? order.rider : null)) ||
+            order.riderName ||
+            'N/A'
+            }</div>
+                    <div class="line"></div>
+                    <div class="bold">Customer Details</div>
+                    <div class="row">
+                        <span>Name: ${order.customerName || order.user?.name || 'Guest'}</span>
+                        <span>Phone: ${order.customerPhone || order.user?.phone || 'N/A'}</span>
+                    </div>
+                    <div>${formattedAddress}</div>
+                    <div class="line"></div>
+                    <div class="bold">ITEMS</div>
+                    ${itemsHtml || '<div class="center">No items listed</div>'}
+                    <div class="line"></div>
+                    <div class="row">
+                        <span>Sub-total</span>
+                        <span>₹${calc.subtotal || order.subTotal || 0}</span>
+                    </div>
+                    ${calc.discount ? `<div class="row text-danger"><span>Discount</span><span>-₹${calc.discount}</span></div>` : ''}
+                    <div class="row">
+                        <span>Delivery Fee</span>
+                        <span>₹${calc.delivery_fee || 0}</span>
+                    </div>
+                    <div class="row">
+                        <span>Handling Fee</span>
+                        <span>₹${calc.handling_fee || 0}</span>
+                    </div>
+                    ${calc.platform_fee ? `<div class="row"><span>Platform Fee</span><span>₹${calc.platform_fee}</span></div>` : ''}
+                    <div class="row bold">
+                        <span>AMOUNT</span>
+                        <span>₹${calc.total || order.totalAmount || 0}</span>
+                    </div>
+                    <div class="line"></div>
+                    <div class="center font-bold">Payment Method: ${order.pay || order.paymentMethod || 'COD'}</div>
+                    <div class="line"></div>
+                    <div class="center small">
+                        Need help? ${order.store?.email || 'support@kuiklo.com'} / ${order.store?.phone || '7050014684'}<br/>
+                        Thank you for shopping with Kuiklo ❤️<br/>
+                        We hope to serve you again soon.
+                    </div>
+                </div>
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        setTimeout(() => window.close(), 100);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
     };
 
     const columns = [
@@ -180,7 +320,7 @@ const OrderList = () => {
         { key: 'pay', label: 'PAY' },
         { key: 'actions', label: 'ACTION' },
         { key: 'order_status', label: 'STATUS' },
-        { key: 'store', label: 'STORE' },
+        { key: 'storeName', label: 'STORE' },
     ];
 
     return (
@@ -203,7 +343,7 @@ const OrderList = () => {
                 </div>
             ) : (
                 <UserManagerTable
-                    title="Today's Orders"
+                    title="Orders"
                     data={orderData}
                     columns={columns}
                     userType="Order"
@@ -223,8 +363,10 @@ const OrderList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusUpdate}
+                    onStatusUpdate={handleStatusUpdate}
                     onRiderAssign={handleRiderAssign}
+                    onPrint={handlePrint}
+                    riders={riders}
                     addButtonLabel="Create New Order"
                 />
             )}

@@ -100,6 +100,30 @@ export const unsubscribeFromOrders = () => {
     socket.off('STORE_ORDERS_UPDATED');
     socket.off('ORDER_STATUS_CHANGED');
     socket.off('ERROR');
+    socket.off('DASHBOARD_STATS_DATA');
+    socket.off('DASHBOARD_STATS_UPDATE');
+};
+
+export const getDashboardStats = (params: { startDate?: string, endDate?: string, storeId?: string }) => {
+    if (!socket) return;
+    console.log('📡 Emitting get_dashboard_stats with params:', params);
+    socket.emit('get_dashboard_stats', params);
+};
+
+export const subscribeToDashboardStats = (cb: (err: any, data: any) => void) => {
+    if (!socket) return;
+    
+    // Listen for direct responses to filters
+    socket.on('DASHBOARD_STATS_DATA', (data: any) => {
+        console.log('📈 Received DASHBOARD_STATS_DATA (Direct)', data);
+        return cb(null, data);
+    });
+
+    // Listen for periodic broadcasts from the server (Every 2 mins)
+    socket.on('DASHBOARD_STATS_UPDATE', (data: any) => {
+        console.log('🚀 Received DASHBOARD_STATS_UPDATE (Broadcast)', data);
+        return cb(null, data);
+    });
 };
 
 

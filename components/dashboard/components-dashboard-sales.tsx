@@ -30,31 +30,72 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/flatpickr.css';
 import IconPrinter from '@/components/icon/icon-printer';
 import IconPrinterLine from '@/components/icon/icon-printer'; // Using printer as placeholder for presentation
+import IconRefresh from '@/components/icon/icon-refresh';
+import { initiateSocket, getDashboardStats, subscribeToDashboardStats, unsubscribeFromOrders } from '@/utils/socket';
+import { callApi } from '@/utils/api';
 
 const ComponentsDashboardSales = () => {
     const isDark = useSelector((state: IRootState) => state.themeConfig.theme === 'dark' || state.themeConfig.isDarkMode);
     const isRtl = useSelector((state: IRootState) => state.themeConfig.rtlClass) === 'rtl';
 
     const [isMounted, setIsMounted] = useState(false);
-    const [date1, setDate1] = useState<any>('2026-03-01 to 2026-03-21');
+    const [date1, setDate1] = useState<any>(null); // Start with null for Today
     const [isEditable, setIsEditable] = useState(false);
+    const [stats, setStats] = useState<any>(null);
+    const [stores, setStores] = useState<any[]>([]);
+    const [selectedStore, setSelectedStore] = useState('all');
+
     useEffect(() => {
         setIsMounted(true);
+        // Fetch Stores
+        callApi('/management/admin/stores?page=1&limit=100', 'GET').then((res: any) => {
+            if (res && res.data) setStores(res.data);
+        });
+
+        // Socket Setup
+        initiateSocket();
+        subscribeToDashboardStats((err, data) => {
+            console.log("📊 DASHBOARD_STATS_DATA received:", data);
+            if (data) {
+                // If data is wrapped in another data property, unwrap it
+                const actualData = data.data || data;
+                setStats(actualData);
+            }
+        });
+
+        return () => {
+            unsubscribeFromOrders();
+        };
     }, []);
+
+    const fetchStats = () => {
+        let params: any = { storeId: selectedStore };
+        if (date1 && Array.isArray(date1) && date1.length === 2) {
+            params.startDate = date1[0].toISOString();
+            params.endDate = date1[1].toISOString();
+        }
+        getDashboardStats(params);
+    };
+
+    useEffect(() => {
+        if (isMounted) {
+            fetchStats();
+        }
+    }, [date1, selectedStore, isMounted]);
 
     const exportTable = () => {
         let columnDelimiter = ',';
         let lineDelimiter = '\n';
         let keys = ['Metric', 'Value'];
-        let data = [
-            { Metric: 'Total Customers', Value: '1280' },
-            { Metric: 'Today Orders', Value: '245' },
-            { Metric: 'Delivered Orders', Value: '212' },
-            { Metric: 'Cancelled Orders', Value: '12' },
-            { Metric: 'Active Stores', Value: '8' },
-            { Metric: 'Online Payment', Value: '6420' },
-            { Metric: 'Cash Payment', Value: '3180' },
-        ];
+        let data = stats ? [
+            { Metric: 'Total Customers', Value: stats?.kpi?.totalCustomers?.count || 0 },
+            { Metric: 'Today Orders', Value: stats?.kpi?.todayOrders?.count || 0 },
+            { Metric: 'Delivered Orders', Value: stats?.kpi?.deliveredOrders?.count || 0 },
+            { Metric: 'Cancelled Orders', Value: stats?.kpi?.cancelledOrders?.count || 0 },
+            { Metric: 'Active Stores', Value: stats?.kpi?.infrastructure?.activeStores || 0 },
+            { Metric: 'Online Payment', Value: stats?.kpi?.payments?.online?.amount || 0 },
+            { Metric: 'Cash Payment', Value: stats?.kpi?.payments?.cash?.amount || 0 },
+        ] : [];
         let result = keys.join(columnDelimiter) + lineDelimiter;
         data.map((item: any) => {
             keys.map((key, index) => {
@@ -135,7 +176,7 @@ const ComponentsDashboardSales = () => {
                     },
                 ],
             },
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            labels: stats?.charts?.revenuePerformance?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             xaxis: {
                 axisBorder: {
                     show: false,
@@ -291,7 +332,7 @@ const ComponentsDashboardSales = () => {
                     },
                 },
             },
-            labels: ['Apparel', 'Sports', 'Others'],
+            labels: stats?.charts?.salesMixByStore?.labels || ['Apparel', 'Sports', 'Others'],
             states: {
                 hover: {
                     filter: {
@@ -329,8 +370,7 @@ const ComponentsDashboardSales = () => {
                 toolbar: {
                     show: false,
                 },
-                stacked: true,
-                stackType: '100%',
+                stacked: false,
             },
             dataLabels: {
                 enabled: false,
@@ -352,11 +392,11 @@ const ComponentsDashboardSales = () => {
                     },
                 },
             ],
-            xaxis: {
+                xaxis: {
                 labels: {
                     show: false,
                 },
-                categories: ['Sun', 'Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat'],
+                categories: stats?.charts?.dailySales?.labels || ['Sun', 'Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat'],
             },
             yaxis: {
                 show: false,
@@ -382,9 +422,9 @@ const ComponentsDashboardSales = () => {
                 },
                 padding: {
                     top: 10,
-                    right: -20,
-                    bottom: -20,
-                    left: -20,
+                    right: 0,
+                    bottom: 0,
+                    left: 0,
                 },
             },
         },
@@ -412,7 +452,7 @@ const ComponentsDashboardSales = () => {
                 width: 2,
             },
             colors: isDark ? ['#00ab55'] : ['#00ab55'],
-            labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+            labels: stats?.charts?.ordersTrend?.labels || ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
             yaxis: {
                 min: 0,
                 show: false,
@@ -476,7 +516,17 @@ const ComponentsDashboardSales = () => {
                         </li>
                     </ul>
                     <div className="flex items-center gap-4 ltr:ml-auto rtl:mr-auto">
-                        <div className="relative">
+                        <select 
+                            className="form-select w-40 h-10 no-print" 
+                            value={selectedStore} 
+                            onChange={(e) => setSelectedStore(e.target.value)}
+                        >
+                            <option value="all">All Stores</option>
+                            {stores.map((s: any) => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                        <div className="relative no-print">
                             <Flatpickr
                                 options={{
                                     mode: 'range',
@@ -484,6 +534,7 @@ const ComponentsDashboardSales = () => {
                                     position: isRtl ? 'auto right' : 'auto left',
                                 }}
                                 value={date1}
+                                placeholder="Select Date Range (Today)"
                                 className="form-input w-52 ltr:pr-10 rtl:pl-10 h-10"
                                 onChange={(date) => setDate1(date)}
                             />
@@ -491,7 +542,7 @@ const ComponentsDashboardSales = () => {
                                 <IconCalendar className="w-4 h-4" />
                             </span>
                         </div>
-                        <div className="dropdown">
+                        <div className="dropdown no-print">
                             <Dropdown
                                 placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`}
                                 btnClassName="btn btn-primary dropdown-toggle gap-2"
@@ -527,7 +578,7 @@ const ComponentsDashboardSales = () => {
                         </div>
                         <button 
                             type="button" 
-                            className={`btn ${isEditable ? 'btn-danger' : 'btn-outline-primary'} gap-2`}
+                            className={`btn ${isEditable ? 'btn-danger' : 'btn-outline-primary'} gap-2 no-print`}
                             onClick={() => setIsEditable(!isEditable)}
                         >
                             <IconEdit className="w-4 h-4" />
@@ -545,8 +596,12 @@ const ComponentsDashboardSales = () => {
                                 <IconUser className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 1,280 </div>
-                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">+45 Today</div>
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    {stats?.kpi?.totalCustomers?.count ?? '0'} 
+                                </div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">
+                                    +{stats?.kpi?.totalCustomers?.increaseToday ?? '0'} Today
+                                </div>
                             </div>
                         </div>
 
@@ -556,7 +611,9 @@ const ComponentsDashboardSales = () => {
                                 <IconShoppingCart className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 245 </div>
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    {stats?.kpi?.todayOrders?.count ?? '0'} 
+                                </div>
                                 <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Live Tracking</div>
                             </div>
                         </div>
@@ -567,8 +624,12 @@ const ComponentsDashboardSales = () => {
                                 <IconTruck className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 212 </div>
-                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Success Rate: 92%</div>
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    {stats?.kpi?.deliveredOrders?.count ?? '0'} 
+                                </div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">
+                                    Success Rate: {stats?.kpi?.deliveredOrders?.successRate ?? '0'}%
+                                </div>
                             </div>
                         </div>
 
@@ -578,7 +639,9 @@ const ComponentsDashboardSales = () => {
                                 <IconHorizontalDots className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 12 </div>
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    {stats?.kpi?.cancelledOrders?.count ?? '0'} 
+                                </div>
                                 <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Immediate Review</div>
                             </div>
                         </div>
@@ -589,57 +652,67 @@ const ComponentsDashboardSales = () => {
                         <div className="panel bg-indigo-600">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Active Stores</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 08 Stores </div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    {stats?.kpi?.infrastructure?.activeStores ?? '0'} Stores 
+                                </div>
                             </div>
                         </div>
                         <div className="panel bg-amber-500">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Catalogs</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 15 Categories | 420 Products </div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    {stats?.kpi?.infrastructure?.totalCategories ?? '0'} Categories | {stats?.kpi?.infrastructure?.totalProducts ?? '0'} Products 
+                                </div>
                             </div>
                         </div>
                         <div className="panel bg-sky-600">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Online Payment</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> ₹6,420 (65%) </div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    ₹{stats?.kpi?.payments?.online?.amount?.toLocaleString() ?? '0'} ({stats?.kpi?.payments?.online?.percentage ?? '0'}%) 
+                                </div>
                             </div>
                         </div>
                         <div className="panel bg-slate-700">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Cash Payment</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> ₹3,180 (35%) </div>
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
+                                    ₹{stats?.kpi?.payments?.cash?.amount?.toLocaleString() ?? '0'} ({stats?.kpi?.payments?.cash?.percentage ?? '0'}%) 
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="mb-6 grid gap-6 xl:grid-cols-3">
-                        <div className="panel h-full xl:col-span-2">
+                        <div className="panel h-full xl:col-span-3">
                             <div className="mb-5 flex items-center justify-between dark:text-white-light">
                                 <h5 className="text-lg font-semibold">Store-wise Sales Performance (Live)</h5>
                             </div>
                             <div className="relative">
                                 <div className="rounded-lg bg-white dark:bg-black">
                                     {isMounted ? (
-                                        <ReactApexChart series={revenueChart.series} options={revenueChart.options} type="area" height={325} width={'100%'} />
+                                        <ReactApexChart 
+                                            series={
+                                                stats?.charts?.revenuePerformance?.income 
+                                                ? [
+                                                    { name: 'Income', data: stats.charts.revenuePerformance.income },
+                                                    { name: 'Expenses', data: stats.charts.revenuePerformance.expenses || [] }
+                                                  ]
+                                                : revenueChart.series
+                                            } 
+                                            options={{
+                                                ...revenueChart.options,
+                                                xaxis: {
+                                                    ...revenueChart.options.xaxis,
+                                                    categories: stats?.charts?.revenuePerformance?.labels || revenueChart.options.labels
+                                                }
+                                            }} 
+                                            type="area" 
+                                            height={325} 
+                                            width={'100%'} 
+                                        />
                                     ) : (
                                         <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
-                                            <span className="inline-flex h-5 w-5 animate-spin rounded-full  border-2 border-black !border-l-transparent dark:border-white"></span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="panel h-full">
-                            <div className="mb-5 flex items-center justify-between dark:text-white-light">
-                                <h5 className="text-lg font-semibold dark:text-white-light">Sales Mix by Store</h5>
-                            </div>
-                            <div>
-                                <div className="rounded-lg bg-white dark:bg-black">
-                                    {isMounted ? (
-                                        <ReactApexChart series={salesByCategory.series} options={salesByCategory.options} type="donut" height={420} width={'100%'} />
-                                    ) : (
-                                        <div className="grid min-h-[420px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
                                             <span className="inline-flex h-5 w-5 animate-spin rounded-full  border-2 border-black !border-l-transparent dark:border-white"></span>
                                         </div>
                                     )}
@@ -648,31 +721,7 @@ const ComponentsDashboardSales = () => {
                         </div>
                     </div>
 
-                    <div className="mb-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                        <div className="panel h-full sm:col-span-2 xl:col-span-1">
-                            <div className="mb-5 flex items-center">
-                                <h5 className="text-lg font-semibold dark:text-white-light">
-                                    Daily Sales
-                                    <span className="block text-sm font-normal text-white-dark">Go to columns for details.</span>
-                                </h5>
-                                <div className="relative ltr:ml-auto rtl:mr-auto">
-                                    <div className="grid h-11 w-11 place-content-center rounded-full bg-[#ffeccb] text-warning dark:bg-warning dark:text-[#ffeccb]">
-                                        <IconDollarSign />
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="rounded-lg bg-white dark:bg-black">
-                                    {isMounted ? (
-                                        <ReactApexChart series={dailySales.series} options={dailySales.options} type="bar" height={160} width={'100%'} />
-                                    ) : (
-                                        <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
-                                            <span className="inline-flex h-5 w-5 animate-spin rounded-full  border-2 border-black !border-l-transparent dark:border-white"></span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                    <div className="mb-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-2">
                         <div className="panel h-full">
                             <div className="mb-5 flex items-center justify-between dark:text-white-light">
                                 <h5 className="text-lg font-semibold">Summary</h5>
@@ -705,10 +754,10 @@ const ComponentsDashboardSales = () => {
                                     <div className="flex-1">
                                         <div className="mb-2 flex font-semibold text-white-dark">
                                             <h6>Income</h6>
-                                            <p className="ltr:ml-auto rtl:mr-auto">$92,600</p>
+                                            <p className="ltr:ml-auto rtl:mr-auto">₹{((stats?.kpi?.payments?.online?.amount ?? 0) + (stats?.kpi?.payments?.cash?.amount ?? 0)).toLocaleString()}</p>
                                         </div>
                                         <div className="h-2 rounded-full bg-dark-light shadow dark:bg-[#1b2e4b]">
-                                            <div className="h-full w-11/12 rounded-full bg-gradient-to-r from-[#7579ff] to-[#b224ef]"></div>
+                                            <div className="h-full w-full rounded-full bg-gradient-to-r from-[#7579ff] to-[#b224ef]"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -721,10 +770,10 @@ const ComponentsDashboardSales = () => {
                                     <div className="flex-1">
                                         <div className="mb-2 flex font-semibold text-white-dark">
                                             <h6>Profit</h6>
-                                            <p className="ltr:ml-auto rtl:mr-auto">$37,515</p>
+                                            <p className="ltr:ml-auto rtl:mr-auto">₹{(stats?.kpi?.profit?.amount ?? 0).toLocaleString()}</p>
                                         </div>
                                         <div className="h-2 w-full rounded-full bg-dark-light shadow dark:bg-[#1b2e4b]">
-                                            <div className="h-full w-full rounded-full bg-gradient-to-r from-[#3cba92] to-[#0ba360]" style={{ width: '65%' }}></div>
+                                            <div className="h-full rounded-full bg-gradient-to-r from-[#3cba92] to-[#0ba360]" style={{ width: `${stats?.kpi?.profit?.increase ?? 0}%` }}></div>
                                         </div>
                                     </div>
                                 </div>
@@ -737,10 +786,10 @@ const ComponentsDashboardSales = () => {
                                     <div className="flex-1">
                                         <div className="mb-2 flex font-semibold text-white-dark">
                                             <h6>Expenses</h6>
-                                            <p className="ltr:ml-auto rtl:mr-auto">$55,085</p>
+                                            <p className="ltr:ml-auto rtl:mr-auto">₹{(stats?.kpi?.expenses?.amount ?? 0).toLocaleString()}</p>
                                         </div>
                                         <div className="h-2 w-full rounded-full bg-dark-light shadow dark:bg-[#1b2e4b]">
-                                            <div className="h-full w-full rounded-full bg-gradient-to-r from-[#f09819] to-[#ff5858]" style={{ width: '80%' }}></div>
+                                            <div className="h-full rounded-full bg-gradient-to-r from-[#f09819] to-[#ff5858]" style={{ width: `${stats?.kpi?.expenses?.decrease ?? 0}%` }}></div>
                                         </div>
                                     </div>
                                 </div>
@@ -755,14 +804,31 @@ const ComponentsDashboardSales = () => {
                                     </div>
                                 </div>
                                 <h5 className="text-2xl font-semibold ltr:text-right rtl:text-left dark:text-white-light">
-                                    3,192
-                                    <span className="block text-sm font-normal">Total Orders</span>
+                                    {stats?.kpi?.todayOrders?.count ?? '0'}
+                                    <span className="block text-sm font-normal">Today's Orders</span>
                                 </h5>
                             </div>
                             <div className="rounded-lg bg-transparent">
                                 {/* loader */}
                                 {isMounted ? (
-                                    <ReactApexChart series={totalOrders.series} options={totalOrders.options} type="area" height={290} width={'100%'} />
+                                    <ReactApexChart 
+                                        key={stats?.timestamp || 'orders-trend'}
+                                        series={
+                                            stats?.charts?.ordersTrend?.income 
+                                            ? [
+                                                { name: 'Income', data: stats.charts.ordersTrend.income.map((v: any) => v || 0) },
+                                                { name: 'Expenses', data: (stats.charts.ordersTrend.expenses || []).map((v: any) => v || 0) }
+                                              ]
+                                            : stats?.charts?.ordersTrend?.series || totalOrders.series
+                                        } 
+                                        options={{
+                                            ...totalOrders.options,
+                                            labels: stats?.charts?.ordersTrend?.labels || totalOrders.options.labels
+                                        }} 
+                                        type="area" 
+                                        height={290} 
+                                        width={'100%'} 
+                                    />
                                 ) : (
                                     <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
                                         <span className="inline-flex h-5 w-5 animate-spin rounded-full  border-2 border-black !border-l-transparent dark:border-white"></span>
@@ -772,220 +838,44 @@ const ComponentsDashboardSales = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6">
                         <div className="panel h-full w-full">
                             <div className="mb-5 flex items-center justify-between">
-                                <h5 className="text-lg font-semibold dark:text-white-light">Recent Orders</h5>
+                                <h5 className="text-lg font-semibold dark:text-white-light">Top Selling Products</h5>
                             </div>
                             <div className="table-responsive">
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th className="ltr:rounded-l-md rtl:rounded-r-md">Customer</th>
-                                            <th>Product</th>
-                                            <th>Invoice</th>
+                                            <th className="ltr:rounded-l-md rtl:rounded-r-md">Product</th>
+                                            <th>Store</th>
+                                            <th>Category</th>
                                             <th>Price</th>
-                                            <th className="ltr:rounded-r-md rtl:rounded-l-md">Status</th>
+                                            <th className="ltr:rounded-r-md rtl:rounded-l-md">Sold</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="min-w-[150px] text-black dark:text-white">
-                                                <div className="flex items-center">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/profile-6.jpeg" alt="avatar" />
-                                                    <span className="whitespace-nowrap">Luke Ivory</span>
-                                                </div>
-                                            </td>
-                                            <td className="text-primary">Headphone</td>
-                                            <td>
-                                                <Link href="/apps/invoice/preview">#46894</Link>
-                                            </td>
-                                            <td>$56.07</td>
-                                            <td>
-                                                <span className="badge bg-success shadow-md dark:group-hover:bg-transparent">Paid</span>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex items-center">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/profile-7.jpeg" alt="avatar" />
-                                                    <span className="whitespace-nowrap">Andy King</span>
-                                                </div>
-                                            </td>
-                                            <td className="text-info">Nike Sport</td>
-                                            <td>
-                                                <Link href="/apps/invoice/preview">#76894</Link>
-                                            </td>
-                                            <td>$126.04</td>
-                                            <td>
-                                                <span className="badge bg-secondary shadow-md dark:group-hover:bg-transparent">Shipped</span>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex items-center">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/profile-8.jpeg" alt="avatar" />
-                                                    <span className="whitespace-nowrap">Laurie Fox</span>
-                                                </div>
-                                            </td>
-                                            <td className="text-warning">Sunglasses</td>
-                                            <td>
-                                                <Link href="/apps/invoice/preview">#66894</Link>
-                                            </td>
-                                            <td>$56.07</td>
-                                            <td>
-                                                <span className="badge bg-success shadow-md dark:group-hover:bg-transparent">Paid</span>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex items-center">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/profile-9.jpeg" alt="avatar" />
-                                                    <span className="whitespace-nowrap">Ryan Collins</span>
-                                                </div>
-                                            </td>
-                                            <td className="text-danger">Sport</td>
-                                            <td>
-                                                <button type="button">#75844</button>
-                                            </td>
-                                            <td>$110.00</td>
-                                            <td>
-                                                <span className="badge bg-secondary shadow-md dark:group-hover:bg-transparent">Shipped</span>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex items-center">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/profile-10.jpeg" alt="avatar" />
-                                                    <span className="whitespace-nowrap">Irene Collins</span>
-                                                </div>
-                                            </td>
-                                            <td className="text-secondary">Speakers</td>
-                                            <td>
-                                                <Link href="/apps/invoice/preview">#46894</Link>
-                                            </td>
-                                            <td>$56.07</td>
-                                            <td>
-                                                <span className="badge bg-success shadow-md dark:group-hover:bg-transparent">Paid</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="panel h-full w-full">
-                            <div className="mb-5 flex items-center justify-between">
-                                <h5 className="text-lg font-semibold dark:text-white-light">Top Selling Product</h5>
-                            </div>
-                            <div className="table-responsive">
-                                <table>
-                                    <thead>
-                                        <tr className="border-b-0">
-                                            <th className="ltr:rounded-l-md rtl:rounded-r-md">Store</th>
-                                            <th>Product</th>
-                                            <th>Price</th>
-                                            <th>Sold</th>
-                                            <th className="ltr:rounded-r-md rtl:rounded-l-md">Trend</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-secondary font-bold">Store A</td>
-                                            <td className="min-w-[150px] text-black dark:text-white">
-                                                <div className="flex">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-headphones.jpg" alt="avatar" />
-                                                    <p className="whitespace-nowrap">
-                                                        Headphone
-                                                        <span className="block text-xs text-primary">Digital</span>
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td>₹168</td>
-                                            <td>170</td>
-                                            <td>
-                                                <button type="button" className="flex items-center text-danger">
-                                                    <IconMultipleForwardRight className="ltr:mr-1 rtl:ml-1 rtl:rotate-180" />
-                                                    Direct
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-secondary font-bold">Store B</td>
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-shoes.jpg" alt="avatar" />
-                                                    <p className="whitespace-nowrap">
-                                                        Shoes <span className="block text-xs text-warning">Fashion</span>
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td>₹126</td>
-                                            <td>130</td>
-                                            <td>
-                                                <button type="button" className="flex items-center text-success">
-                                                    <IconMultipleForwardRight className="ltr:mr-1 rtl:ml-1 rtl:rotate-180" />
-                                                    Google
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-secondary font-bold">Store C</td>
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-watch.jpg" alt="avatar" />
-                                                    <p className="whitespace-nowrap">
-                                                        Watch <span className="block text-xs text-danger">Accessories</span>
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td>₹56</td>
-                                            <td>66</td>
-                                            <td>
-                                                <button type="button" className="flex items-center text-warning">
-                                                    <IconMultipleForwardRight className="ltr:mr-1 rtl:ml-1 rtl:rotate-180" />
-                                                    Ads
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-secondary font-bold">Store D</td>
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-laptop.jpg" alt="avatar" />
-                                                    <p className="whitespace-nowrap">
-                                                        Laptop <span className="block text-xs text-primary">Digital</span>
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td>₹110</td>
-                                            <td>35</td>
-                                            <td>
-                                                <button type="button" className="flex items-center text-secondary">
-                                                    <IconMultipleForwardRight className="ltr:mr-1 rtl:ml-1 rtl:rotate-180" />
-                                                    Email
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
-                                            <td className="text-secondary font-bold">Store E</td>
-                                            <td className="text-black dark:text-white">
-                                                <div className="flex">
-                                                    <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src="/assets/images/product-camera.jpg" alt="avatar" />
-                                                    <p className="whitespace-nowrap">
-                                                        Camera <span className="block text-xs text-primary">Digital</span>
-                                                    </p>
-                                                </div>
-                                            </td>
-                                            <td>₹56</td>
-                                            <td>30</td>
-                                            <td>
-                                                <button type="button" className="flex items-center text-primary">
-                                                    <IconMultipleForwardRight className="ltr:mr-1 rtl:ml-1 rtl:rotate-180" />
-                                                    Referral
-                                                </button>
-                                            </td>
-                                        </tr>
+                                        {(stats?.topSellingProducts || []).map((product: any, index: number) => (
+                                            <tr key={index} className="group text-white-dark hover:text-black dark:hover:text-white-light/90">
+                                                <td className="min-w-[150px] text-black dark:text-white">
+                                                    <div className="flex items-center">
+                                                        <img className="h-8 w-8 rounded-md object-cover ltr:mr-3 rtl:ml-3" src={product.image || "/assets/images/product-headphones.jpg"} alt="product" />
+                                                        <span className="whitespace-nowrap">{product.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-primary">{product.store}</td>
+                                                <td>{product.category}</td>
+                                                <td>₹{product.price}</td>
+                                                <td>
+                                                    <span className="badge bg-success shadow-md dark:group-hover:bg-transparent">{product.sold} Units</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {(!stats?.topSellingProducts || stats?.topSellingProducts.length === 0) && (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-4">No products found for this range</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

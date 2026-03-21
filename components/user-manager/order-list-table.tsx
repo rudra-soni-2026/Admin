@@ -49,11 +49,14 @@ interface UserListTableProps {
     dateRange?: any;
     onDateRangeChange?: (val: any) => void;
     onStatusToggle?: (userId: any, currentStatus: string) => void;
-    onRiderAssign?: (orderId: any, riderId: string) => void;
+    onRiderAssign?: (orderId: any, riderId: string | null, status: string | null) => void;
     onViewClick?: (user: any) => void;
     userType?: string;
     onAddClick?: () => void;
     addButtonLabel?: string;
+    riders?: any[];
+    onPrint?: (item: any) => void;
+    onStatusUpdate?: (orderId: any, newStatus: string) => void;
 }
 
 const OrderListTable = ({
@@ -82,6 +85,9 @@ const OrderListTable = ({
     userType = 'User',
     onAddClick,
     addButtonLabel,
+    riders = [],
+    onPrint,
+    onStatusUpdate
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
     const [stagedRiders, setStagedRiders] = useState<{ [key: string]: string }>({});
@@ -90,12 +96,9 @@ const OrderListTable = ({
     const [paymentBreakdowns, setPaymentBreakdowns] = useState<{ [key: string]: { cash: string; online: string } }>({});
     const [activeMultiOrderId, setActiveMultiOrderId] = useState<string | null>(null);
 
-    const dummyRiders = [
-        { id: 'r1', name: 'Pradeep Kumar', rating: 4.8, orders: 12, status: 'Active', distance: '1.2 km', activeSince: '09:00 AM', image: '/assets/images/profile-1.jpeg' },
-        { id: 'r2', name: 'Krishna Murti', rating: 4.5, orders: 8, status: 'Active', distance: '2.5 km', activeSince: '10:30 AM', image: '/assets/images/profile-2.jpeg' },
-        { id: 'r3', name: 'Rajnish Sahni', rating: 4.9, orders: 5, status: 'Active', distance: '0.8 km', activeSince: '11:15 AM', image: '/assets/images/profile-3.jpeg' },
-        { id: 'r4', name: 'Niket Singh', rating: 4.2, orders: 15, status: 'On Delivery', distance: '3.1 km', activeSince: '08:45 AM', image: '/assets/images/profile-4.jpeg' },
-    ];
+    const handleRiderAssignInternal = (orderId: string, rider: any) => {
+        setStagedRiders({ ...stagedRiders, [orderId]: rider.name });
+    };
 
     return (
         <div className="mt-1">
@@ -163,8 +166,8 @@ const OrderListTable = ({
                     setStatus={onStatusChange || (() => { })}
                 />
 
-                    <div className="table-responsive mb-3 overflow-x-auto">
-                        <table className="table-hover whitespace-nowrap min-w-[1000px]">
+                <div className="table-responsive mb-3 overflow-x-auto">
+                    <table className="table-hover whitespace-nowrap min-w-[1000px]">
                         <thead>
                             <tr>
                                 {columns.map((col) => (
@@ -315,33 +318,93 @@ const OrderListTable = ({
                                                         )} */}
                                                     </div>
                                                 ) : col.key === 'order_status' ? (
-                                                    <div className="text-center min-w-[70px]">
-                                                        <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold uppercase w-full ${item.status === 'Delivered' ? 'bg-success/10 text-success' :
-                                                            item.status === 'Canceled' || item.status === 'Cancelled' ? 'bg-danger/10 text-danger' :
-                                                                'bg-gray-100 text-gray-600'
+                                                    <div className="text-center min-w-[80px]">
+                                                        <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold uppercase w-full ${item.status === 'delivered' ? 'bg-success/10 text-success' :
+                                                                item.status === 'cancelled' ? 'bg-danger/10 text-danger' :
+                                                                    item.status === 'pending' ? 'bg-warning/10 text-warning' :
+                                                                        item.status === 'order_accepted' ? 'bg-primary/10 text-primary' :
+                                                                            item.status === 'packing' ? 'bg-info/10 text-info' :
+                                                                                item.status === 'pickup_accepted' ? 'bg-secondary/10 text-secondary' :
+                                                                                    item.status === 'in_transit' ? 'bg-info/10 text-info' :
+                                                                                        item.status === 'hold' || item.status === 'waiting' ? 'bg-gray-500/10 text-gray-500' :
+                                                                                            'bg-gray-100 text-gray-600'
                                                             }`}>
                                                             {item.status?.replace('_', ' ')}
                                                         </span>
                                                     </div>
-                                                ) : col.key === 'store' ? (
-                                                    <div className="text-[12px] font-bold text-black dark:text-white-light">{item.store}</div>
+                                                ) : col.key === 'storeName' ? (
+                                                    <div className="font-semibold text-gray-900">{item.storeName}</div>
                                                 ) : col.key === 'actions' && userType === 'Order' ? (
                                                     <div className="flex items-center gap-1">
                                                         <Tippy content="Print Bill">
-                                                            <button type="button" className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-primary/50 hover:bg-primary/5">
+                                                            <button
+                                                                onClick={() => onPrint?.(item)}
+                                                                type="button"
+                                                                className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-primary/50 hover:bg-primary/5"
+                                                            >
                                                                 <IconPrinter className="h-3 w-3 text-gray-400 transition-colors group-hover:text-primary" />
-                                                            </button>
-                                                        </Tippy>
-                                                        <Tippy content="Cancel Order">
-                                                            <button type="button" className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-danger/50 hover:bg-danger/5">
-                                                                <IconXCircle className="h-3 w-3 text-gray-400 transition-colors group-hover:text-danger" />
-                                                            </button>
-                                                        </Tippy>
-                                                        <Tippy content="Out for Delivery">
-                                                            <button type="button" className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-success/50 hover:bg-success/5">
-                                                                <IconTruck className="h-3 w-3 text-gray-400 transition-colors group-hover:text-success" />
-                                                            </button>
-                                                        </Tippy>
+                                                                </button>
+                                                            </Tippy>
+
+                                                        {item.status === 'pending' && (
+                                                            <Tippy content="Accept Order">
+                                                                <button 
+                                                                    onClick={() => onStatusUpdate?.(item.originalId, 'order_accepted')}
+                                                                    type="button" 
+                                                                    className="group flex h-6 w-6 items-center justify-center rounded-md border border-success/20 bg-success/5 shadow-sm transition-all hover:bg-success hover:border-success"
+                                                                >
+                                                                    <IconSquareCheck className="h-3.5 w-3.5 text-success transition-colors group-hover:text-white" />
+                                                                </button>
+                                                            </Tippy>
+                                                        )}
+
+                                                        {(item.status === 'order_accepted' || item.status === 'hold' || item.status === 'waiting') && (
+                                                            <Tippy content="Move to Packing">
+                                                                <button 
+                                                                    onClick={() => onStatusUpdate?.(item.originalId, 'packing')}
+                                                                    type="button" 
+                                                                    className="group flex h-6 w-6 items-center justify-center rounded-md border border-info/20 bg-info/5 shadow-sm transition-all hover:bg-info hover:border-info"
+                                                                >
+                                                                    <IconBox className="h-3.5 w-3.5 text-info transition-colors group-hover:text-white" />
+                                                                </button>
+                                                            </Tippy>
+                                                        )}
+
+                                                        {item.status === 'packing' && item.rider !== '-' && (
+                                                            <Tippy content="Mark Delivered">
+                                                                <button 
+                                                                    onClick={() => onStatusUpdate?.(item.originalId, 'delivered')}
+                                                                    type="button" 
+                                                                    className="group flex h-6 w-6 items-center justify-center rounded-md border border-success/20 bg-success/5 shadow-sm transition-all hover:bg-success hover:border-success"
+                                                                >
+                                                                    <IconCircleCheck className="h-3.5 w-3.5 text-success transition-colors group-hover:text-white" />
+                                                                </button>
+                                                            </Tippy>
+                                                        )}
+
+                                                        {(item.status === 'pickup_accepted' || item.status === 'in_transit') && (
+                                                            <Tippy content="Mark Delivered">
+                                                                <button 
+                                                                    onClick={() => onStatusUpdate?.(item.originalId, 'delivered')}
+                                                                    type="button" 
+                                                                    className="group flex h-6 w-6 items-center justify-center rounded-md border border-success/20 bg-success/5 shadow-sm transition-all hover:bg-success hover:border-success"
+                                                                >
+                                                                    <IconCircleCheck className="h-3.5 w-3.5 text-success transition-colors group-hover:text-white" />
+                                                                </button>
+                                                            </Tippy>
+                                                        )}
+
+                                                        {!['delivered', 'cancelled', 'order_accepted', 'pending'].includes(item.status) && (
+                                                            <Tippy content="Cancel Order">
+                                                                <button 
+                                                                    onClick={() => onStatusUpdate?.(item.originalId, 'cancelled')}
+                                                                    type="button" 
+                                                                    className="group flex h-6 w-6 items-center justify-center rounded-md border border-danger/20 bg-danger/5 shadow-sm transition-all hover:bg-danger hover:border-danger"
+                                                                >
+                                                                    <IconXCircle className="h-3 w-3 text-danger transition-colors group-hover:text-white" />
+                                                                </button>
+                                                            </Tippy>
+                                                        )}
                                                     </div>
                                                 ) : col.key === 'status' ? (
                                                     <label className="relative mb-0 inline-block h-5 w-10 cursor-pointer">
@@ -355,109 +418,125 @@ const OrderListTable = ({
                                                     </label>
                                                 ) : col.key === 'rider' && userType === 'Order' ? (
                                                     <div className="flex items-center gap-1.5 min-w-[120px]">
-                                                        <div className="dropdown flex-1">
-                                                            <Menu as="div" className="relative inline-block text-left w-full">
-                                                                <Menu.Button className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-primary/40 transition-all w-full group/btn shadow-sm ${stagedRiders[item.originalId] ? 'border-success/40 bg-success/5' : ''}`}>
-                                                                    {stagedRiders[item.originalId] === 'HOLD' ? <IconMinusCircle className="w-3.5 h-3.5 text-warning shrink-0" /> :
-                                                                        stagedRiders[item.originalId] === 'WAIT' ? <IconClock className="w-3.5 h-3.5 text-info shrink-0" /> :
-                                                                            <IconUsers className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
-                                                                    <span className="truncate flex-1 text-left text-[10px] font-bold text-gray-700">
-                                                                        {stagedRiders[item.originalId] ? `${stagedRiders[item.originalId]}` :
-                                                                            (!item.rider || item.rider === '-') ? 'Assign' : item.rider}
-                                                                    </span>
-                                                                    <IconCaretDown className={`w-3 h-3 text-gray-300 ml-auto transition-transform duration-300 group-focus-within/btn:rotate-180`} />
-                                                                </Menu.Button>
-                                                                <Transition
-                                                                    as={Fragment}
-                                                                    enter="transition ease-out duration-200"
-                                                                    enterFrom={`transform opacity-0 scale-95 focus:ring-2 focus:ring-primary/20 ${index >= data.length - 4 && data.length > 4 ? 'translate-y-2' : '-translate-y-2'}`}
-                                                                    enterTo="transform opacity-100 scale-100 translate-y-0"
-                                                                    leave="transition ease-in duration-150"
-                                                                    leaveFrom="transform opacity-100 scale-100 translate-y-0"
-                                                                    leaveTo={`transform opacity-0 scale-95 ${index >= data.length - 4 && data.length > 4 ? 'translate-y-2' : '-translate-y-2'}`}
-                                                                >
-                                                                    <Menu.Items className={`absolute right-0 z-[100] w-48 rounded-xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)] ring-1 ring-black/5 focus:outline-none dark:bg-[#1b2e4b] p-1.5 border border-black/5 ${index >= data.length - 4 && data.length > 4 ? 'bottom-full mb-1 origin-bottom-right' : 'mt-1 origin-top-right'}`}>
-                                                                        <div className="grid grid-cols-2 gap-1 mb-1.5">
-                                                                            <Menu.Item>
-                                                                                {({ active }) => (
-                                                                                    <button
-                                                                                        onClick={() => setStagedRiders({ ...stagedRiders, [item.originalId]: 'HOLD' })}
-                                                                                        className={`${active || stagedRiders[item.originalId] === 'HOLD' ? 'bg-warning/10 text-warning border-warning/20' : 'bg-gray-50 text-gray-400 border-transparent'} flex items-center justify-center gap-1 rounded-lg py-1 text-[9px] font-black uppercase border transition-all`}
-                                                                                    >
-                                                                                        <IconMinusCircle className="w-3 h-3" /> Hold
-                                                                                    </button>
-                                                                                )}
-                                                                            </Menu.Item>
-                                                                            <Menu.Item>
-                                                                                {({ active }) => (
-                                                                                    <button
-                                                                                        onClick={() => setStagedRiders({ ...stagedRiders, [item.originalId]: 'WAIT' })}
-                                                                                        className={`${active || stagedRiders[item.originalId] === 'WAIT' ? 'bg-info/10 text-info border-info/20' : 'bg-gray-50 text-gray-400 border-transparent'} flex items-center justify-center gap-1 rounded-lg py-1 text-[9px] font-black uppercase border transition-all`}
-                                                                                    >
-                                                                                        <IconClock className="w-3 h-3" /> Wait
-                                                                                    </button>
-                                                                                )}
-                                                                            </Menu.Item>
-                                                                        </div>
-                                                                        <div className="px-2 py-1 mb-1 border-t border-black/5 pt-1.5">
-                                                                            <span className="text-[8px] font-black uppercase tracking-widest text-black dark:text-white">Available Riders</span>
-                                                                        </div>
-                                                                        <div className="space-y-0.5">
-                                                                            {dummyRiders.map((rider) => (
-                                                                                <Menu.Item key={rider.id}>
+                                                        {['delivered', 'cancelled', 'in_transit'].includes(item.status) ? (
+                                                            <div className="flex w-full items-center gap-1.5 px-2 py-1.5 rounded-md border border-gray-100 bg-gray-50/50 text-gray-500 opacity-75">
+                                                                <IconUsers className="w-3.5 h-3.5 shrink-0" />
+                                                                <span className="truncate flex-1 text-left text-[10px] font-bold">
+                                                                    {item.rider !== '-' ? item.rider : 'No Rider'}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="dropdown flex-1">
+                                                                <Menu as="div" className="relative inline-block text-left w-full">
+                                                                    <Menu.Button className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-gray-100 bg-white hover:border-primary/40 transition-all w-full group/btn shadow-sm ${stagedRiders[item.originalId] ? 'border-success/40 bg-success/5' : ''}`}>
+                                                                        {stagedRiders[item.originalId] === 'HOLD' ? <IconMinusCircle className="w-3.5 h-3.5 text-warning shrink-0" /> :
+                                                                            stagedRiders[item.originalId] === 'WAIT' ? <IconClock className="w-3.5 h-3.5 text-info shrink-0" /> :
+                                                                                <IconUsers className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
+                                                                        <span className="truncate flex-1 text-left text-[10px] font-bold text-gray-700">
+                                                                            {stagedRiders[item.originalId] ? `${stagedRiders[item.originalId]}` :
+                                                                                (!item.rider || item.rider === '-') ? 'Assign' : item.rider}
+                                                                        </span>
+                                                                        <IconCaretDown className={`w-3 h-3 text-gray-300 ml-auto transition-transform duration-300 group-focus-within/btn:rotate-180`} />
+                                                                    </Menu.Button>
+                                                                    <Transition
+                                                                        as={Fragment}
+                                                                        enter="transition ease-out duration-200"
+                                                                        enterFrom={`transform opacity-0 scale-95 focus:ring-2 focus:ring-primary/20 ${index >= data.length - 4 && data.length > 4 ? 'translate-y-2' : '-translate-y-2'}`}
+                                                                        enterTo="transform opacity-100 scale-100 translate-y-0"
+                                                                        leave="transition ease-in duration-150"
+                                                                        leaveFrom="transform opacity-100 scale-100 translate-y-0"
+                                                                        leaveTo={`transform opacity-0 scale-95 ${index >= data.length - 4 && data.length > 4 ? 'translate-y-2' : '-translate-y-2'}`}
+                                                                    >
+                                                                        <Menu.Items className={`absolute right-0 z-[100] w-48 rounded-xl bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)] ring-1 ring-black/5 focus:outline-none dark:bg-[#1b2e4b] p-1.5 border border-black/5 ${index >= data.length - 4 && data.length > 4 ? 'bottom-full mb-1 origin-bottom-right' : 'mt-1 origin-top-right'}`}>
+                                                                            <div className="grid grid-cols-2 gap-1 mb-1.5">
+                                                                                <Menu.Item>
                                                                                     {({ active }) => (
                                                                                         <button
-                                                                                            onClick={() => {
-                                                                                                setStagedRiders({ ...stagedRiders, [item.originalId]: rider.name });
-                                                                                            }}
-                                                                                            className={`${active ? 'bg-primary/5' : ''} flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-black text-black transition-all duration-200 group`}
+                                                                                            onClick={() => setStagedRiders({ ...stagedRiders, [item.originalId]: 'HOLD' })}
+                                                                                            className={`${active || stagedRiders[item.originalId] === 'HOLD' ? 'bg-warning/10 text-warning border-warning/20' : 'bg-gray-50 text-gray-400 border-transparent'} flex items-center justify-center gap-1 rounded-lg py-1 text-[9px] font-black uppercase border transition-all`}
                                                                                         >
-                                                                                            <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 shadow-sm border border-black/5">
-                                                                                                <img src={rider.image} alt="" className="h-full w-full object-cover" />
-                                                                                            </div>
-                                                                                            <div className="flex flex-col text-left min-w-0 flex-1">
-                                                                                                <span className="truncate leading-none">{rider.name}</span>
-                                                                                            </div>
-                                                                                            <div className={`h-2 w-2 rounded-full ${rider.status === 'Active' ? 'bg-success shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-warning shadow-[0_0_6px_rgba(245,158,11,0.4)]'}`}></div>
+                                                                                            <IconMinusCircle className="w-3 h-3" /> Hold
                                                                                         </button>
                                                                                     )}
                                                                                 </Menu.Item>
-                                                                            ))}
-                                                                        </div>
-                                                                        <div className="mt-1.5 pt-1.5 border-t border-black/5">
-                                                                            <Menu.Item>
-                                                                                {({ active }) => (
-                                                                                    <button
-                                                                                        onClick={() => {
-                                                                                            onRiderAssign?.(item.originalId, '-');
-                                                                                            const n = { ...stagedRiders };
-                                                                                            delete n[item.originalId];
-                                                                                            setStagedRiders(n);
-                                                                                        }}
-                                                                                        className={`${active ? 'bg-danger/5' : ''} flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-[9px] font-black uppercase tracking-widest text-black transition-all duration-200`}
-                                                                                    >
-                                                                                        <IconX className="h-3 w-3" />
-                                                                                        NOT ASSIGNED
-                                                                                    </button>
-                                                                                )}
-                                                                            </Menu.Item>
-                                                                        </div>
-                                                                    </Menu.Items>
-                                                                </Transition>
-                                                            </Menu>
-                                                        </div>
+                                                                                <Menu.Item>
+                                                                                    {({ active }) => (
+                                                                                        <button
+                                                                                            onClick={() => setStagedRiders({ ...stagedRiders, [item.originalId]: 'WAIT' })}
+                                                                                            className={`${active || stagedRiders[item.originalId] === 'WAIT' ? 'bg-info/10 text-info border-info/20' : 'bg-gray-50 text-gray-400 border-transparent'} flex items-center justify-center gap-1 rounded-lg py-1 text-[9px] font-black uppercase border transition-all`}
+                                                                                        >
+                                                                                            <IconClock className="w-3 h-3" /> Wait
+                                                                                        </button>
+                                                                                    )}
+                                                                                </Menu.Item>
+                                                                            </div>
+                                                                            <div className="px-2 py-1 mb-1 border-t border-black/5 pt-1.5">
+                                                                                <span className="text-[8px] font-black uppercase tracking-widest text-black dark:text-white">Available Riders</span>
+                                                                            </div>
+                                                                            <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                                                                {riders.map((rider) => (
+                                                                                    <Menu.Item key={rider.id || rider._id}>
+                                                                                        {({ active }) => (
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    setStagedRiders({ ...stagedRiders, [item.originalId]: rider.user?.name || rider.name });
+                                                                                                    (item as any)._selectedRiderId = rider.id || rider._id;
+                                                                                                }}
+                                                                                                className={`${active ? 'bg-primary/5' : ''} flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-black text-black transition-all duration-200 group`}
+                                                                                            >
+                                                                                                <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 shadow-sm border border-black/5">
+                                                                                                    <img src={rider.image || '/assets/images/profile-5.jpeg'} alt="" className="h-full w-full object-cover" />
+                                                                                                </div>
+                                                                                                <div className="flex flex-col text-left min-w-0 flex-1">
+                                                                                                    <span className="truncate leading-none">{rider.user?.name || rider.name}</span>
+                                                                                                </div>
+                                                                                                <div className={`h-2 w-2 rounded-full ${rider.status === 'Active' || rider.isAvailable ? 'bg-success shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-warning shadow-[0_0_6px_rgba(245,158,11,0.4)]'}`}></div>
+                                                                                            </button>
+                                                                                        )}
+                                                                                    </Menu.Item>
+                                                                                ))}
+                                                                            </div>
+                                                                            <div className="mt-1.5 pt-1.5 border-t border-black/5">
+                                                                                <Menu.Item>
+                                                                                    {({ active }) => (
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                onRiderAssign?.(item.originalId, null, '-');
+                                                                                                const n = { ...stagedRiders };
+                                                                                                delete n[item.originalId];
+                                                                                                setStagedRiders(n);
+                                                                                            }}
+                                                                                            className={`${active ? 'bg-danger/5' : ''} flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-[9px] font-black uppercase tracking-widest text-black transition-all duration-200`}
+                                                                                        >
+                                                                                            <IconX className="h-3 w-3" />
+                                                                                            NOT ASSIGNED
+                                                                                        </button>
+                                                                                    )}
+                                                                                </Menu.Item>
+                                                                            </div>
+                                                                        </Menu.Items>
+                                                                    </Transition>
+                                                                </Menu>
+                                                            </div>
+                                                        )}
                                                         {stagedRiders[item.originalId] && (
                                                             <Tippy content="Confirm Assign">
                                                                 <button
                                                                     onClick={() => {
-                                                                        onRiderAssign?.(item.originalId, stagedRiders[item.originalId]);
+                                                                        const selectedRider = riders.find(r => (r.user?.name || r.name) === stagedRiders[item.originalId]);
+                                                                        if (selectedRider) {
+                                                                            onRiderAssign?.(item.originalId, selectedRider.id || selectedRider._id, null);
+                                                                        } else if (stagedRiders[item.originalId] === 'HOLD' || stagedRiders[item.originalId] === 'WAIT') {
+                                                                            const backendStatus = stagedRiders[item.originalId] === 'HOLD' ? 'hold' : 'waiting';
+                                                                            onRiderAssign?.(item.originalId, null, backendStatus);
+                                                                        }
                                                                         const n = { ...stagedRiders };
                                                                         delete n[item.originalId];
                                                                         setStagedRiders(n);
                                                                     }}
                                                                     className="flex h-6 w-6 items-center justify-center rounded bg-success text-white hover:bg-success-dark transition-all active:scale-95 shadow-sm shadow-success/10 shrink-0"
                                                                 >
-                                                                    <IconSquareCheck className="h-3.5 h-3.5" />
+                                                                    <IconSquareCheck className="h-3.5 w-3.5" />
                                                                 </button>
                                                             </Tippy>
                                                         )}
