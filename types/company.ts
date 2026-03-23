@@ -13,12 +13,14 @@ export interface HeaderTabConfig {
     festive_end_date?: string;
     festive_type?: string;
     festive_single_banners?: Array<{
+        title?: string;
         image: string;
         parent_category_id: string;
         sub_category_id?: string;
         category_id?: string;
     }>; // Should be exactly 4
     festive_multi_banner?: {
+        title?: string;
         parent_category_id: string;
         sub_category_id?: string;
         category_id?: string;

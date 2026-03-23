@@ -91,6 +91,7 @@ const CompanySettingsForm = () => {
     const [selectedFestiveTabIdx, setSelectedFestiveTabIdx] = useState(0);
     const [productList, setProductList] = useState<any[]>([]);
     const [categoryList, setCategoryList] = useState<any[]>([]);
+    const [rootCategoryList, setRootCategoryList] = useState<any[]>([]);
     const [categoryProducts, setCategoryProducts] = useState<{ [key: string]: any[] }>({});
     const [categorySubCategories, setCategorySubCategories] = useState<{ [key: string]: any[] }>({});
     const [subCategoryNicheCategories, setSubCategoryNicheCategories] = useState<{ [key: string]: any[] }>({});
@@ -100,10 +101,27 @@ const CompanySettingsForm = () => {
         fetchSettings();
         fetchProducts();
         fetchCategories();
+        fetchRootCategories();
     }, []);
 
     const [availableCategories, setAvailableCategories] = useState<any[]>([]);
     const [catSearch, setCatSearch] = useState('');
+
+    const fetchRootCategories = async () => {
+        try {
+            const response = await callApi('/products/parent-categories?level=0&limit=1000', 'GET');
+            if (response && response.data) {
+                const cats = response.data.map((c: any) => ({
+                    value: c._id,
+                    label: c.name,
+                    image: c.image
+                }));
+                setRootCategoryList(cats);
+            }
+        } catch (error) {
+            console.error('Error fetching root categories:', error);
+        }
+    };
 
     const fetchCategories = async (search: string = '') => {
         try {
@@ -955,42 +973,57 @@ const CompanySettingsForm = () => {
                                                     </label>
                                                 </div>
                                                 <div className="flex-1 space-y-2 min-w-0">
-                                                    <Select
-                                                        placeholder="Main Category"
-                                                        options={categoryList}
-                                                        value={categoryList.find(c => c.value === banner.parent_category_id)}
-                                                        onChange={(opt: any) => {
-                                                            const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
-                                                            newBanners[bIdx] = { ...newBanners[bIdx], parent_category_id: opt?.value, sub_category_id: '', category_id: '' };
-                                                            updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
-                                                            if (opt?.value) fetchSubCategoriesByCategory(opt.value);
-                                                        }}
-                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
-                                                    />
-                                                    <div className="grid grid-cols-2 gap-2">
+                                                    <div className="space-y-2">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Slot Title"
+                                                            className="form-input text-[10px] py-1.5 px-3 rounded-lg border-gray-200 dark:border-gray-800 focus:border-primary transition-all font-bold tracking-wider"
+                                                            value={banner.title || ''}
+                                                            onChange={(e) => {
+                                                                const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                newBanners[bIdx] = { ...newBanners[bIdx], title: e.target.value };
+                                                                updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                            }}
+                                                        />
                                                         <Select
-                                                            placeholder="Sub"
-                                                            options={categorySubCategories[banner.parent_category_id] || []}
-                                                            value={(categorySubCategories[banner.parent_category_id] || []).find(s => s.value === banner.sub_category_id)}
+                                                            placeholder="Main Category"
+                                                            options={rootCategoryList}
+                                                            value={rootCategoryList.find(c => c.value === banner.parent_category_id)}
                                                             onChange={(opt: any) => {
                                                                 const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
-                                                                newBanners[bIdx] = { ...newBanners[bIdx], sub_category_id: opt?.value, category_id: '' };
+                                                                newBanners[bIdx] = { ...newBanners[bIdx], parent_category_id: opt?.value, sub_category_id: '', category_id: '' };
                                                                 updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
-                                                                if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
+                                                                if (opt?.value) fetchSubCategoriesByCategory(opt.value);
                                                             }}
                                                             styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
                                                         />
-                                                        <Select
-                                                            placeholder="Niche"
-                                                            options={subCategoryNicheCategories[banner.sub_category_id] || []}
-                                                            value={(subCategoryNicheCategories[banner.sub_category_id] || []).find(n => n.value === banner.category_id)}
-                                                            onChange={(opt: any) => {
-                                                                const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
-                                                                newBanners[bIdx] = { ...newBanners[bIdx], category_id: opt?.value };
-                                                                updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
-                                                            }}
-                                                            styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
-                                                        />
+                                                        {banner.parent_category_id && (
+                                                            <Select
+                                                                placeholder="Sub Category"
+                                                                options={categorySubCategories[banner.parent_category_id] || []}
+                                                                value={(categorySubCategories[banner.parent_category_id] || []).find(s => s.value === banner.sub_category_id)}
+                                                                onChange={(opt: any) => {
+                                                                    const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                    newBanners[bIdx] = { ...newBanners[bIdx], sub_category_id: opt?.value, category_id: '' };
+                                                                    updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                    if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
+                                                                }}
+                                                                styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                            />
+                                                        )}
+                                                        {banner.sub_category_id && (
+                                                            <Select
+                                                                placeholder="Niche Selection"
+                                                                options={subCategoryNicheCategories[banner.sub_category_id] || []}
+                                                                value={(subCategoryNicheCategories[banner.sub_category_id] || []).find(n => n.value === banner.category_id)}
+                                                                onChange={(opt: any) => {
+                                                                    const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                    newBanners[bIdx] = { ...newBanners[bIdx], category_id: opt?.value };
+                                                                    updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                }}
+                                                                styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                            />
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1021,11 +1054,21 @@ const CompanySettingsForm = () => {
                                         const multiBlock = (settings.header_tabs_config![tabDetailIdx!]?.festive_multi_banner || { parent_category_id: '', sub_category_id: '', category_id: '', items: [] }) as any;
                                         return (
                                             <>
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <div className="flex flex-col gap-3">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Section Title"
+                                                        className="form-input text-xs py-2 px-3 rounded-xl border-gray-100 dark:border-gray-800 focus:border-primary transition-all font-extrabold tracking-widest"
+                                                        value={multiBlock.title || ''}
+                                                        onChange={(e) => {
+                                                            const updated = { ...multiBlock, title: e.target.value };
+                                                            updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                        }}
+                                                    />
                                                     <Select
                                                         placeholder="Source Category"
-                                                        options={categoryList}
-                                                        value={categoryList.find(c => c.value === multiBlock.parent_category_id)}
+                                                        options={rootCategoryList}
+                                                        value={rootCategoryList.find(c => c.value === multiBlock.parent_category_id)}
                                                         onChange={(opt: any) => {
                                                             const updated = { ...multiBlock, parent_category_id: opt?.value, sub_category_id: '', category_id: '' };
                                                             updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
@@ -1033,27 +1076,31 @@ const CompanySettingsForm = () => {
                                                         }}
                                                         styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
                                                     />
-                                                    <Select
-                                                        placeholder="Sub Category"
-                                                        options={categorySubCategories[multiBlock.parent_category_id] || []}
-                                                        value={(categorySubCategories[multiBlock.parent_category_id] || []).find(s => s.value === multiBlock.sub_category_id)}
-                                                        onChange={(opt: any) => {
-                                                            const updated = { ...multiBlock, sub_category_id: opt?.value, category_id: '' };
-                                                            updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
-                                                            if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
-                                                        }}
-                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
-                                                    />
-                                                    <Select
-                                                        placeholder="Niche Selection"
-                                                        options={subCategoryNicheCategories[multiBlock.sub_category_id] || []}
-                                                        value={(subCategoryNicheCategories[multiBlock.sub_category_id] || []).find(n => n.value === multiBlock.category_id)}
-                                                        onChange={(opt: any) => {
-                                                            const updated = { ...multiBlock, category_id: opt?.value };
-                                                            updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
-                                                        }}
-                                                        styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
-                                                    />
+                                                    {multiBlock.parent_category_id && (
+                                                        <Select
+                                                            placeholder="Sub Category"
+                                                            options={categorySubCategories[multiBlock.parent_category_id] || []}
+                                                            value={(categorySubCategories[multiBlock.parent_category_id] || []).find(s => s.value === multiBlock.sub_category_id)}
+                                                            onChange={(opt: any) => {
+                                                                const updated = { ...multiBlock, sub_category_id: opt?.value, category_id: '' };
+                                                                updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                                if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
+                                                            }}
+                                                            styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                        />
+                                                    )}
+                                                    {multiBlock.sub_category_id && (
+                                                        <Select
+                                                            placeholder="Niche Selection"
+                                                            options={subCategoryNicheCategories[multiBlock.sub_category_id] || []}
+                                                            value={(subCategoryNicheCategories[multiBlock.sub_category_id] || []).find(n => n.value === multiBlock.category_id)}
+                                                            onChange={(opt: any) => {
+                                                                const updated = { ...multiBlock, category_id: opt?.value };
+                                                                updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                            }}
+                                                            styles={{ control: base => ({ ...base, minHeight: '32px', borderRadius: '10px', fontSize: '11px' }) }}
+                                                        />
+                                                    )}
                                                 </div>
 
                                                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -1064,7 +1111,7 @@ const CompanySettingsForm = () => {
                                                                 className="absolute -top-2 -right-2 bg-danger text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-all z-10"
                                                                 onClick={() => {
                                                                     const updated = { ...multiBlock };
-                                                                    updated.items = updated.items.filter((_: any, i: number) => i !== iIdx);
+                                                                    updated.items = updated.items.filter((_: any, i: any) => i !== iIdx);
                                                                     updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
                                                                 }}
                                                             >
@@ -1122,7 +1169,7 @@ const CompanySettingsForm = () => {
                                             <ReactSortable 
                                                 list={(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((c: any, i: number) => ({ ...c, id: c.parent_category_id || i }))} 
                                                 setList={(newList) => {
-                                                    const updated = newList.map(item => ({ 
+                                                    const updated = newList.map((item: any) => ({ 
                                                         image: item.image, 
                                                         parent_category_id: item.parent_category_id 
                                                     }));
@@ -1133,7 +1180,7 @@ const CompanySettingsForm = () => {
                                                 ghostClass="opacity-50"
                                             >
                                                 {(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((cat: any, i: number) => {
-                                                    const fullCat = categoryList.find(c => c.value === cat.parent_category_id);
+                                                    const fullCat = rootCategoryList.find(c => c.value === cat.parent_category_id) || categoryList.find(c => c.value === cat.parent_category_id);
                                                     return (
                                                         <div key={cat.parent_category_id} className="bg-white dark:bg-black flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm cursor-move hover:border-primary/50 transition-all select-none group">
                                                             <div className="w-1.5 h-1.5 bg-primary/20 rounded-full group-hover:bg-primary transition-colors" />
@@ -1142,7 +1189,7 @@ const CompanySettingsForm = () => {
                                                                 type="button" 
                                                                 className="ml-1 text-gray-400 hover:text-danger"
                                                                 onClick={() => {
-                                                                    const updated = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).filter((_: any, idx: number) => idx !== i);
+                                                                    const updated = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).filter((_: any, idx: any) => idx !== i);
                                                                     updateTabFestive(tabDetailIdx!, 'screen_data', updated);
                                                                 }}
                                                             >
@@ -1236,7 +1283,7 @@ const CompanySettingsForm = () => {
                                 </button>
                             </div>
                             <div className="space-y-4">
-                                {(settings.screen_colors || []).map((sc, idx) => (
+                                {(settings.screen_colors || []).map((sc: any, idx: number) => (
                                     <div key={idx} className="flex items-end gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-black/10 border border-gray-100 dark:border-gray-800">
                                         <div className="flex-1">
                                             <label className="text-[10px] font-bold text-white-dark uppercase mb-2 block">Screen Name</label>
@@ -1280,12 +1327,12 @@ const CompanySettingsForm = () => {
 
                             <ReactSortable
                                 list={settings.spotlight || []}
-                                setList={(newList) => setSettings(prev => ({ ...prev, spotlight: newList }))}
+                                setList={(newList: any) => setSettings(prev => ({ ...prev, spotlight: newList }))}
                                 animation={200}
                                 handle=".spotlight-handle"
                                 className="space-y-6"
                             >
-                                {(settings.spotlight || []).map((spot, idx) => (
+                                {(settings.spotlight || []).map((spot: any, idx: number) => (
                                     <div key={spot.id || idx} className="panel bg-gray-50 dark:bg-black/10 border-gray-100 dark:border-gray-800 rounded-3xl space-y-6">
                                         <div className="flex items-center gap-4">
                                             <div className="spotlight-handle p-2 bg-white dark:bg-black border border-gray-100 dark:border-gray-800 rounded-xl cursor-move text-white-dark hover:text-primary transition-all">
@@ -1315,7 +1362,7 @@ const CompanySettingsForm = () => {
                                             <div className="space-y-4">
                                                 <ReactSortable
                                                     list={spot.items || []}
-                                                    setList={(newItems) => {
+                                                    setList={(newItems: any) => {
                                                         const newSpotlight = [...(settings.spotlight || [])];
                                                         newSpotlight[idx] = { ...newSpotlight[idx], items: newItems };
                                                         setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
@@ -1426,14 +1473,14 @@ const CompanySettingsForm = () => {
 
                                                                     <div className="max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
                                                                         <ReactSortable
-                                                                            list={(item.products || []).map((id: string) => productList.find(p => p.value === id) || { value: id, label: 'Unknown', image: '' })}
-                                                                            setList={(newList) => updateSpotlightItem(idx, itemIdx, 'products', newList.map(p => p.value))}
+                                                                            list={(item.products || []).map((id: string) => productList.find((p: any) => p.value === id) || { value: id, label: 'Unknown', image: '' })}
+                                                                            setList={(newList: any) => updateSpotlightItem(idx, itemIdx, 'products', newList.map((p: any) => p.value))}
                                                                             animation={200}
                                                                             handle=".prod-handle"
                                                                             className="grid grid-cols-1 sm:grid-cols-2 gap-2"
                                                                         >
                                                                             {(item.products || []).map((prodId: string) => {
-                                                                                const product = productList.find(p => p.value === prodId);
+                                                                                const product = productList.find((p: any) => p.value === prodId);
                                                                                 return (
                                                                                     <div key={prodId} className="flex items-center gap-2 p-1.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl hover:border-primary/30 transition-all group/prod shadow-sm">
                                                                                         <div className="prod-handle cursor-move p-1 text-gray-200 hover:text-primary transition-all">
@@ -1448,7 +1495,7 @@ const CompanySettingsForm = () => {
                                                                                         <button
                                                                                             type="button"
                                                                                             className="p-1 text-gray-300 hover:text-danger hover:bg-danger/5 rounded-md transition-all"
-                                                                                            onClick={() => updateSpotlightItem(idx, itemIdx, 'products', (item.products || []).filter((id: string) => id !== prodId))}
+                                                                                            onClick={() => updateSpotlightItem(idx, itemIdx, 'products', (item.products || []).filter((id: any) => id !== prodId))}
                                                                                         >
                                                                                             <IconX className="w-3 h-3" />
                                                                                         </button>
@@ -1616,7 +1663,7 @@ const CompanySettingsForm = () => {
                                     <button type="button" className="btn btn-primary btn-sm p-1" onClick={() => addTimeSlot('delivery_time_slots')}><IconPlus className="w-4 h-4" /></button>
                                 </div>
                                 <div className="space-y-2">
-                                    {(settings.delivery_time_slots || []).map((slot, idx) => (
+                                    {(settings.delivery_time_slots || []).map((slot: any, idx: number) => (
                                         <div key={idx} className="flex gap-2">
                                             <input type="text" className="form-input flex-1" value={slot} onChange={(e) => updateTimeSlot('delivery_time_slots', idx, e.target.value)} placeholder="e.g. 09:00 AM - 12:00 PM" />
                                             <button type="button" className="text-danger p-2" onClick={() => removeTimeSlot('delivery_time_slots', idx)}><IconX className="w-4 h-4" /></button>
@@ -1630,7 +1677,7 @@ const CompanySettingsForm = () => {
                                     <button type="button" className="btn btn-primary btn-sm p-1" onClick={() => addTimeSlot('rider_time_slots')}><IconPlus className="w-4 h-4" /></button>
                                 </div>
                                 <div className="space-y-2">
-                                    {(settings.rider_time_slots || []).map((slot, idx) => (
+                                    {(settings.rider_time_slots || []).map((slot: any, idx: number) => (
                                         <div key={idx} className="flex gap-2">
                                             <input type="text" className="form-input flex-1" value={slot} onChange={(e) => updateTimeSlot('rider_time_slots', idx, e.target.value)} placeholder="e.g. Morning Shift (8-2)" />
                                             <button type="button" className="text-danger p-2" onClick={() => removeTimeSlot('rider_time_slots', idx)}><IconX className="w-4 h-4" /></button>
@@ -1691,13 +1738,13 @@ const CompanySettingsForm = () => {
                             </div>
 
                             <ReactSortable
-                                list={(settings.secondary_banners || []).map((s, idx) => ({ ...s, id: s.id || `s-${idx}` }))}
-                                setList={(newList) => setSettings(prev => ({ ...prev, secondary_banners: newList as any }))}
+                                list={(settings.secondary_banners || []).map((s: any, idx: number) => ({ ...s, id: s.id || `s-${idx}` }))}
+                                setList={(newList: any) => setSettings(prev => ({ ...prev, secondary_banners: newList as any }))}
                                 handle=".section-drag-handle"
                                 className="space-y-12"
                                 animation={200}
                             >
-                                {(settings.secondary_banners || []).map((section, sIdx) => (
+                                {(settings.secondary_banners || []).map((section: any, sIdx: number) => (
                                     <div key={section.id || sIdx} className="space-y-6 group/section animate__animated animate__fadeInUp bg-white dark:bg-black/10 p-6 border border-gray-100 dark:border-white/5 relative" style={{ animationDelay: `${sIdx * 0.1}s` }}>
                                         {/* Professional Section Header - Sharp */}
                                         <div className="flex items-center justify-between">
@@ -1741,8 +1788,8 @@ const CompanySettingsForm = () => {
 
                                         {/* Gallery Grid - Wide for Banners - Sharp */}
                                         <ReactSortable
-                                            list={(section.banners || []).map((b, idx) => ({ ...b, id: b.id || `b-${sIdx}-${idx}` }))}
-                                            setList={(newList) => {
+                                            list={(section.banners || []).map((b: any, idx: number) => ({ ...b, id: b.id || `b-${sIdx}-${idx}` }))}
+                                            setList={(newList: any) => {
                                                 setSettings(prev => {
                                                     const next = [...(prev.secondary_banners || [])];
                                                     next[sIdx] = { ...next[sIdx], banners: newList as any };
@@ -1752,7 +1799,7 @@ const CompanySettingsForm = () => {
                                             animation={200}
                                             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
                                         >
-                                            {(section.banners || []).map((banner, bIdx) => (
+                                            {(section.banners || []).map((banner: any, bIdx: number) => (
                                                 <div key={banner.id || bIdx} className="group/item aspect-[16/7] overflow-hidden bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/5 relative cursor-grab active:cursor-grabbing hover:ring-2 ring-primary transition-all rounded-none">
                                                     {banner.image ? (
                                                         <>
@@ -1784,15 +1831,15 @@ const CompanySettingsForm = () => {
                                                             <input type="file" className="hidden" multiple onChange={async (e: any) => {
                                                                 const files = Array.from(e.target.files || []) as File[];
                                                                 if (files.length > 0) {
-                                                                    const urls = await Promise.all(files.map(file => uploadImage(file)));
-                                                                    const validUrls = (urls.filter(url => !!url) as string[]);
+                                                                    const urls = await Promise.all(files.map((file: any) => uploadImage(file)));
+                                                                    const validUrls = (urls.filter((url: any) => !!url) as string[]);
                                                                     if (validUrls.length > 0) {
                                                                         setSettings(prev => {
                                                                             const next = [...(prev.secondary_banners || [])];
                                                                             const newBanners = [...next[sIdx].banners];
                                                                             newBanners[bIdx] = { ...newBanners[bIdx], image: validUrls[0] };
                                                                             if (validUrls.length > 1) {
-                                                                                newBanners.splice(bIdx + 1, 0, ...validUrls.slice(1).map((url, i) => ({ id: `b-${Date.now()}-${i}`, image: url })));
+                                                                                newBanners.splice(bIdx + 1, 0, ...validUrls.slice(1).map((url: any, i: any) => ({ id: `b-${Date.now()}-${i}`, image: url })));
                                                                             }
                                                                             next[sIdx] = { ...next[sIdx], banners: newBanners };
                                                                             return { ...prev, secondary_banners: next };
@@ -1812,8 +1859,8 @@ const CompanySettingsForm = () => {
                                                 <input type="file" className="hidden" multiple onChange={async (e: any) => {
                                                     const files = Array.from(e.target.files || []) as File[];
                                                     if (files.length > 0) {
-                                                        const urls = await Promise.all(files.map(file => uploadImage(file)));
-                                                        const validUrls = (urls.filter(url => !!url) as string[]);
+                                                        const urls = await Promise.all(files.map((file: any) => uploadImage(file)));
+                                                        const validUrls = (urls.filter((url: any) => !!url) as string[]);
                                                         if (validUrls.length > 0) {
                                                             setSettings(prev => {
                                                                 const next = [...(prev.secondary_banners || [])];
@@ -1821,7 +1868,7 @@ const CompanySettingsForm = () => {
                                                                     ...next[sIdx],
                                                                     banners: [
                                                                         ...(next[sIdx].banners || []),
-                                                                        ...validUrls.map((url, i) => ({ id: `b-${Date.now()}-${i}`, image: url }))
+                                                                        ...validUrls.map((url: any, i: any) => ({ id: `b-${Date.now()}-${i}`, image: url }))
                                                                     ]
                                                                 };
                                                                 return { ...prev, secondary_banners: next };
@@ -1852,7 +1899,7 @@ const CompanySettingsForm = () => {
                             <div className="space-y-4">
                                 <label className="text-xs font-bold uppercase text-white-dark block px-1">Configure By Category</label>
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                                    {(settings.header_tabs_config || []).map((tab, idx) => (
+                                    {(settings.header_tabs_config || []).map((tab: any, idx: number) => (
                                         <button
                                             key={tab.id || idx}
                                             type="button"
@@ -1881,7 +1928,7 @@ const CompanySettingsForm = () => {
                                                 </div>
                                                 <div>
                                                     <h6 className="font-bold text-sm leading-none">{currentTab.name} Campaign</h6>
-                                                    <p className="text-[9px] text-white-dark uppercase tracking-widest mt-1">Configure theme & banners</p>
+                                                    <p className="text-[9px] text-white-dark mt-1 font-medium tracking-tight">Configure theme & banners</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-6">
@@ -1917,17 +1964,17 @@ const CompanySettingsForm = () => {
                                                     list={(() => {
                                                         const banners = [...(currentTab.festive_single_banners || [])];
                                                         while (banners.length < 4) banners.push({ image: '', parent_category_id: '' });
-                                                        return banners.map((b, i) => ({ ...b, id: i })); // Add id for sortable
+                                                        return banners.map((b: any, i: any) => ({ ...b, id: i })); // Add id for sortable
                                                     })()}
-                                                    setList={(newList) => {
-                                                        const cleaned = newList.map(({ id, ...rest }) => rest);
+                                                    setList={(newList: any) => {
+                                                        const cleaned = newList.map(({ id, ...rest }: { id: any, rest: any }) => rest);
                                                         updateTabFestive(selectedFestiveTabIdx, 'festive_single_banners', cleaned);
                                                     }}
                                                     className="grid grid-cols-1 md:grid-cols-2 gap-6"
                                                     handle=".drag-handle"
                                                     animation={200}
                                                 >
-                                                    {(currentTab.festive_single_banners || [{ image: '', parent_category_id: '' }, { image: '', parent_category_id: '' }, { image: '', parent_category_id: '' }, { image: '', parent_category_id: '' }]).map((banner: any, idx) => {
+                                                    {(currentTab.festive_single_banners || [{ image: '', parent_category_id: '' }, { image: '', parent_category_id: '' }, { image: '', parent_category_id: '' }, { image: '', parent_category_id: '' }]).map((banner: any, idx: number) => {
                                                         return (
                                                             <div key={idx} className="bg-white dark:bg-black/20 p-5 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-primary/30 transition-all shadow-sm group/slot">
                                                                 <div className="flex items-center justify-between mb-5">
@@ -1941,33 +1988,43 @@ const CompanySettingsForm = () => {
                                                                 </div>
 
                                                                 <div className="space-y-5">
-                                                                    <div className="grid grid-cols-3 gap-3">
-                                                                        <div className="space-y-1.5">
-                                                                            <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Master Category</label>
+                                                                    <div className="space-y-2">
+                                                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Slot Title</label>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Enter Title"
+                                                                            className="form-input text-xs py-1.5 focus:border-primary transition-all"
+                                                                            value={(banner as any).title || ''}
+                                                                            onChange={(e) => {
+                                                                                const newBanners = [...(currentTab.festive_single_banners || [])];
+                                                                                while (newBanners.length < 4) newBanners.push({ image: '', parent_category_id: '' } as any);
+                                                                                newBanners[idx] = { ...newBanners[idx], title: e.target.value };
+                                                                                updateTabFestive(selectedFestiveTabIdx, 'festive_single_banners', newBanners);
+                                                                            }}
+                                                                        />
+                                                                        <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Master Category</label>
+                                                                        <Select
+                                                                            placeholder="Select"
+                                                                            options={rootCategoryList}
+                                                                            value={rootCategoryList.find(c => c.value === (banner as any).parent_category_id)}
+                                                                            onChange={(opt: any) => {
+                                                                                const newBanners = [...(currentTab.festive_single_banners || [])];
+                                                                                while (newBanners.length < 4) newBanners.push({ image: '', parent_category_id: '' } as any);
+                                                                                newBanners[idx] = { ...newBanners[idx], parent_category_id: opt?.value || '', sub_category_id: '', category_id: '' };
+                                                                                updateTabFestive(selectedFestiveTabIdx, 'festive_single_banners', newBanners);
+                                                                                if (opt?.value) fetchSubCategoriesByCategory(opt.value);
+                                                                            }}
+                                                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                                                            styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                                                                            isSearchable
+                                                                            classNamePrefix="select"
+                                                                            className="text-xs"
+                                                                        />
+                                                                        {banner.parent_category_id && (
                                                                             <Select
-                                                                                placeholder="Select"
-                                                                                options={categoryList}
-                                                                                value={categoryList.find(c => c.value === (banner as any).parent_category_id)}
-                                                                                onChange={(opt: any) => {
-                                                                                    const newBanners = [...(currentTab.festive_single_banners || [])];
-                                                                                    while (newBanners.length < 4) newBanners.push({ image: '', parent_category_id: '' } as any);
-                                                                                    newBanners[idx] = { ...newBanners[idx], parent_category_id: opt?.value || '', sub_category_id: '', category_id: '' };
-                                                                                    updateTabFestive(selectedFestiveTabIdx, 'festive_single_banners', newBanners);
-                                                                                    if (opt?.value) fetchSubCategoriesByCategory(opt.value);
-                                                                                }}
-                                                                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                                                                styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-                                                                                isSearchable
-                                                                                classNamePrefix="select"
-                                                                                className="text-xs"
-                                                                            />
-                                                                        </div>
-                                                                        <div className="space-y-1.5">
-                                                                            <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Sub Category</label>
-                                                                            <Select
-                                                                                placeholder="Sub"
-                                                                                options={categorySubCategories[(banner as any).parent_category_id] || []}
-                                                                                value={(categorySubCategories[(banner as any).parent_category_id] || []).find(s => s.value === banner.sub_category_id)}
+                                                                                placeholder="Sub Category"
+                                                                                options={categorySubCategories[banner.parent_category_id] || []}
+                                                                                value={(categorySubCategories[banner.parent_category_id] || []).find(s => s.value === banner.sub_category_id)}
                                                                                 onChange={(opt: any) => {
                                                                                     const newBanners = [...(currentTab.festive_single_banners || [])];
                                                                                     while (newBanners.length < 4) newBanners.push({ image: '', parent_category_id: '' } as any);
@@ -1975,20 +2032,16 @@ const CompanySettingsForm = () => {
                                                                                     updateTabFestive(selectedFestiveTabIdx, 'festive_single_banners', newBanners);
                                                                                     if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
                                                                                 }}
-                                                                                onMenuOpen={() => {
-                                                                                    if ((banner as any).parent_category_id) fetchSubCategoriesByCategory((banner as any).parent_category_id);
-                                                                                }}
                                                                                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                                                                 styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                                                                                 isSearchable
                                                                                 classNamePrefix="select"
                                                                                 className="text-xs"
                                                                             />
-                                                                        </div>
-                                                                        <div className="space-y-1.5">
-                                                                            <label className="text-[10px] font-bold text-white-dark uppercase ml-1">Category ID</label>
+                                                                        )}
+                                                                        {banner.sub_category_id && (
                                                                             <Select
-                                                                                placeholder="Niche"
+                                                                                placeholder="Niche Selection"
                                                                                 options={subCategoryNicheCategories[banner.sub_category_id || ''] || []}
                                                                                 value={(subCategoryNicheCategories[banner.sub_category_id || ''] || []).find((n: any) => n.value === banner.category_id)}
                                                                                 onChange={(opt: any) => {
@@ -1997,17 +2050,15 @@ const CompanySettingsForm = () => {
                                                                                     newBanners[idx] = { ...newBanners[idx], category_id: opt?.value || '' };
                                                                                     updateTabFestive(selectedFestiveTabIdx, 'festive_single_banners', newBanners);
                                                                                 }}
-                                                                                onMenuOpen={() => {
-                                                                                    if (banner.sub_category_id) fetchNicheCategoriesBySubCategory(banner.sub_category_id);
-                                                                                }}
                                                                                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                                                                 styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                                                                                 isSearchable
                                                                                 classNamePrefix="select"
                                                                                 className="text-xs"
                                                                             />
-                                                                        </div>
+                                                                        )}
                                                                     </div>
+
 
                                                                     <div className="space-y-2">
                                                                         <label className="text-[10px] font-bold text-white-dark uppercase ml-1 block">Campaign Icon</label>
@@ -2094,17 +2145,30 @@ const CompanySettingsForm = () => {
                                                 </div>
 
                                                 {(() => {
-                                                    const cat = currentTab.festive_multi_banner || { category_id: '', items: [] };
+                                                    const cat = (currentTab.festive_multi_banner || { category_id: '', items: [] }) as any;
                                                     return (
                                                         <div className="space-y-8">
                                                             <div className="bg-white dark:bg-black/20 p-6 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                                <div className="flex flex-col gap-3">
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-[11px] font-bold text-white-dark uppercase ml-1 block">Wall Title</label>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Enter Wall Title"
+                                                                            className="form-input text-sm py-2 focus:border-primary transition-all font-bold"
+                                                                            value={(cat as any).title || ''}
+                                                                            onChange={(e) => {
+                                                                                const updated = { ...cat, title: e.target.value };
+                                                                                updateTabFestive(selectedFestiveTabIdx, 'festive_multi_banner', updated);
+                                                                            }}
+                                                                        />
+                                                                    </div>
                                                                     <div className="space-y-1.5">
                                                                         <label className="text-[11px] font-bold text-white-dark uppercase ml-1 block">Master Category Filter</label>
                                                                         <Select
                                                                             placeholder="Select Base Category"
-                                                                            options={categoryList}
-                                                                            value={categoryList.find(c => c.value === (cat as any).parent_category_id)}
+                                                                            options={rootCategoryList}
+                                                                            value={rootCategoryList.find(c => c.value === (cat as any).parent_category_id)}
                                                                             onChange={(opt: any) => {
                                                                                 const updated = { ...cat, parent_category_id: opt?.value || '', sub_category_id: '', category_id: '' };
                                                                                 updateTabFestive(selectedFestiveTabIdx, 'festive_multi_banner', updated);
@@ -2120,22 +2184,15 @@ const CompanySettingsForm = () => {
                                                                             className="text-sm"
                                                                         />
                                                                     </div>
-                                                                    <div className="space-y-1.5">
-                                                                        <label className="text-[11px] font-bold text-white-dark uppercase ml-1 block">Sub Category Filter</label>
+                                                                    {cat.parent_category_id && (
                                                                         <Select
-                                                                            placeholder="Select Sub Category"
-                                                                            options={categorySubCategories[(cat as any).parent_category_id] || []}
-                                                                            value={(categorySubCategories[(cat as any).parent_category_id] || []).find(s => s.value === (cat as any).sub_category_id)}
+                                                                            placeholder="Sub Category Filter"
+                                                                            options={categorySubCategories[cat.parent_category_id] || []}
+                                                                            value={(categorySubCategories[cat.parent_category_id] || []).find(s => s.value === cat.sub_category_id)}
                                                                             onChange={(opt: any) => {
-                                                                                const updated = { ...cat, sub_category_id: opt?.value || '', category_id: '' };
+                                                                                const updated = { ...cat, sub_category_id: opt?.value, category_id: '' };
                                                                                 updateTabFestive(selectedFestiveTabIdx, 'festive_multi_banner', updated);
-                                                                                if (opt?.value) {
-                                                                                    fetchNicheCategoriesBySubCategory(opt.value);
-                                                                                    fetchProductsByCategory(opt.value);
-                                                                                }
-                                                                            }}
-                                                                            onMenuOpen={() => {
-                                                                                if ((cat as any).parent_category_id) fetchSubCategoriesByCategory((cat as any).parent_category_id);
+                                                                                if (opt?.value) fetchNicheCategoriesBySubCategory(opt.value);
                                                                             }}
                                                                             menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                                                             styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
@@ -2143,20 +2200,15 @@ const CompanySettingsForm = () => {
                                                                             classNamePrefix="select"
                                                                             className="text-sm"
                                                                         />
-                                                                    </div>
-                                                                    <div className="space-y-1.5">
-                                                                        <label className="text-[11px] font-bold text-white-dark uppercase ml-1 block">Category ID</label>
+                                                                    )}
+                                                                    {cat.sub_category_id && (
                                                                         <Select
-                                                                            placeholder="Select Niche Category"
-                                                                            options={subCategoryNicheCategories[(cat as any).sub_category_id || ''] || []}
-                                                                            value={(subCategoryNicheCategories[(cat as any).sub_category_id || ''] || []).find(n => n.value === (cat as any).category_id)}
+                                                                            placeholder="Niche Selection"
+                                                                            options={subCategoryNicheCategories[cat.sub_category_id] || []}
+                                                                            value={(subCategoryNicheCategories[cat.sub_category_id] || []).find(n => n.value === cat.category_id)}
                                                                             onChange={(opt: any) => {
-                                                                                const updated = { ...cat, category_id: opt?.value || '' };
+                                                                                const updated = { ...cat, category_id: opt?.value };
                                                                                 updateTabFestive(selectedFestiveTabIdx, 'festive_multi_banner', updated);
-                                                                                if (opt?.value) fetchProductsByCategory(opt.value);
-                                                                            }}
-                                                                            onMenuOpen={() => {
-                                                                                if ((cat as any).sub_category_id) fetchNicheCategoriesBySubCategory((cat as any).sub_category_id);
                                                                             }}
                                                                             menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                                                             styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
@@ -2164,8 +2216,9 @@ const CompanySettingsForm = () => {
                                                                             classNamePrefix="select"
                                                                             className="text-sm"
                                                                         />
-                                                                    </div>
+                                                                    )}
                                                                 </div>
+
                                                             </div>
 
                                                             <div className="space-y-4">
@@ -2186,13 +2239,13 @@ const CompanySettingsForm = () => {
                                                                 </div>
 
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-3 no-scrollbar pb-5">
-                                                                    {cat.items.map((item, iIdx) => (
+                                                                    {cat.items.map((item: any, iIdx: number) => (
                                                                         <div key={iIdx} className="bg-white dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-gray-800 relative group/item hover:border-primary/20 transition-all shadow-sm">
                                                                             <button
                                                                                 type="button"
                                                                                 className="absolute top-2 right-2 text-danger opacity-0 group-hover/item:opacity-100 transition-all p-1.5 hover:bg-danger/10 rounded-full"
                                                                                 onClick={() => {
-                                                                                    const updatedItems = cat.items.filter((_, i) => i !== iIdx);
+                                                                                    const updatedItems = cat.items.filter((_: any, i: any) => i !== iIdx);
                                                                                     updateTabFestive(selectedFestiveTabIdx, 'festive_multi_banner', { ...cat, items: updatedItems });
                                                                                 }}
                                                                             >
