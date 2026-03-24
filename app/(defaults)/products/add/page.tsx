@@ -9,6 +9,7 @@ import IconSave from '@/components/icon/icon-save';
 import IconMenuPages from '@/components/icon/menu/icon-menu-pages';
 import ImageUploading, { ImageListType } from 'react-images-uploading';
 import IconCamera from '@/components/icon/icon-camera';
+import Select from 'react-select';
 
 const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
     <button
@@ -85,8 +86,8 @@ export default function AddProduct() {
     const fetchL2 = async (parentId: string) => {
         try {
             setFetchingL2(true);
-            const response = await callApi(`/products/parent-categories?parentId=${parentId}&level=1`, 'GET');
-            const data = response?.data || response || [];
+            const response = await callApi(`/management/admin/sub-categories/${parentId}`, 'GET');
+            const data = response?.data?.subCategories || response?.data || response?.subCategories || response || [];
             if (Array.isArray(data)) setLevel2Categories(data);
         } catch (error) {
             console.error('L2 Error:', error);
@@ -98,8 +99,8 @@ export default function AddProduct() {
     const fetchL3 = async (parentId: string) => {
         try {
             setFetchingL3(true);
-            const response = await callApi(`/products/parent-categories?parentId=${parentId}&level=2`, 'GET');
-            const data = response?.data || response || [];
+            const response = await callApi(`/management/admin/sub-categories/${parentId}`, 'GET');
+            const data = response?.data?.subCategories || response?.data || response?.subCategories || response || [];
             if (Array.isArray(data)) setLevel3Categories(data);
         } catch (error) {
             console.error('L3 Error:', error);
@@ -223,8 +224,8 @@ export default function AddProduct() {
         }
     };
 
-    const handleCategoryChange = (e: any) => {
-        const { id, value } = e.target;
+    const handleCategoryChange = (selected: any, id: string) => {
+        const value = selected ? selected.value : '';
         setFormData(prev => ({ ...prev, [id]: value }));
 
         if (id === 'p_category') {
@@ -308,6 +309,7 @@ export default function AddProduct() {
 
             const payload = {
                 ...formData,
+                subcategory_id: formData.subcategory_id || null, // Handle optional sub-category
                 price: variants.length > 0 ? Number(variants[0].price) : 0,
                 original_price: Number(formData.original_price) || 0,
                 slug: formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
@@ -342,7 +344,7 @@ export default function AddProduct() {
     };
 
     return (
-        <div className="animate__animated animate__fadeIn">
+        <div className="p-1">
             <ul className="mb-4 flex space-x-2 rtl:space-x-reverse">
                 <li><Link href="/" className="text-primary hover:underline font-medium">Dashboard</Link></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
@@ -528,30 +530,61 @@ export default function AddProduct() {
 
                         <div className="panel">
                             <h6 className="text-base font-bold mb-5 border-b pb-2">Category Map</h6>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-6">
                                 <div>
-                                    <label className="text-[10px] font-bold uppercase text-gray-400">Parent (L1)</label>
-                                    <select id="p_category" className="form-select text-sm py-1.5" value={formData.p_category} onChange={handleCategoryChange} required>
-                                        <option value="">Select Root</option>
-                                        {parentCategories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
-                                    </select>
+                                    <label className="text-[10px] font-extrabold text-primary uppercase tracking-widest mb-2 block">1. Parent (L1)</label>
+                                    <Select
+                                        placeholder="Search Root..."
+                                        options={parentCategories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image }))}
+                                        value={parentCategories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image })).find(o => o.value === formData.p_category)}
+                                        onChange={(sel) => handleCategoryChange(sel, 'p_category')}
+                                        formatOptionLabel={(option: any) => (
+                                            <div className="flex items-center gap-2">
+                                                {option.image ? <img src={option.image} className="w-5 h-5 rounded object-cover shadow-sm" alt="" /> : <div className="w-5 h-5 rounded bg-gray-200" />}
+                                                <span className="text-sm font-medium">{option.label}</span>
+                                            </div>
+                                        )}
+                                        className="text-sm"
+                                    />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-bold uppercase text-gray-400">Category (L2)</label>
-                                    <select id="categoryId" className="form-select text-sm py-1.5" value={formData.categoryId} onChange={handleCategoryChange} required disabled={!formData.p_category}>
-                                        <option value="">Select Branch</option>
-                                        {level2Categories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
-                                    </select>
+                                    <label className="text-[10px] font-extrabold text-primary uppercase tracking-widest mb-2 block">2. Category (L2)</label>
+                                    <Select
+                                        placeholder="Search Branch..."
+                                        options={level2Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image }))}
+                                        value={level2Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image })).find(o => o.value === formData.categoryId)}
+                                        onChange={(sel) => handleCategoryChange(sel, 'categoryId')}
+                                        isDisabled={!formData.p_category || fetchingL2}
+                                        isLoading={fetchingL2}
+                                        formatOptionLabel={(option: any) => (
+                                            <div className="flex items-center gap-2">
+                                                {option.image ? <img src={option.image} className="w-5 h-5 rounded object-cover shadow-sm" alt="" /> : <div className="w-5 h-5 rounded bg-gray-200" />}
+                                                <span className="text-sm font-medium">{option.label}</span>
+                                            </div>
+                                        )}
+                                        className="text-sm"
+                                    />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-bold uppercase text-gray-400">Sub (L3)</label>
-                                    <select id="subcategory_id" className="form-select text-sm py-1.5" value={formData.subcategory_id} onChange={handleCategoryChange} required disabled={!formData.categoryId}>
-                                        <option value="">Select Leaf</option>
-                                        {level3Categories.map(c => <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>)}
-                                    </select>
+                                    <label className="text-[10px] font-extrabold text-primary uppercase tracking-widest mb-2 block">3. Sub (L3)</label>
+                                    <Select
+                                        placeholder="Search Leaf..."
+                                        options={level3Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image }))}
+                                        value={level3Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image })).find(o => o.value === formData.subcategory_id)}
+                                        onChange={(sel) => handleCategoryChange(sel, 'subcategory_id')}
+                                        isDisabled={!formData.categoryId || fetchingL3}
+                                        isLoading={fetchingL3}
+                                        formatOptionLabel={(option: any) => (
+                                            <div className="flex items-center gap-2">
+                                                {option.image ? <img src={option.image} className="w-5 h-5 rounded object-cover shadow-sm" alt="" /> : <div className="w-5 h-5 rounded bg-gray-200" />}
+                                                <span className="text-sm font-medium">{option.label}</span>
+                                            </div>
+                                        )}
+                                        className="text-sm"
+                                    />
                                 </div>
                                 <div className="pt-4 border-t flex items-center justify-between">
-                                    <span className="text-xs font-bold uppercase">Active Status</span>
+                                    <span className="text-xs font-bold uppercase text-gray-500">Active Status</span>
                                     <Toggle checked={formData.isActive} onChange={() => setFormData({...formData, isActive: !formData.isActive})} />
                                 </div>
                             </div>

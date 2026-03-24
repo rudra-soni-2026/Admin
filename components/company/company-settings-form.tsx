@@ -125,12 +125,17 @@ const CompanySettingsForm = () => {
 
     const fetchCategories = async (search: string = '') => {
         try {
-            const response = await callApi(`/management/admin/all-level-two-categories?search=${search}`, 'GET');
+            // Using the exact API structure requested: Level 1 (L2 in user system)
+            let url = `/products/parent-categories?level=1&limit=1000`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            
+            const response = await callApi(url, 'GET');
             if (response && response.data) {
                 const cats = response.data.map((c: any) => ({
                     value: c._id,
                     label: c.name,
-                    image: c.image
+                    image: c.image,
+                    id: c._id // Added for visibility
                 }));
                 setCategoryList(cats);
                 setAvailableCategories(cats);
@@ -1182,12 +1187,17 @@ const CompanySettingsForm = () => {
                                                 {(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((cat: any, i: number) => {
                                                     const fullCat = rootCategoryList.find(c => c.value === cat.parent_category_id) || categoryList.find(c => c.value === cat.parent_category_id);
                                                     return (
-                                                        <div key={cat.parent_category_id} className="bg-white dark:bg-black flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm cursor-move hover:border-primary/50 transition-all select-none group">
-                                                            <div className="w-1.5 h-1.5 bg-primary/20 rounded-full group-hover:bg-primary transition-colors" />
-                                                            <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">{fullCat?.label || 'Loading...'}</span>
+                                                        <div key={cat.parent_category_id} className="bg-white dark:bg-black flex items-center gap-2 pl-2 pr-4 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm cursor-move hover:border-primary/50 transition-all select-none group">
+                                                            <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
+                                                                <img src={cat.image || '/assets/images/profile-12.jpeg'} className="w-full h-full object-contain" alt="" />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300 leading-none truncate">{fullCat?.label || 'Loading...'}</span>
+                                                                <span className="text-[8px] text-white-dark uppercase mt-1 tracking-widest opacity-60">ID: {cat.parent_category_id?.slice(-8)}</span>
+                                                            </div>
                                                             <button 
                                                                 type="button" 
-                                                                className="ml-1 text-gray-400 hover:text-danger"
+                                                                className="ml-2 text-gray-400 hover:text-danger"
                                                                 onClick={() => {
                                                                     const updated = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).filter((_: any, idx: any) => idx !== i);
                                                                     updateTabFestive(tabDetailIdx!, 'screen_data', updated);
@@ -1221,7 +1231,7 @@ const CompanySettingsForm = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[250px] overflow-y-auto p-1 custom-scrollbar">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[250px] overflow-y-auto p-2 custom-scrollbar bg-white dark:bg-black/10 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner">
                                         {categoryList.map((cat: any) => {
                                             const isSelected = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).some((c: any) => c.parent_category_id === cat.value);
                                             return (
@@ -1237,18 +1247,23 @@ const CompanySettingsForm = () => {
                                                             updateTabFestive(tabDetailIdx!, 'screen_data', current);
                                                         }
                                                     }}
-                                                    className={`group p-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 relative overflow-hidden ${isSelected
+                                                    className={`group p-2 rounded-xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 relative overflow-hidden text-center ${isSelected
                                                             ? 'bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20'
                                                             : 'bg-white dark:bg-black/20 border-gray-100 dark:border-gray-800 hover:border-primary/30'
                                                         }`}
                                                 >
-                                                    <div className={`w-3 h-3 rounded flex items-center justify-center border ${isSelected ? 'bg-primary border-primary' : 'bg-white dark:bg-black/40 border-gray-200 dark:border-gray-700'}`}>
-                                                        {isSelected && <IconCheck className="w-2 h-2 text-white" />}
+                                                    <div className="relative w-12 h-12 bg-gray-50 dark:bg-black p-1 rounded-lg border border-gray-100 dark:border-gray-800 group-hover:scale-110 transition-transform">
+                                                        <img src={cat.image || '/assets/images/profile-12.jpeg'} className="w-full h-full object-contain" alt="" />
+                                                        {isSelected && (
+                                                            <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center border-2 border-white shadow-sm">
+                                                                <IconCheck className="w-2.5 h-2.5 text-white" />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className={`text-[11px] font-bold truncate ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}>{cat.label}</p>
+                                                        <p className={`text-[10px] font-bold truncate px-1 ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'} uppercase tracking-tighter leading-none`}>{cat.label}</p>
+                                                        <p className={`text-[7px] font-bold mt-1 opacity-40 uppercase tracking-widest ${isSelected ? 'text-primary' : ''}`}>ID: {cat.id?.slice(-8)}</p>
                                                     </div>
-                                                    {isSelected && <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary" />}
                                                 </div>
                                             );
                                         })}

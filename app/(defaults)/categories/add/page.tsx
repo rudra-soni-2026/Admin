@@ -10,6 +10,7 @@ import IconMenuPages from '@/components/icon/menu/icon-menu-pages';
 import ImageUploading, { ImageListType } from 'react-images-uploading';
 import IconX from '@/components/icon/icon-x';
 import IconCamera from '@/components/icon/icon-camera';
+import Select from 'react-select';
 
 const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
     <button
@@ -27,7 +28,10 @@ export default function AddCategory() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [fetchingParents, setFetchingParents] = useState(false);
-    const [parentCategories, setParentCategories] = useState<any[]>([]);
+    const [fetchingL1, setFetchingL1] = useState(false);
+    const [l0Categories, setL0Categories] = useState<any[]>([]);
+    const [l1Categories, setL1Categories] = useState<any[]>([]);
+    const [selectedL0, setSelectedL0] = useState<string>('');
     const [images, setImages] = useState<ImageListType>([]);
 
     const [formData, setFormData] = useState({
@@ -43,29 +47,55 @@ export default function AddCategory() {
         order: 0
     });
 
-    // Fetch potential parents when level changes
+    // Fetch L0 categories on mount
     useEffect(() => {
-        if (formData.level > 0) {
-            fetchPotentialParents(formData.level - 1);
+        fetchL0();
+    }, []);
+
+    // Clear and handle L1 fetching when L0 changes
+    useEffect(() => {
+        if (selectedL0 && formData.level === 2) {
+            fetchL1(selectedL0);
         } else {
-            setParentCategories([]);
-            setFormData(prev => ({ ...prev, parentId: '' }));
+            setL1Categories([]);
+            if (formData.level === 1) {
+                setFormData(prev => ({ ...prev, parentId: selectedL0 }));
+            } else {
+                setFormData(prev => ({ ...prev, parentId: '' }));
+            }
         }
+    }, [selectedL0, formData.level]);
+
+    // Handle initial state when level changes
+    useEffect(() => {
+        setSelectedL0('');
+        setL1Categories([]);
+        setFormData(prev => ({ ...prev, parentId: '' }));
     }, [formData.level]);
 
-    const fetchPotentialParents = async (parentLevel: number) => {
+    const fetchL0 = async () => {
         try {
             setFetchingParents(true);
-            const response = await callApi(`/products/parent-categories?level=${parentLevel}`, 'GET');
-            // Assuming response contains the array directly or in a .data property
-            const categories = response?.data || response || [];
-            if (Array.isArray(categories)) {
-                setParentCategories(categories);
-            }
+            const response = await callApi('/products/parent-categories?level=0', 'GET');
+            const data = response?.data || response || [];
+            if (Array.isArray(data)) setL0Categories(data);
         } catch (error) {
-            console.error('Error fetching parents:', error);
+            console.error('L0 Error:', error);
         } finally {
             setFetchingParents(false);
+        }
+    };
+
+    const fetchL1 = async (parentId: string) => {
+        try {
+            setFetchingL1(true);
+            const response = await callApi(`/management/admin/sub-categories/${parentId}`, 'GET');
+            const data = response?.data?.subCategories || response?.data || response?.subCategories || response || [];
+            if (Array.isArray(data)) setL1Categories(data);
+        } catch (error) {
+            console.error('L1 Error:', error);
+        } finally {
+            setFetchingL1(false);
         }
     };
 
@@ -237,28 +267,50 @@ export default function AddCategory() {
                             <input id="name" type="text" placeholder="e.g. Beverages or Soft Drinks" className="form-input py-2 text-sm" value={formData.name} onChange={handleChange} required />
                         </div>
 
-                        {/* Parent Dropdown (Conditional) */}
+                        {/* Parent Dropdown (Hierarchical) */}
                         {formData.level > 0 && (
-                            <div>
-                                <label htmlFor="parentId" className="text-xs font-bold text-gray-700 dark:text-white-dark uppercase tracking-tight mb-2 block">
-                                    Parent {formData.level === 1 ? 'Category' : 'Main Category'} *
-                                </label>
-                                <div className="relative">
-                                    <select 
-                                        id="parentId" 
-                                        className={`form-select py-2 text-sm ${fetchingParents ? 'opacity-50' : ''}`} 
-                                        value={formData.parentId} 
-                                        onChange={handleChange} 
-                                        required={formData.level > 0}
-                                        disabled={fetchingParents}
-                                    >
-                                        <option value="">{fetchingParents ? 'Loading categories...' : `Choose Parent...`}</option>
-                                        {parentCategories.map(p => (
-                                            <option key={p.id || p._id} value={p.id || p._id}>{p.name}</option>
-                                        ))}
-                                    </select>
-                                    {fetchingParents && <div className="absolute right-8 top-2.5 animate-spin w-4 h-4 border-2 border-primary border-l-transparent rounded-full" />}
+                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 dark:bg-black/10 rounded-xl border border-gray-100 dark:border-gray-800">
+                                <div>
+                                    <label className="text-[10px] font-extrabold text-primary uppercase tracking-widest mb-2 block">
+                                        1. Select Root Category
+                                    </label>
+                                    <Select
+                                        placeholder={fetchingParents ? "Loading..." : "Search Root..."}
+                                        options={l0Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image }))}
+                                        value={l0Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image })).find(o => o.value === selectedL0)}
+                                        onChange={(sel: any) => setSelectedL0(sel?.value || '')}
+                                        isLoading={fetchingParents}
+                                        formatOptionLabel={(option: any) => (
+                                            <div className="flex items-center gap-3">
+                                                {option.image ? <img src={option.image} className="w-6 h-6 rounded-md object-cover shadow-sm" alt="" /> : <div className="w-6 h-6 rounded-md bg-gray-200" />}
+                                                <span className="font-medium text-sm">{option.label}</span>
+                                            </div>
+                                        )}
+                                        className="text-sm"
+                                    />
                                 </div>
+                                {formData.level === 2 && (
+                                    <div>
+                                        <label className="text-[10px] font-extrabold text-primary uppercase tracking-widest mb-2 block">
+                                            2. Select Sub-Category
+                                        </label>
+                                        <Select
+                                            placeholder={fetchingL1 ? "Loading..." : "Search Category..."}
+                                            options={l1Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image }))}
+                                            value={l1Categories.map(c => ({ value: c.id || c._id, label: c.name, image: c.image })).find(o => o.value === formData.parentId)}
+                                            onChange={(sel: any) => setFormData(prev => ({ ...prev, parentId: sel?.value || '' }))}
+                                            isDisabled={!selectedL0 || fetchingL1}
+                                            isLoading={fetchingL1}
+                                            formatOptionLabel={(option: any) => (
+                                                <div className="flex items-center gap-3">
+                                                    {option.image ? <img src={option.image} className="w-6 h-6 rounded-md object-cover shadow-sm" alt="" /> : <div className="w-6 h-6 rounded-md bg-gray-200" />}
+                                                    <span className="font-medium text-sm">{option.label}</span>
+                                                </div>
+                                            )}
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 
