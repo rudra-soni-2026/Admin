@@ -42,6 +42,7 @@ export default function AddProduct() {
         subcategory_id: '', 
         unit_label: '',
         brand: '',
+        price: '',
         isActive: true,
         order: 0,
         metaTitle: '',
@@ -310,7 +311,7 @@ export default function AddProduct() {
             const payload = {
                 ...formData,
                 subcategory_id: formData.subcategory_id || null, // Handle optional sub-category
-                price: variants.length > 0 ? Number(variants[0].price) : 0,
+                price: Number(formData.price) || (variants.length > 0 ? Number(variants[0].price) : 0),
                 original_price: Number(formData.original_price) || 0,
                 slug: formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
                 description: formData.description,
@@ -396,6 +397,17 @@ export default function AddProduct() {
                                         }} placeholder="0.00" />
                                     </div>
                                     <p className="text-[10px] text-gray-400 mt-1 italic">* Original Market Price shown to customer</p>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-xs font-bold uppercase text-success font-black tracking-widest">Selling Price *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
+                                        <input id="price" type="text" className="form-input pl-8 border-success/30 focus:border-success transition-all font-bold text-success" value={formData.price} onChange={(e) => {
+                                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                                            setFormData(prev => ({ ...prev, price: val }));
+                                        }} placeholder="0.00" required />
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1 italic">* This is the price customer will pay.</p>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold uppercase">Display Order</label>
