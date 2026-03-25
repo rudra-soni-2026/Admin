@@ -26,6 +26,7 @@ import IconPencil from '@/components/icon/icon-pencil';
 import FilterDrawer from '@/components/user-manager/filter-drawer';
 import IconSquareCheck from '@/components/icon/icon-square-check';
 import { Menu, Transition } from '@headlessui/react';
+import { callApi } from '@/utils/api';
 import { Fragment } from 'react';
 
 interface UserListTableProps {
@@ -95,9 +96,35 @@ const OrderListTable = ({
     const [stagedType, setStagedType] = useState<{ [key: string]: string }>({});
     const [paymentBreakdowns, setPaymentBreakdowns] = useState<{ [key: string]: { cash: string; online: string } }>({});
     const [activeMultiOrderId, setActiveMultiOrderId] = useState<string | null>(null);
+    const [activeRiders, setActiveRiders] = useState<{ [key: string]: any[] }>({});
+    const [fetchingRiders, setFetchingRiders] = useState<{ [key: string]: boolean }>({});
 
     const handleRiderAssignInternal = (orderId: string, rider: any) => {
         setStagedRiders({ ...stagedRiders, [orderId]: rider.name });
+    };
+
+    const fetchOrderRiders = async (order: any) => {
+        const orderId = order.originalId || order.id || order._id;
+        // Search for store ID in multiple possible locations
+        const sId = order.store?._id || order.store?.id || order.storeId || order.store_id || (typeof order.store === 'string' ? order.store : '');
+        
+        if (!sId || fetchingRiders[orderId]) return;
+        // If already have riders for this order, don't fetch again unless needed
+        if (activeRiders[orderId]) return;
+
+        try {
+            setFetchingRiders(prev => ({ ...prev, [orderId]: true }));
+            const res = await callApi(`/management/admin/riders?store_id=${sId}`, 'GET');
+            if (res && res.data) {
+                setActiveRiders(prev => ({ ...prev, [orderId]: res.data }));
+            } else {
+                setActiveRiders(prev => ({ ...prev, [orderId]: [] })); // Set empty if no data
+            }
+        } catch (error) {
+            console.error(`Error fetching riders for store ${sId}:`, error);
+        } finally {
+            setFetchingRiders(prev => ({ ...prev, [orderId]: false }));
+        }
     };
 
     return (
@@ -431,15 +458,17 @@ const OrderListTable = ({
                                                         ) : (
                                                             <div className="dropdown flex-1">
                                                                 <Menu as="div" className="relative inline-block text-left w-full">
-                                                                    <Menu.Button className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-gray-100 bg-white hover:border-primary/40 transition-all w-full group/btn shadow-sm ${stagedRiders[item.originalId] ? 'border-success/40 bg-success/5' : ''}`}>
-                                                                        {stagedRiders[item.originalId] === 'HOLD' ? <IconMinusCircle className="w-3.5 h-3.5 text-warning shrink-0" /> :
-                                                                            stagedRiders[item.originalId] === 'WAIT' ? <IconClock className="w-3.5 h-3.5 text-info shrink-0" /> :
-                                                                                <IconUsers className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
-                                                                        <span className="truncate flex-1 text-left text-[10px] font-bold text-gray-700">
-                                                                            {stagedRiders[item.originalId] ? `${stagedRiders[item.originalId]}` :
-                                                                                (!item.rider || item.rider === '-') ? 'Assign' : item.rider}
-                                                                        </span>
-                                                                        <IconCaretDown className={`w-3 h-3 text-gray-300 ml-auto transition-transform duration-300 group-focus-within/btn:rotate-180`} />
+                                                                    <Menu.Button 
+                                                                        onClick={() => fetchOrderRiders(item)}
+                                                                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-gray-100 bg-white hover:border-primary/40 transition-all w-full group/btn shadow-sm ${stagedRiders[item.originalId] ? 'border-success/40 bg-success/5' : ''}`}>
+                                                                         {stagedRiders[item.originalId] === 'HOLD' ? <IconMinusCircle className="w-3.5 h-3.5 text-warning shrink-0" /> :
+                                                                             stagedRiders[item.originalId] === 'WAIT' ? <IconClock className="w-3.5 h-3.5 text-info shrink-0" /> :
+                                                                                 <IconUsers className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
+                                                                         <span className="truncate flex-1 text-left text-[10px] font-bold text-gray-700">
+                                                                             {fetchingRiders[item.originalId] ? 'Loading...' : stagedRiders[item.originalId] ? `${stagedRiders[item.originalId]}` :
+                                                                                 (!item.rider || item.rider === '-') ? 'Assign' : item.rider}
+                                                                         </span>
+                                                                         <IconCaretDown className={`w-3 h-3 text-gray-300 ml-auto transition-transform duration-300 group-focus-within/btn:rotate-180`} />
                                                                     </Menu.Button>
                                                                     <Transition
                                                                         as={Fragment}
@@ -477,7 +506,7 @@ const OrderListTable = ({
                                                                                 <span className="text-[8px] font-black uppercase tracking-widest text-black dark:text-white">Available Riders</span>
                                                                             </div>
                                                                             <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                                                                                {riders.map((rider) => (
+                                                                                {(activeRiders[item.originalId] || (fetchingRiders[item.originalId] ? [] : riders)).map((rider: any) => (
                                                                                     <Menu.Item key={rider.id || rider._id}>
                                                                                         {({ active }) => (
                                                                                             <button
@@ -488,7 +517,7 @@ const OrderListTable = ({
                                                                                                 className={`${active ? 'bg-primary/5' : ''} flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-black text-black transition-all duration-200 group`}
                                                                                             >
                                                                                                 <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 shadow-sm border border-black/5">
-                                                                                                    <img src={rider.image || '/assets/images/profile-5.jpeg'} alt="" className="h-full w-full object-cover" />
+                                                                                                    <img src={rider.image || rider.user?.image || '/assets/images/profile-5.jpeg'} alt="" className="h-full w-full object-cover" />
                                                                                                 </div>
                                                                                                 <div className="flex flex-col text-left min-w-0 flex-1">
                                                                                                     <span className="truncate leading-none">{rider.user?.name || rider.name}</span>

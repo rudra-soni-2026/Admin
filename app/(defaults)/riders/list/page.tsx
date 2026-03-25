@@ -31,7 +31,24 @@ const RiderList = () => {
     const fetchRiders = async () => {
         try {
             setLoading(true);
-            const response = await callApi(`/management/admin/riders?page=${page}&limit=20`, 'GET');
+
+            // Fetch Riders with store_id filtering if store_manager
+            const storedRole = typeof window !== 'undefined' ? localStorage.getItem('role') : '';
+            const userDataString = typeof window !== 'undefined' ? localStorage.getItem('userData') : '';
+            let currentStoreId = '';
+            if (storedRole === 'store_manager' && userDataString) {
+                try {
+                    const userData = JSON.parse(userDataString);
+                    currentStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || '';
+                } catch (e) {}
+            }
+
+            let ridersUrl = `/management/admin/riders?page=${page}&limit=20`;
+            if (currentStoreId) {
+                ridersUrl += `&store_id=${currentStoreId}`;
+            }
+
+            const response = await callApi(ridersUrl, 'GET');
             if (response && response.data) {
                 const mappedData = response.data.map((item: any) => ({
                     ...item,

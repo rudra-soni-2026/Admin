@@ -160,8 +160,17 @@ const OrderList = () => {
         joinStore(joinId);
         fetchOrders(pageRef.current);
 
-        // Fetch Riders
-        callApi('/management/admin/riders', 'GET').then((res: any) => {
+        // Fetch Riders with store_id filtering
+        let currentStoreId = '';
+        if (storedRole === 'store_manager' && userDataString) {
+            try {
+                const userData = JSON.parse(userDataString);
+                currentStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || '';
+            } catch (e) {}
+        }
+
+        const ridersUrl = currentStoreId ? `/management/admin/riders?store_id=${currentStoreId}` : '/management/admin/riders';
+        callApi(ridersUrl, 'GET').then((res: any) => {
             if (res && res.data) setRiders(res.data);
         });
 
