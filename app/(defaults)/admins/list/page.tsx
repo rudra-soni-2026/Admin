@@ -179,9 +179,6 @@ const AdminList = () => {
                         localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
                         router.push(`/admins/edit/${item.originalId}`);
                     }}
-                    onPermissionEdit={(item: any) => {
-                        router.push(`/admins/permissions/${item.originalId}`);
-                    }}
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Create New Admin"

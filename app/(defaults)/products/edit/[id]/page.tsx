@@ -9,6 +9,7 @@ import IconSave from '@/components/icon/icon-save';
 import ImageUploading, { ImageListType } from 'react-images-uploading';
 import IconCamera from '@/components/icon/icon-camera';
 import Select from 'react-select';
+import { generateProductDescription } from '@/utils/ai';
 
 const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
     <button
@@ -61,6 +62,7 @@ export default function EditProduct() {
     const [fetchingL2, setFetchingL2] = useState(false);
     const [fetchingL3, setFetchingL3] = useState(false);
     const [fetchingUtc, setFetchingUtc] = useState(false);
+    const [isAiGenerating, setIsAiGenerating] = useState(false);
 
     const [features, setFeatures] = useState([{ title: '', description: '' }]);
     const [ingredients, setIngredients] = useState(['']);
@@ -186,9 +188,60 @@ export default function EditProduct() {
         if (!utc || utc.length < 8) return;
         try {
             setFetchingUtc(true);
+
+            // Fetch both in parallel to reduce total wait time
+            const localPromise = callApi(`/products/utc/${utc}`, 'GET').catch(() => null);
             const fields = 'product_name,product_name_en,brands,quantity,ingredients_text,generic_name,_keywords,image_url,image_front_url,image_ingredients_url,image_nutrition_url,image_packaging_url,selected_images,ingredients_analysis_tags,manufacturing_places,countries,nutriscore_grade,nova_group,code,packaging,additives_n,nutriments,nutrition_data_per';
-            const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${utc}.json?fields=${fields}`);
-            const data = await response.json();
+            const globalPromise = fetch(`https://world.openfoodfacts.org/api/v0/product/${utc}.json?fields=${fields}`)
+                .then(res => res.json())
+                .catch(() => ({ status: 0 }));
+
+            // 1. Check local Backend API result first (High Quality)
+            const localRes = await localPromise;
+            if (localRes && localRes.data) {
+                const p = localRes.data;
+                setFormData(prev => ({
+                    ...prev,
+                    name: p.name || prev.name,
+                    brand: p.brand || prev.brand,
+                    unit_label: p.unit_label || prev.unit_label,
+                    description: p.description?.content || (typeof p.description === 'string' ? p.description : prev.description),
+                    product_details: p.product_details || prev.product_details,
+                    original_price: String(p.original_price || ''),
+                    metaTitle: p.metaTitle || prev.metaTitle,
+                    metaDescription: p.metaDescription || prev.metaDescription,
+                    tags: Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags || ''),
+                }));
+
+                if (p.ingredients) setIngredients(p.ingredients);
+                if (p.features) setFeatures(p.features);
+                if (p.info) {
+                    const mappedInfo = p.info.map((item: any) => {
+                        const key = Object.keys(item)[0];
+                        return { key, value: item[key] };
+                    });
+                    setInfo(mappedInfo);
+                }
+
+                if (Array.isArray(p.images)) {
+                    setImages(prev => {
+                        const existing = prev.filter(img => img.file);
+                        return [...existing, ...p.images.map((url: string) => ({ dataURL: url }))];
+                    });
+                } else if (p.image) {
+                    setImages(prev => {
+                        const existing = prev.filter(img => img.file);
+                        return [...existing, { dataURL: p.image }];
+                    });
+                }
+
+                showMessage('Product data found in local database!', 'success');
+                setFetchingUtc(false);
+                return;
+            }
+
+            // 2. Fallback to OpenFoodFacts result if local data not found
+            const data = await globalPromise;
             if (data.status === 1 && data.product) {
                 const p = data.product;
                 setFormData(prev => ({
@@ -223,17 +276,37 @@ export default function EditProduct() {
                 if (apiImages.length > 0) {
                     const uniqueImages = Array.from(new Set(apiImages)).map(url => ({ dataURL: url }));
                     setImages(prev => {
-                        const existing = prev.filter(img => img.file); // keep uploaded
+                        const existing = prev.filter(img => img.file);
                         return [...existing, ...uniqueImages];
                     });
                 }
 
-                showMessage('Product data updated from UTC!', 'success');
+                showMessage('Product data updated from global database!', 'info');
             }
         } catch (error) {
             console.error('UTC Fetch Error:', error);
         } finally {
             setFetchingUtc(false);
+        }
+    };
+
+    const handleAiGenerate = async () => {
+        if (!formData.name && !formData.brand) {
+            showMessage('Provide Name or Brand for AI to generate description.', 'danger');
+            return;
+        }
+        try {
+            setIsAiGenerating(true);
+            const description = await generateProductDescription(formData.name, formData.brand, formData.unit_label);
+            if (description) {
+                setFormData(prev => ({ ...prev, description }));
+                showMessage('Modern Description Generated!', 'success');
+            }
+        } catch (error) {
+            console.error(error);
+            showMessage('AI Refused to Generate Description. Try again.', 'danger');
+        } finally {
+            setIsAiGenerating(false);
         }
     };
 
@@ -256,15 +329,24 @@ export default function EditProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
-        if (id === 'utc_id' && value.length >= 8) {
+        if (id === 'utc_id' && (value.length === 13 || value.length === 8 || value.length === 12)) {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+            fetchProductByUtc(value); // Instant trigger for barcodes
+        } else if (id === 'utc_id' && value.length >= 8) {
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
             debounceTimer.current = setTimeout(() => {
                 fetchProductByUtc(value);
-            }, 1000); // 1 second debounce
+            }, 300); 
         }
     };
 
     const onImageChange = (imageList: ImageListType) => {
+        // Validation: Max size 1MB
+        const largeFile = imageList.find(img => img.file && img.file.size > 1024 * 1024);
+        if (largeFile) {
+            showMessage(`Selected image is too large. Max size 1MB.`, 'danger');
+            return;
+        }
         setImages(imageList);
     };
 
@@ -319,7 +401,7 @@ export default function EditProduct() {
             const payload = {
                 ...formData,
                 subcategory_id: formData.subcategory_id || null, // Handle optional sub-category
-                price: Number(formData.price) || (variants.length > 0 ? Number(variants[0].price) : 0),
+                price: Number(formData.original_price) || 0,
                 original_price: Number(formData.original_price) || 0,
                 slug: formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
                 description: formData.description,
@@ -414,17 +496,7 @@ export default function EditProduct() {
                                     </div>
                                     <p className="text-[10px] text-gray-400 mt-1 italic">* Enter MRP manually.</p>
                                 </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-bold uppercase text-success font-black tracking-widest">Selling Price *</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
-                                        <input id="price" type="text" className="form-input pl-8 border-success/30 focus:border-success transition-all font-bold text-success" value={formData.price} onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                                            setFormData(prev => ({ ...prev, price: val }));
-                                        }} placeholder="0.00" required />
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 mt-1 italic">* This is the price customer will pay.</p>
-                                </div>
+
                                 <div>
                                     <label className="text-xs font-bold uppercase">Display Order</label>
                                     <input id="order" type="number" className="form-input" value={formData.order} onChange={handleChange} />
@@ -434,7 +506,17 @@ export default function EditProduct() {
                                     <input id="product_details" type="text" className="form-input" value={formData.product_details} onChange={handleChange} placeholder="Brief summary of the product" />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="text-xs font-bold uppercase">Full Description</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="text-xs font-bold uppercase">Full Description</label>
+                                        <button 
+                                            type="button" 
+                                            className="text-primary text-[10px] font-black underline uppercase flex items-center gap-1 hover:scale-105 transition-transform disabled:opacity-50"
+                                            onClick={handleAiGenerate}
+                                            disabled={isAiGenerating}
+                                        >
+                                            {isAiGenerating ? <span className="animate-spin rounded-full border-2 border-primary/30 border-t-primary w-3 h-3" /> : '✨ AI Gen Description'}
+                                        </button>
+                                    </div>
                                     <textarea id="description" rows={3} className="form-textarea" value={formData.description} onChange={handleChange}></textarea>
                                 </div>
                             </div>

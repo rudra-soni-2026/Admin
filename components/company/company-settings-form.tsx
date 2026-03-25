@@ -128,7 +128,7 @@ const CompanySettingsForm = () => {
             // Using the exact API structure requested: Level 1 (L2 in user system)
             let url = `/products/parent-categories?level=1&limit=1000`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
-            
+
             const response = await callApi(url, 'GET');
             if (response && response.data) {
                 const cats = response.data.map((c: any) => ({
@@ -280,31 +280,39 @@ const CompanySettingsForm = () => {
         try {
             setFetching(true);
             const response = await callApi('/company/settings', 'GET');
+            console.log('>>> [SETTINGS RESPONSE]:', response);
             if (response && response.status === 'success') {
-                const data = response.data;
+                const data = response.data || {};
 
-                // Handle festive_config bundling/flattening
-                const fConfig = data.festive_config || {};
-                const rootTabs = data.header_tabs_config || [];
-                const festiveTabs = fConfig.header_tabs_config || [];
-
-                // Merge them into a single state for the UI
-                const combinedTabs = rootTabs.map((rt: any) => {
-                    const ft = festiveTabs.find((t: any) => t.id === rt.id) || {};
-                    return { ...rt, ...ft };
-                });
-
-                // In case there are tabs only in festive_config (shouldn't happen but for safety)
-                festiveTabs.forEach((ft: any) => {
-                    if (!combinedTabs.find((rt: any) => rt.id === ft.id)) {
-                        combinedTabs.push(ft);
+                // JSON Parsing Helper (Safe)
+                const safeParse = (val: any) => {
+                    if (typeof val === 'string') {
+                        try { return JSON.parse(val); } catch (e) { return val; }
                     }
+                    return val;
+                };
+
+                // Parse all possible stringified fields from DB
+                const rootTabs = safeParse(data.header_tabs_config) || [];
+                const festiveConfig = safeParse(data.festive_config) || {};
+                const festiveTabs = safeParse(festiveConfig.header_tabs_config) || [];
+                
+                // Merge them into a single state for the UI
+                const combinedTabs = (Array.isArray(rootTabs) ? rootTabs : []).map((rt: any) => {
+                    const ft = (Array.isArray(festiveTabs) ? festiveTabs : []).find((t: any) => t.id === rt.id) || {};
+                    return { ...rt, ...ft };
                 });
 
                 const preparedData = {
                     ...data,
-                    festive_sale: fConfig.festive_sale || data.festive_sale || {},
-                    header_tabs_config: combinedTabs.length > 0 ? combinedTabs : []
+                    header_tabs_config: combinedTabs,
+                    banners: safeParse(data.banners) || [],
+                    secondary_banners: safeParse(data.secondary_banners) || [],
+                    screen_colors: safeParse(data.screen_colors) || [],
+                    spotlight: safeParse(data.spotlight) || [],
+                    delivery_time_slots: safeParse(data.delivery_time_slots) || [],
+                    rider_time_slots: safeParse(data.rider_time_slots) || [],
+                    festive_sale: safeParse(data.festive_sale) || {}
                 };
 
                 setSettings(preparedData);
@@ -313,13 +321,15 @@ const CompanySettingsForm = () => {
                 if (preparedData.logo_url) setLogoImages([{ dataURL: preparedData.logo_url }]);
                 if (preparedData.favicon_url) setFaviconImages([{ dataURL: preparedData.favicon_url }]);
                 if (preparedData.loader_logo_url) setLoaderImages([{ dataURL: preparedData.loader_logo_url }]);
-                if (preparedData.banners) setBannerImages(preparedData.banners.map((url: string) => ({ dataURL: url })));
+                if (preparedData.banners && Array.isArray(preparedData.banners)) setBannerImages(preparedData.banners.map((url: string) => ({ dataURL: url })));
                 if (preparedData.promo_banners) setPromoBannerImages([{ dataURL: preparedData.promo_banners }]);
                 if (preparedData.festive_sale?.banner_url) setFestiveBannerImages([{ dataURL: preparedData.festive_sale.banner_url }]);
+            } else {
+                showMessage(response?.message || 'Failed to load settings', 'danger');
             }
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-            showMessage('Failed to load settings', 'danger');
+        } catch (error: any) {
+            console.error('Settings Processing Crash:', error);
+            showMessage('Failed to load settings: ' + (error.message || 'Data Error'), 'danger');
         } finally {
             setFetching(false);
         }
@@ -397,6 +407,13 @@ const CompanySettingsForm = () => {
     };
 
     const uploadImage = async (imageFile: File): Promise<string | null> => {
+        // Validation: Max size 1MB
+        const maxSize = 1 * 1024 * 1024; // 1MB in bytes
+        if (imageFile.size > maxSize) {
+            showMessage('Image size exceeds 1MB. Please compress and retry.', 'danger');
+            return null;
+        }
+
         try {
             const uploadData = new FormData();
             uploadData.append('images', imageFile);
@@ -929,15 +946,28 @@ const CompanySettingsForm = () => {
                                             {settings.header_tabs_config[tabDetailIdx].festive_banner_url ? (
                                                 <>
                                                     <img src={settings.header_tabs_config[tabDetailIdx].festive_banner_url} alt="" className="w-full h-full object-cover" />
-                                                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
-                                                        <IconCamera className="w-6 h-6 text-white" />
-                                                        <input type="file" className="hidden" onChange={async (e) => {
-                                                            if (e.target.files?.[0]) {
-                                                                const url = await uploadImage(e.target.files[0]);
-                                                                if (url) updateTabFestive(tabDetailIdx!, 'festive_banner_url', url);
-                                                            }
-                                                        }} />
-                                                    </label>
+                                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all z-10">
+                                                        <div className="flex gap-4">
+                                                            <label className="btn btn-primary btn-sm cursor-pointer flex gap-1 items-center px-6">
+                                                                <IconCamera className="w-4 h-4" />
+                                                                Replace
+                                                                <input type="file" className="hidden" onChange={async (e) => {
+                                                                    if (e.target.files?.[0]) {
+                                                                        const url = await uploadImage(e.target.files[0]);
+                                                                        if (url) updateTabFestive(tabDetailIdx!, 'festive_banner_url', url);
+                                                                    }
+                                                                }} />
+                                                            </label>
+                                                            <button 
+                                                                type="button" 
+                                                                className="btn btn-danger btn-sm flex gap-1 items-center px-6"
+                                                                onClick={() => updateTabFestive(tabDetailIdx!, 'festive_banner_url', '')}
+                                                            >
+                                                                <IconTrashLines className="w-4 h-4" />
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </>
                                             ) : (
                                                 <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all gap-2">
@@ -952,30 +982,87 @@ const CompanySettingsForm = () => {
                                                 </label>
                                             )}
                                         </div>
+                                        <p className="text-[10px] text-gray-400 mt-1 pl-1 italic font-medium">✨ Recommendation: Use high quality images under 1MB for faster loading.</p>
                                     </div>
                                 </div>
 
                                 {/* Single Banners Side by Side */}
                                 <div className="space-y-4">
-                                    <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Featured Slots (1-4)</h6>
+                                    <div className="flex items-center justify-between">
+                                        <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Featured Slots (1-4)</h6>
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-outline-danger btn-xs px-4"
+                                            onClick={() => {
+                                                Swal.fire({
+                                                    title: 'Clear both sections?',
+                                                    text: "This will remove all content from Featured Slots and Product Wall.",
+                                                    icon: 'warning',
+                                                    showCancelButton: true,
+                                                    confirmButtonText: 'Yes, clear both'
+                                                }).then((result) => {
+                                                    if (result.isConfirmed) {
+                                                        // Clear Slots
+                                                        updateTabFestive(tabDetailIdx!, 'festive_single_banners', [{}, {}, {}, {}]);
+                                                        // Clear Product Wall
+                                                        updateTabFestive(tabDetailIdx!, 'festive_multi_banner', { parent_category_id: '', sub_category_id: '', category_id: '', items: [], title: '' });
+                                                        showMessage('Sections cleared', 'success');
+                                                    }
+                                                });
+                                            }}
+                                        >
+                                            <IconTrashLines className="w-3 h-3 mr-1" /> Clear All Display Sections
+                                        </button>
+                                    </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {(settings.header_tabs_config[tabDetailIdx].festive_single_banners || [{}, {}, {}, {}]).map((banner: any, bIdx: number) => (
                                             <div key={bIdx} className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex gap-4">
                                                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-white dark:bg-black border border-gray-100 dark:border-gray-800 relative group flex-shrink-0">
-                                                    {banner.image ? <img src={banner.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><IconPlus className="w-4 h-4 opacity-10" /></div>}
-                                                    <label className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-all">
-                                                        <IconCamera className="w-5 h-5 text-white" />
-                                                        <input type="file" className="hidden" onChange={async (e) => {
-                                                            if (e.target.files?.[0]) {
-                                                                const url = await uploadImage(e.target.files[0]);
-                                                                if (url) {
-                                                                    const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
-                                                                    newBanners[bIdx] = { ...newBanners[bIdx], image: url };
-                                                                    updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                    {banner.image ? (
+                                                        <>
+                                                            <img src={banner.image} alt="" className="w-full h-full object-cover" />
+                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-all gap-1 z-10">
+                                                                <label className="cursor-pointer p-1">
+                                                                    <IconCamera className="w-4 h-4 text-white hover:text-primary transition-colors" />
+                                                                    <input type="file" className="hidden" onChange={async (e) => {
+                                                                        if (e.target.files?.[0]) {
+                                                                            const url = await uploadImage(e.target.files[0]);
+                                                                            if (url) {
+                                                                                const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                                newBanners[bIdx] = { ...newBanners[bIdx], image: url };
+                                                                                updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                            }
+                                                                        }
+                                                                    }} />
+                                                                </label>
+                                                                <button 
+                                                                    type="button" 
+                                                                    className="p-1"
+                                                                    onClick={() => {
+                                                                        const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                        newBanners[bIdx] = { ...newBanners[bIdx], image: '' };
+                                                                        updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                    }}
+                                                                >
+                                                                    <IconTrashLines className="w-4 h-4 text-white hover:text-danger transition-colors" />
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <label className="w-full h-full flex items-center justify-center cursor-pointer">
+                                                            <IconPlus className="w-4 h-4 opacity-10" />
+                                                            <input type="file" className="hidden" onChange={async (e) => {
+                                                                if (e.target.files?.[0]) {
+                                                                    const url = await uploadImage(e.target.files[0]);
+                                                                    if (url) {
+                                                                        const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
+                                                                        newBanners[bIdx] = { ...newBanners[bIdx], image: url };
+                                                                        updateTabFestive(tabDetailIdx!, 'festive_single_banners', newBanners);
+                                                                    }
                                                                 }
-                                                            }
-                                                        }} />
-                                                    </label>
+                                                            }} />
+                                                        </label>
+                                                    )}
                                                 </div>
                                                 <div className="flex-1 space-y-2 min-w-0">
                                                     <div className="space-y-2">
@@ -1041,18 +1128,20 @@ const CompanySettingsForm = () => {
                                 <div className="space-y-4 pt-4 border-t dark:border-gray-800">
                                     <div className="flex items-center justify-between">
                                         <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Product Wall (Multi-Banner)</h6>
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary btn-xs px-4"
-                                            onClick={() => {
-                                                const multi = { ...(settings.header_tabs_config![tabDetailIdx!].festive_multi_banner || { parent_category_id: '', sub_category_id: '', category_id: '', items: [] }) };
-                                                const currentItems = Array.isArray((multi as any).items) ? (multi as any).items : [];
-                                                (multi as any).items = [...currentItems, { image: '', product_id: '' }];
-                                                updateTabFestive(tabDetailIdx!, 'festive_multi_banner', multi);
-                                            }}
-                                        >
-                                            <IconPlus className="w-3 h-3 mr-1" /> Add Product
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary btn-xs px-4"
+                                                onClick={() => {
+                                                    const multi = { ...(settings.header_tabs_config![tabDetailIdx!].festive_multi_banner || { parent_category_id: '', sub_category_id: '', category_id: '', items: [] }) };
+                                                    const currentItems = Array.isArray((multi as any).items) ? (multi as any).items : [];
+                                                    (multi as any).items = [...currentItems, { image: '', product_id: '' }];
+                                                    updateTabFestive(tabDetailIdx!, 'festive_multi_banner', multi);
+                                                }}
+                                            >
+                                                <IconPlus className="w-3 h-3 mr-1" /> Add Product
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {(() => {
@@ -1171,12 +1260,12 @@ const CompanySettingsForm = () => {
 
                                         {/* Drag and Drop Sequence List */}
                                         <div className="p-3 bg-gray-50 dark:bg-black/20 rounded-2xl min-h-[60px] border border-gray-100 dark:border-gray-800">
-                                            <ReactSortable 
-                                                list={(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((c: any, i: number) => ({ ...c, id: c.parent_category_id || i }))} 
+                                            <ReactSortable
+                                                list={(settings.header_tabs_config![tabDetailIdx!].screen_data || []).map((c: any, i: number) => ({ ...c, id: c.parent_category_id || i }))}
                                                 setList={(newList) => {
-                                                    const updated = newList.map((item: any) => ({ 
-                                                        image: item.image, 
-                                                        parent_category_id: item.parent_category_id 
+                                                    const updated = newList.map((item: any) => ({
+                                                        image: item.image,
+                                                        parent_category_id: item.parent_category_id
                                                     }));
                                                     updateTabFestive(tabDetailIdx!, 'screen_data', updated);
                                                 }}
@@ -1195,8 +1284,8 @@ const CompanySettingsForm = () => {
                                                                 <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300 leading-none truncate">{fullCat?.label || 'Loading...'}</span>
                                                                 <span className="text-[8px] text-white-dark uppercase mt-1 tracking-widest opacity-60">ID: {cat.parent_category_id?.slice(-8)}</span>
                                                             </div>
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="ml-2 text-gray-400 hover:text-danger"
                                                                 onClick={() => {
                                                                     const updated = (settings.header_tabs_config![tabDetailIdx!].screen_data || []).filter((_: any, idx: any) => idx !== i);
@@ -1248,8 +1337,8 @@ const CompanySettingsForm = () => {
                                                         }
                                                     }}
                                                     className={`group p-2 rounded-xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 relative overflow-hidden text-center ${isSelected
-                                                            ? 'bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20'
-                                                            : 'bg-white dark:bg-black/20 border-gray-100 dark:border-gray-800 hover:border-primary/30'
+                                                        ? 'bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20'
+                                                        : 'bg-white dark:bg-black/20 border-gray-100 dark:border-gray-800 hover:border-primary/30'
                                                         }`}
                                                 >
                                                     <div className="relative w-12 h-12 bg-gray-50 dark:bg-black p-1 rounded-lg border border-gray-100 dark:border-gray-800 group-hover:scale-110 transition-transform">

@@ -66,7 +66,7 @@ function App({ children }: PropsWithChildren) {
             subscribeToOrders((err, data) => {
                 if (err) return;
                 console.log('📡 Global Socket Event:', data.type || data.eventType);
-                
+
                 const orderInfo = data.order || data;
                 if (data.type === 'NEW_ORDER' || data.eventType === 'NEW_ORDER') {
                     console.log('🔔 NEW_ORDER Detected! Playing sound...');
@@ -80,7 +80,7 @@ function App({ children }: PropsWithChildren) {
                             console.log('🔇 Audio blocked by browser policy. Interaction needed.', e);
                             // Fallback: try playing again with a small delay
                             setTimeout(() => {
-                                audioRef.current?.play().catch(() => {});
+                                audioRef.current?.play().catch(() => { });
                             }, 500);
                         });
                     }

@@ -7,12 +7,15 @@ import Swal from 'sweetalert2';
 import IconSend from '@/components/icon/icon-send';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconBell from '@/components/icon/icon-bell';
+import ImageUploading, { ImageListType } from 'react-images-uploading';
+import IconCamera from '@/components/icon/icon-camera';
 
 const NotificationSend = () => {
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [targetType, setTargetType] = useState('all'); // 'ALL', 'SINGLE', 'MULTIPLE'
     const [targetIds, setTargetIds] = useState<any[]>([]);
+    const [images, setImages] = useState<ImageListType>([]);
     const [image, setImage] = useState('');
     const [type, setType] = useState('PROMOTIONAL'); // TRANSACTIONAL, PROMOTIONAL, etc.
     const [metadata, setMetadata] = useState('');
@@ -63,9 +66,28 @@ const NotificationSend = () => {
 
         try {
             setLoading(true);
+
+            let finalImageUrl = image;
+
+            // Handle Image Upload if new image selected
+            if (images.length > 0 && images[0].file) {
+                const uploadData = new FormData();
+                uploadData.append('images', images[0].file);
+                
+                const uploadRes = await callApi('/upload', 'POST', uploadData);
+                if (uploadRes && uploadRes.status === 'success' && Array.isArray(uploadRes.data) && uploadRes.data.length > 0) {
+                    finalImageUrl = uploadRes.data[0].url;
+                } else {
+                    showMessage('Image upload failed', 'danger');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const payload = {
                 title,
                 message,
+                image: finalImageUrl,
                 targetType,
                 targetIds: targetType === 'single' 
                     ? (targetIds[0]?.value || targetIds[0] || null) 
@@ -82,6 +104,7 @@ const NotificationSend = () => {
                 setTitle('');
                 setMessage('');
                 setTargetIds([]);
+                setImages([]);
                 setImage('');
                 setMetadata('');
             }
@@ -165,6 +188,38 @@ const NotificationSend = () => {
                                 <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Metadata (JSON format - Optional)</label>
                                 <input type="text" placeholder='{"link": "/offers", "category": "beauty"}' className="form-input text-[10px] font-mono" value={metadata} onChange={(e) => setMetadata(e.target.value)} />
                             </div> */}
+
+                            <div className="md:col-span-2 pt-4 border-t">
+                                <label className="text-[11px] font-black uppercase text-gray-500 mb-2 block tracking-widest">Notification Hero Image (Optional)</label>
+                                <ImageUploading value={images} onChange={(list) => setImages(list)} maxNumber={1}>
+                                    {({ imageList, onImageUpload, onImageRemove, isDragging, dragProps }) => (
+                                        <div className="flex flex-col sm:flex-row gap-4">
+                                            <div
+                                                className={`flex-1 border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-primary/5 ${
+                                                    isDragging ? 'border-primary bg-primary/10' : 'border-gray-200 dark:border-gray-800'
+                                                }`}
+                                                onClick={onImageUpload}
+                                                {...dragProps}
+                                            >
+                                                <IconCamera className="w-8 h-8 text-gray-400 mb-2" />
+                                                <p className="text-[10px] font-black uppercase text-gray-400">Click or Drag Image</p>
+                                            </div>
+                                            {imageList.length > 0 && (
+                                                <div className="relative w-32 h-20 rounded-xl overflow-hidden shadow-sm border border-gray-100 group">
+                                                    <img src={imageList[0].dataURL} alt="upload" className="w-full h-full object-cover" />
+                                                    <button
+                                                        type="button"
+                                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={() => onImageRemove(0)}
+                                                    >
+                                                        <IconTrashLines className="text-white w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </ImageUploading>
+                            </div>
                         </div>
 
                         <div className="pt-6 flex items-center gap-3">
@@ -172,7 +227,7 @@ const NotificationSend = () => {
                                 {loading ? <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-4 h-4 mr-1"></span> : <IconSend className="w-5 h-5" />}
                                 {loading ? 'Broadcasting...' : 'Dispatch Notification'}
                             </button>
-                            <button type="button" className="btn btn-outline-danger p-3 rounded-2xl" onClick={() => { setTitle(''); setMessage(''); setTargetIds([]); setImage(''); setMetadata(''); }}>
+                            <button type="button" className="btn btn-outline-danger p-3 rounded-2xl" onClick={() => { setTitle(''); setMessage(''); setTargetIds([]); setImages([]); setImage(''); setMetadata(''); }}>
                                 <IconTrashLines className="w-5 h-5" />
                             </button>
                         </div>
@@ -208,9 +263,9 @@ const NotificationSend = () => {
                                             <h6 className="text-[13px] font-black text-black dark:text-white leading-tight mb-0.5 truncate">{title || 'Your Title Here'}</h6>
                                             <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-snug line-clamp-3">{message || 'Your message content will appear in this area of the lockscreen...'}</p>
                                         </div>
-                                        {image && (
+                                        {(images.length > 0 || image) && (
                                             <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 animate__animated animate__zoomIn">
-                                                <img src={image} className="w-full h-full object-cover" alt="preview" />
+                                                <img src={images.length > 0 ? images[0].dataURL : image} className="w-full h-full object-cover" alt="preview" />
                                             </div>
                                         )}
                                     </div>

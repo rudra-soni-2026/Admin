@@ -1,11 +1,13 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
 import UserManagerTable from '@/components/user-manager/user-manager-table';
 
 const InventoryTransfer = () => {
+    const router = useRouter();
     // History States
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyData, setHistoryData] = useState<any[]>([]);
@@ -177,6 +179,11 @@ const InventoryTransfer = () => {
                     pageSize={historyPageSize}
                     onPageChange={(p) => setHistoryPage(p)}
                     onStatusClick={(record) => handleApproveTransfer(record)}
+                    onViewClick={(record) => {
+                         // Pass data via params to avoid extra API call as requested
+                        const encodedData = encodeURIComponent(JSON.stringify(record));
+                        router.push(`/inventory/transfer/view/${record.originalId}?data=${encodedData}`);
+                    }}
                     hideDelete={true}
                     hideAction={true}
                 />

@@ -397,7 +397,7 @@ const OrderListTable = ({
                                                             </Tippy>
                                                         )}
 
-                                                        {!['delivered', 'cancelled', 'order_accepted', 'pending'].includes(item.status) && (
+                                                        {!['delivered', 'cancelled'].includes(item.status) && (
                                                             <Tippy content="Cancel Order">
                                                                 <button 
                                                                     onClick={() => onStatusUpdate?.(item.originalId, 'cancelled')}

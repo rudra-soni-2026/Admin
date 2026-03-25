@@ -142,6 +142,13 @@ export default function EditCategory() {
     };
 
     const onImageChange = (imageList: ImageListType) => {
+        // Validation: Max size 1MB
+        const largeFile = imageList.find(img => img.file && img.file.size > 1024 * 1024);
+        if (largeFile) {
+            showMessage(`Selected image is too large. Max size 1MB.`, 'danger');
+            return;
+        }
+
         setImages(imageList);
         if (imageList.length > 0) {
             if (imageList[0].dataURL) {
