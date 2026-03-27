@@ -52,6 +52,7 @@ interface UserManagerTableProps {
     hideTotal?: boolean;
     riders?: any[];
     onPrint?: (item: any) => void;
+    onDeleteClick?: (item: any) => void;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -101,6 +102,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             hideFilter={props.hideFilter} 
             disableNameClick={props.disableNameClick} 
             hideTotal={props.hideTotal}
+            onDeleteClick={props.onDeleteClick}
         />
     );
 };

@@ -56,6 +56,7 @@ interface UserListTableProps {
     onStockClick?: (item: any) => void;
     disableNameClick?: boolean;
     hideTotal?: boolean;
+    onDeleteClick?: (item: any) => void;
 }
 
 const UserListTable = ({
@@ -81,6 +82,7 @@ const UserListTable = ({
     onPermissionEdit,
     onDownloadClick,
     onStockClick,
+    onDeleteClick,
     userType = 'User',
     onAddClick,
     addButtonLabel,
@@ -391,7 +393,14 @@ const UserListTable = ({
                                                     )}
                                                     {!hideDelete && (
                                                         <Tippy content="Delete">
-                                                            <button type="button" className="p-1 text-danger hover:text-danger-dark transition-colors">
+                                                            <button 
+                                                                type="button" 
+                                                                className="p-1 text-danger hover:text-danger-dark transition-colors"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onDeleteClick?.(item);
+                                                                }}
+                                                            >
                                                                 <IconTrashLines className="h-4 w-4" />
                                                             </button>
                                                         </Tippy>
