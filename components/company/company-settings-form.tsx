@@ -154,7 +154,8 @@ const CompanySettingsForm = () => {
 
     // Automatically fetch subcategories when the active tab's config changes
     useEffect(() => {
-        const currentTab = settings.header_tabs_config?.[selectedFestiveTabIdx];
+        const currentIdx = tabDetailIdx !== null ? tabDetailIdx : selectedFestiveTabIdx;
+        const currentTab = settings.header_tabs_config?.[currentIdx];
         if (!currentTab) return;
 
         // Fetch for Single Banners
@@ -167,9 +168,11 @@ const CompanySettingsForm = () => {
         if (currentTab.festive_multi_banner?.parent_category_id) {
             fetchSubCategoriesByCategory(currentTab.festive_multi_banner.parent_category_id);
             if (currentTab.festive_multi_banner.sub_category_id) fetchNicheCategoriesBySubCategory(currentTab.festive_multi_banner.sub_category_id);
-            fetchProductsByCategory(currentTab.festive_multi_banner.category_id || currentTab.festive_multi_banner.sub_category_id || currentTab.festive_multi_banner.parent_category_id);
+            
+            const fetchId = currentTab.festive_multi_banner.category_id || currentTab.festive_multi_banner.sub_category_id || currentTab.festive_multi_banner.parent_category_id;
+            if (fetchId) fetchProductsByCategory(fetchId);
         }
-    }, [selectedFestiveTabIdx, settings.header_tabs_config, categoryList]); // Added categoryList dependency
+    }, [selectedFestiveTabIdx, tabDetailIdx, settings.header_tabs_config, categoryList]); // Added categoryList dependency
 
     const fetchSubCategoriesByCategory = async (catId: string) => {
         if (!catId) return;
@@ -880,6 +883,7 @@ const CompanySettingsForm = () => {
                                                         type="button"
                                                         onClick={() => {
                                                             setTabDetailIdx(idx);
+                                                            setSelectedFestiveTabIdx(idx);
                                                             setActiveTab('festive-setup');
                                                         }}
                                                         className={`btn btn-sm ${tab.is_festive_active ? 'btn-primary shadow-md shadow-primary/20' : 'btn-outline-primary'} gap-2 px-4 transition-all hover:scale-105 active:scale-95`}
@@ -1235,6 +1239,10 @@ const CompanySettingsForm = () => {
                                                                     const updated = { ...multiBlock };
                                                                     updated.items[iIdx] = { ...updated.items[iIdx], product_id: opt?.value, image: opt?.image || updated.items[iIdx].image };
                                                                     updateTabFestive(tabDetailIdx!, 'festive_multi_banner', updated);
+                                                                }}
+                                                                onMenuOpen={() => {
+                                                                    const fetchId = multiBlock.category_id || multiBlock.sub_category_id || multiBlock.parent_category_id;
+                                                                    if (fetchId) fetchProductsByCategory(fetchId);
                                                                 }}
                                                                 components={{ Option: CustomProductOption }}
                                                                 styles={{ control: base => ({ ...base, minHeight: '28px', borderRadius: '8px', fontSize: '10px' }) }}
