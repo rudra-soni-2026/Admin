@@ -103,6 +103,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             disableNameClick={props.disableNameClick} 
             hideTotal={props.hideTotal}
             onDeleteClick={props.onDeleteClick}
+            onPrint={props.onPrint}
         />
     );
 };

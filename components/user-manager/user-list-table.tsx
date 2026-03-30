@@ -57,6 +57,7 @@ interface UserListTableProps {
     disableNameClick?: boolean;
     hideTotal?: boolean;
     onDeleteClick?: (item: any) => void;
+    onPrint?: (item: any) => void;
 }
 
 const UserListTable = ({
@@ -83,6 +84,7 @@ const UserListTable = ({
     onDownloadClick,
     onStockClick,
     onDeleteClick,
+    onPrint,
     userType = 'User',
     onAddClick,
     addButtonLabel,
@@ -189,7 +191,7 @@ const UserListTable = ({
                                         {columns.map((col) => (
                                             <td key={col.key} className={`px-4 py-1.5 sm:py-2 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
                                                 {col.key === 'user' ? (
-                                                    <div 
+                                                    <div
                                                         className={`flex items-center gap-2 ${onViewClick && !disableNameClick ? 'cursor-pointer group' : ''}`}
                                                         onClick={() => !disableNameClick && onViewClick?.(item)}
                                                     >
@@ -216,7 +218,7 @@ const UserListTable = ({
                                                         <div className="w-12"></div>
                                                     )
                                                 ) : col.key === 'image' ? (
-                                                    <div 
+                                                    <div
                                                         className={`h-8 w-8 overflow-hidden ${userType === 'Product' ? 'rounded-lg' : 'rounded-full'} shrink-0 shadow-sm border border-gray-100 bg-gray-50 mx-auto ${onViewClick && !disableNameClick ? 'cursor-pointer hover:border-primary/50 transition-all' : ''}`}
                                                         onClick={() => !disableNameClick && onViewClick?.(item)}
                                                     >
@@ -224,14 +226,14 @@ const UserListTable = ({
                                                     </div>
                                                 ) : col.key === 'name' ? (
                                                     userType === 'Category' ? (
-                                                        <div 
+                                                        <div
                                                             className={`flex items-center group relative py-0.5 h-full ${onViewClick && !disableNameClick ? 'cursor-pointer' : ''}`}
                                                             style={{ paddingLeft: `${item.level * 28}px` }}
                                                             onClick={() => !disableNameClick && onViewClick?.(item)}
                                                         >
                                                             {/* Continuous Vertical Tree Line */}
                                                             {item.level > 0 && (
-                                                                <div 
+                                                                <div
                                                                     className="absolute top-0 bottom-0 w-[1px] bg-gray-200 dark:bg-gray-800"
                                                                     style={{ left: `${(item.level * 28) - 14}px` }}
                                                                 ></div>
@@ -278,7 +280,7 @@ const UserListTable = ({
                                                                             {item.level === 0 ? 'Root Category' : 'Sub-Item'}
                                                                         </span>
                                                                         {item.level === 0 && (
-                                                                             <div className="w-1 h-1 rounded-full bg-primary/30"></div>
+                                                                            <div className="w-1 h-1 rounded-full bg-primary/30"></div>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -312,13 +314,12 @@ const UserListTable = ({
                                                         {item[col.key]}
                                                     </span>
                                                 ) : col.key === 'status_label' ? (
-                                                    <span 
-                                                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border cursor-pointer hover:opacity-80 transition-all ${
-                                                            item[col.key] === 'COMPLETED' ? 'bg-success/10 text-success border-success/20' : 
-                                                            item[col.key] === 'PENDING' ? 'bg-warning/10 text-warning border-warning/20' : 
-                                                            item[col.key] === 'OUT_FOR_DELIVERY' ? 'bg-info/10 text-info border-info/20' : 
-                                                            'bg-danger/10 text-danger border-danger/20'
-                                                        }`}
+                                                    <span
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border cursor-pointer hover:opacity-80 transition-all ${item[col.key] === 'COMPLETED' ? 'bg-success/10 text-success border-success/20' :
+                                                                item[col.key] === 'PENDING' ? 'bg-warning/10 text-warning border-warning/20' :
+                                                                    item[col.key] === 'OUT_FOR_DELIVERY' ? 'bg-info/10 text-info border-info/20' :
+                                                                        'bg-danger/10 text-danger border-danger/20'
+                                                            }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             onStatusClick?.(item);
@@ -349,8 +350,8 @@ const UserListTable = ({
                                                     )}
                                                     {onEditClick && (
                                                         <Tippy content="Edit">
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="p-1 text-success hover:text-success-dark transition-colors"
                                                                 onClick={() => onEditClick?.(item)}
                                                             >
@@ -360,8 +361,8 @@ const UserListTable = ({
                                                     )}
                                                     {onPermissionEdit && (
                                                         <Tippy content="Permissions">
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="p-1 text-warning hover:text-warning-dark transition-colors"
                                                                 onClick={() => onPermissionEdit?.(item)}
                                                             >
@@ -371,8 +372,8 @@ const UserListTable = ({
                                                     )}
                                                     {onDownloadClick && (
                                                         <Tippy content="Download">
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="p-1 text-info hover:text-info-dark transition-colors"
                                                                 onClick={() => onDownloadClick?.(item)}
                                                             >
@@ -382,8 +383,8 @@ const UserListTable = ({
                                                     )}
                                                     {onStockClick && (
                                                         <Tippy content="View Stock / Inventory">
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="p-1 text-info hover:text-info-dark transition-colors"
                                                                 onClick={() => onStockClick?.(item)}
                                                             >
@@ -391,10 +392,23 @@ const UserListTable = ({
                                                             </button>
                                                         </Tippy>
                                                     )}
-                                                    {!hideDelete && (
-                                                        <Tippy content="Delete">
+                                                    {userType === 'Product' && onPrint && (
+                                                        <Tippy content="Generate & Print Barcode">
                                                             <button 
                                                                 type="button" 
+                                                                className="p-1 text-secondary hover:text-secondary-dark transition-colors"
+                                                                onClick={() => onPrint?.(item)}
+                                                            >
+                                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
+                                                                    <path d="M3 5H5V19H3V5ZM20 5H22V19H20V5ZM7 5H9V19H7V5ZM11 5H13V19H11V5ZM15 5H16V19H15V5ZM18 5H19V19H18V5Z" fill="currentColor"/>
+                                                                </svg>
+                                                            </button>
+                                                        </Tippy>
+                                                    )}
+                                                    {!hideDelete && (
+                                                        <Tippy content="Delete">
+                                                            <button
+                                                                type="button"
                                                                 className="p-1 text-danger hover:text-danger-dark transition-colors"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();

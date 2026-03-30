@@ -32,6 +32,21 @@ const ProductList = () => {
 
     const [sortBy, setSortBy] = useState('createdAt:desc');
 
+    const showMessage = (msg = '', type = 'success') => {
+        const toast: any = (window as any).Swal.mixin({
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 3000,
+            customClass: { container: 'toast' },
+        });
+        toast.fire({
+            icon: type,
+            title: msg,
+            padding: '10px 20px',
+        });
+    };
+
     // Consolidated Debounce Logic
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -104,6 +119,7 @@ const ProductList = () => {
                         mrp: (mainVariant.original_price || product.original_price) ? `₹${mainVariant.original_price || product.original_price}` : '₹0',
                         status: product.isActive ? 'Active' : 'Inactive',
                         joinedDate: product.createdAt ? new Date(product.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
+                        originalName: product.name,
                     };
                 });
                 setProductData(mappedData);
@@ -167,6 +183,66 @@ const ProductList = () => {
         }
     };
 
+    const handlePrintBarcode = async (item: any) => {
+        const utcId = item.barcode || item.id;
+        if (!utcId || utcId === 'N/A') {
+            showMessage?.('This product has no barcode/UTC assigned.', 'warning');
+            return;
+        }
+
+        showMessage?.('Generating Barcode...', 'info');
+
+        try {
+            const bwipjs: any = await import('bwip-js');
+            const canvas = document.createElement('canvas');
+            
+            // Standard approach to get toCanvas from bwip-js in various module environments
+            const toCanvas = bwipjs.toCanvas || bwipjs.default?.toCanvas;
+
+            if (typeof toCanvas !== 'function') {
+                throw new Error('Barcode library loaded but function toCanvas was not found.');
+            }
+
+            toCanvas(canvas, {
+                bcid: 'code128',
+                text: String(utcId),
+                scale: 3,
+                height: 12,
+                includetext: true,
+                textxalign: 'center',
+            });
+
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            // Create a print window
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Print Barcode - ${item.originalName || item.id}</title>
+                            <style>
+                                body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+                                .label { border: 1px solid #eee; padding: 20px; text-align: center; }
+                                .name { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+                                img { max-width: 100%; height: auto; }
+                            </style>
+                        </head>
+                        <body onload="window.print(); window.close();">
+                            <div class="label">
+                                <div class="name">${item.originalName || 'Product Barcode'}</div>
+                                <img src="${dataUrl}" />
+                            </div>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+        } catch (err) {
+            console.error('Barcode Generation Error:', err);
+        }
+    };
+
     const columns = [
         { key: 'image', label: 'Image' },
         { key: 'name', label: 'Product Name' },
@@ -217,6 +293,7 @@ const ProductList = () => {
                     addButtonLabel="Add New Product"
                     onEditClick={handleEditProduct}
                     onViewClick={handleViewProduct}
+                    onPrint={handlePrintBarcode}
                     onStatusToggle={handleStatusToggle}
                     categoryId={categoryId}
                     onCategoryIdChange={setCategoryId}
