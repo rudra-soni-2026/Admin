@@ -4,6 +4,7 @@ import UserManagerTable from '@/components/user-manager/user-manager-table';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { callApi } from '@/utils/api';
+import Swal from 'sweetalert2';
 
 const ProductList = () => {
     const [productData, setProductData] = useState<any[]>([]);
@@ -32,8 +33,8 @@ const ProductList = () => {
 
     const [sortBy, setSortBy] = useState('createdAt:desc');
 
-    const showMessage = (msg = '', type = 'success') => {
-        const toast: any = (window as any).Swal.mixin({
+    const showMessage = (msg = '', type: any = 'success') => {
+        const toast: any = Swal.mixin({
             toast: true,
             position: 'top',
             showConfirmButton: false,
