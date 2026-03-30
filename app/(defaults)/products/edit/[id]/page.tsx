@@ -434,8 +434,8 @@ export default function EditProduct() {
 
             // Collect existing URLs
             let finalImageUrls: string[] = images
-                .filter(img => !img.file && img.dataURL)
-                .map(img => img.dataURL as string);
+                .filter(img => !img.file && (img.dataURL || img.image_url || typeof img === 'string'))
+                .map(img => (img.dataURL || img.image_url || (typeof img === 'string' ? img : '')) as string);
 
             // Upload new files
             const uploadData = new FormData();
@@ -459,7 +459,7 @@ export default function EditProduct() {
             }
 
             const updatedVariants = await Promise.all(variants.filter(v => v.unit_label).map(async (v) => {
-                let vImages: string[] = v.images?.filter((img: any) => !img.file && img.dataURL).map((img: any) => img.dataURL) || [];
+                let vImages: string[] = (v.images || []).filter((img: any) => !img.file && (img.dataURL || img.image_url || typeof img === 'string')).map((img: any) => img.dataURL || img.image_url || (typeof img === 'string' ? img : '')) || [];
                 const vUploadData = new FormData();
                 let hasNewFiles = false;
 
@@ -508,11 +508,9 @@ export default function EditProduct() {
                 info: info.filter(it => it.key && it.value).map(it => ({ [it.key]: it.value }))
             };
 
-            // Determine final main image (Fallback to existing if variant is empty)
-            const mainProductImage = mainVariant?.image || (images.length > 0 ? (images[0].dataURL || images[0]) : "");
-            const mainProductImages = mainVariant?.images?.length > 0
-                ? mainVariant.images.map((img: any) => typeof img === 'string' ? img : img.image_url)
-                : images.map(img => img.dataURL || img);
+            // Determine final main image
+            const mainProductImage = (finalImageUrls.length > 0 ? finalImageUrls[0] : mainVariant?.image) || "";
+            const mainProductImages = finalImageUrls.length > 0 ? finalImageUrls : (mainVariant?.images?.map((img: any) => typeof img === 'string' ? img : img.image_url) || []);
 
             const payload = {
                 ...formData,

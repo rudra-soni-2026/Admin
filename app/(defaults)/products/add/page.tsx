@@ -400,8 +400,8 @@ export default function AddProduct() {
 
             // Collect existing URLs (e.g. from API auto-fill)
             let finalImageUrls: string[] = images
-                .filter(img => !img.file && img.dataURL)
-                .map(img => img.dataURL as string);
+                .filter(img => !img.file && (img.dataURL || img.image_url || typeof img === 'string'))
+                .map(img => (img.dataURL || img.image_url || (typeof img === 'string' ? img : '')) as string);
 
             // Upload new files
             const uploadData = new FormData();
@@ -429,7 +429,7 @@ export default function AddProduct() {
             }
 
             const updatedVariants = await Promise.all(variants.filter(v => v.unit_label).map(async (v) => {
-                let vImages: string[] = v.images?.filter((img: any) => !img.file && img.dataURL).map((img: any) => img.dataURL) || [];
+                let vImages: string[] = (v.images || []).filter((img: any) => !img.file && (img.dataURL || img.image_url || typeof img === 'string')).map((img: any) => img.dataURL || img.image_url || (typeof img === 'string' ? img : '')) || [];
                 const vUploadData = new FormData();
                 let hasNewFiles = false;
 
@@ -478,10 +478,8 @@ export default function AddProduct() {
                 info: info.filter(it => it.key && it.value).map(it => ({ [it.key]: it.value }))
             };
 
-            const mainProductImage = (images.length > 0 ? (images[0].dataURL || images[0]) : "") || mainVariant?.image || "";
-            const mainProductImages = images.length > 0
-                ? images.map(img => img.dataURL || img)
-                : (mainVariant?.images?.length > 0 ? mainVariant.images.map((img: any) => typeof img === 'string' ? img : img.image_url) : []);
+            const mainProductImage = (finalImageUrls.length > 0 ? finalImageUrls[0] : mainVariant?.image) || "";
+            const mainProductImages = finalImageUrls.length > 0 ? finalImageUrls : (mainVariant?.images?.map((img: any) => typeof img === 'string' ? img : img.image_url) || []);
 
             const payload = {
                 ...formData,
