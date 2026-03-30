@@ -384,15 +384,7 @@ export default function EditProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
-        if (id === 'utc_id' && (value.length === 13 || value.length === 8 || value.length === 12)) {
-            if (debounceTimer.current) clearTimeout(debounceTimer.current);
-            fetchProductByUtc(value); // Instant trigger for barcodes
-        } else if (id === 'utc_id' && value.length >= 8) {
-            if (debounceTimer.current) clearTimeout(debounceTimer.current);
-            debounceTimer.current = setTimeout(() => {
-                fetchProductByUtc(value);
-            }, 300); 
-        }
+        // Automatic fetchProductByUtc has been disabled per user request
     };
 
     const onImageChange = (imageList: ImageListType) => {
@@ -753,10 +745,6 @@ export default function EditProduct() {
                                                      <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => { 
                                                          const val = e.target.value;
                                                          const nv = [...variants]; nv[i].barcode = val; setVariants(nv);
-                                                         if (val.length >= 8) {
-                                                             if (debounceTimer.current) clearTimeout(debounceTimer.current);
-                                                             debounceTimer.current = setTimeout(() => fetchProductByUtc(val, i), 400);
-                                                         }
                                                      }} placeholder="Scan Barcode" />
                                                  </div>
                                                  <div>

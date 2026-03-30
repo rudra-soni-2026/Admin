@@ -55,7 +55,7 @@ const AddPurchase = () => {
             ]);
 
             if (sRes?.data) setSuppliers(sRes.data);
-            
+
             if (Array.isArray(wRes?.data)) {
                 setWarehouses(wRes.data.map((i: any) => ({
                     id: i.id || i._id,
@@ -77,7 +77,7 @@ const AddPurchase = () => {
                 const userData = JSON.parse(userDataStr);
                 const userRole = (storedRole || userData.role || '').toLowerCase().replace(' ', '_');
                 const assignedId = userData.assignedId || userData.assigned_id || userData.warehouse_id || userData.assigned_warehouse_id;
-                
+
                 // Flexible check for account_manager role and assignedId presence
                 if ((userRole.includes('account_manager') || userRole.includes('accountant')) && assignedId) {
                     setFormData(prev => {
@@ -115,141 +115,23 @@ const AddPurchase = () => {
         setOrderItems(newItems);
     };
 
-    const handleUtcSearch = async (index: number, utc: string) => {
-        if (!utc || utc.length < 8) return;
-
-        try {
-            const newItems = [...orderItems];
-            newItems[index].isSearching = true;
-            newItems[index].searchedUtc = utc; // Mark this UTC as searched immediately
-            setOrderItems([...newItems]);
-
-            const res = await callApi(`products/utc/${utc}`, 'GET');
-            const product = res?.product || res?.data || res;
-
-            const updatedItems = [...orderItems];
-            updatedItems[index].isSearching = false;
-
-            if (product && (product.id || product._id || product.name)) {
-                const productId = product.id || product._id;
-                const productName = product.name || product.product_name;
-                const productPrice = product.original_price || product.price || 0;
-
-                // 1. Check for Duplicate (excluding current row)
-                const existingIndex = updatedItems.findIndex((item, idx) => idx !== index && item.product_id === productId);
-
-                if (existingIndex !== -1) {
-                    // DUPLICATE FOUND: Merge into existing row
-                    const newItems = [...orderItems];
-                    newItems[existingIndex].quantity = (Number(newItems[existingIndex].quantity) || 0) + 1;
-                    newItems[existingIndex].subtotal = Number(newItems[existingIndex].price) * Number(newItems[existingIndex].quantity);
-                    
-                    // Clear the current scanning row since it was a merge
-                    newItems[index] = { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, subtotal: 0, isSearching: false, searchedUtc: '' };
-                    
-                    setOrderItems(newItems);
-
-                    const toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1500,
-                        showCloseButton: true,
-                        customClass: { popup: 'color-info border-info shadow-lg animate__animated animate__fadeInRight' },
-                    });
-                    toast.fire({ icon: 'info', title: `Increased quantity for: ${productName}` });
-                } else {
-                    // NEW UNIQUE PRODUCT: Update current row and add new row on top
-                    const foundItem = {
-                        ...updatedItems[index],
-                        product_id: productId,
-                        name: productName,
-                        image: product.image || product.image_url || '',
-                        price: 0, // Don't pre-fill cost
-                        sell_price: 0, // Don't pre-fill sell price
-                        subtotal: 0,
-                        isSearching: false
-                    };
-
-                    const emptyItem = { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' };
-                    
-                    setOrderItems(prev => {
-                        const next = [...prev];
-                        next[index] = foundItem;
-                        return [emptyItem, ...next];
-                    });
-
-                    const toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1500,
-                        showCloseButton: true,
-                        customClass: { popup: 'color-success border-success shadow-lg animate__animated animate__fadeInRight' },
-                    });
-                    toast.fire({ icon: 'success', title: `Added: ${productName}` });
-                }
-            } else {
-                updatedItems[index].isSearching = false;
-                updatedItems[index].utc = ''; // Clear the invalid barcode
-                setOrderItems([...updatedItems]);
-
-                const toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    showCloseButton: true,
-                    customClass: { popup: 'color-danger border-danger shadow-xl animate__animated animate__shakeX' },
-                });
-                toast.fire({ icon: 'error', title: 'Product Not Found!' });
-            }
-        } catch (error) {
-            console.error('UTC Search Error:', error);
-            const updatedItems = [...orderItems];
-            updatedItems[index].isSearching = false;
-            updatedItems[index].utc = ''; // Clear on error too
-            setOrderItems([...updatedItems]);
-
-            const toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                showCloseButton: true,
-                customClass: { popup: 'color-danger border-danger shadow-xl animate__animated animate__shakeX' },
-            });
-            toast.fire({ icon: 'error', title: 'Search Error or Not Found' });
-        }
-    };
-
-    // Debounced Automatic Search
-    useEffect(() => {
-        const timers = orderItems.map((item, index) => {
-            // Only search if the Barcode has changed and hasn't been searched yet
-            if (item.utc && item.utc.length >= 8 && item.utc !== item.searchedUtc && !item.isSearching) {
-                return setTimeout(() => handleUtcSearch(index, item.utc), 500);
-            }
-            return null;
-        });
-        return () => timers.forEach(t => t && clearTimeout(t));
-    }, [orderItems]);
-
+    // Automatic search and product lookup have been disabled per user request.
+    // Barcodes are now manually entered and saved directly in the purchase JSON.
     const handleItemChange = (index: number, field: string, value: any) => {
         const newItems = [...orderItems];
         newItems[index][field] = value;
-        
+
         const price = Number(newItems[index].price) || 0;
         const qty = Number(newItems[index].quantity) || 0;
         const cgst = Number(newItems[index].cgst) || 0;
         const sgst = Number(newItems[index].sgst) || 0;
         const igst = Number(newItems[index].igst) || 0;
         const cess = Number(newItems[index].cess) || 0;
-        
+
         const totalTaxPercent = cgst + sgst + igst + cess;
         const baseAmount = price * qty;
         const taxAmount = (baseAmount * totalTaxPercent) / 100;
-        
+
         newItems[index].subtotal = baseAmount + taxAmount;
         setOrderItems(newItems);
     };
@@ -387,59 +269,59 @@ const AddPurchase = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {/* Left Column: Form Details */}
                     <div className="xl:col-span-2 space-y-6">
-                        <div className="panel">
-                            <h6 className="text-base font-bold mb-5 border-b pb-2">Purchase Details</h6>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="panel p-4">
+                            <h6 className="text-sm font-bold mb-4 border-b pb-2">Purchase Details</h6>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
-                                    <label htmlFor="date" className="text-xs font-bold uppercase mb-1 block">Date *</label>
-                                    <input id="date" type="date" className="form-input" value={formData.date} onChange={handleFormChange} required />
+                                    <label htmlFor="date" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Date *</label>
+                                    <input id="date" type="date" className="form-input py-1.5 text-xs" value={formData.date} onChange={handleFormChange} required />
                                 </div>
                                 <div>
-                                    <label htmlFor="reference_no" className="text-xs font-bold uppercase mb-1 block">Reference No</label>
-                                    <input id="reference_no" type="text" placeholder="PO-00001" className="form-input" value={formData.reference_no} onChange={handleFormChange} />
+                                    <label htmlFor="reference_no" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Reference No</label>
+                                    <input id="reference_no" type="text" placeholder="PO-00001" className="form-input py-1.5 text-xs" value={formData.reference_no} onChange={handleFormChange} />
                                 </div>
                                 <div>
-                                    <label htmlFor="warehouse_id" className="text-xs font-bold uppercase mb-1 block">Location *</label>
+                                    <label htmlFor="warehouse_id" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Location *</label>
                                     {((localStorage.getItem('role') || '').toLowerCase().includes('account_manager') || (localStorage.getItem('role') || '').toLowerCase().includes('accountant')) && formData.warehouse_id ? (
-                                        <div className="form-input bg-gray-50 border-gray-200 font-black uppercase text-xs h-10 flex items-center">
-                                            {warehouses.find(w => w.id === formData.warehouse_id)?.name || 'Fetching Location...'}
+                                        <div className="form-input py-1.5 bg-gray-50 border-gray-200 font-bold uppercase text-[10px] h-9 flex items-center">
+                                            {warehouses.find(w => w.id === formData.warehouse_id)?.name || 'Fetching...'}
                                         </div>
                                     ) : (
-                                        <select id="warehouse_id" className="form-select font-semibold" value={formData.warehouse_id} onChange={handleFormChange} required>
+                                        <select id="warehouse_id" className="form-select py-1.5 text-xs font-semibold" value={formData.warehouse_id} onChange={handleFormChange} required>
                                             <option value="">Select Location</option>
                                             {warehouses.map(w => (
                                                 <option key={w.id || w._id} value={w.id || w._id}>
-                                                    {w.name} ({w.type})
+                                                    {w.name}
                                                 </option>
                                             ))}
                                         </select>
                                     )}
                                 </div>
                                 <div>
-                                    <label htmlFor="supplier_id" className="text-xs font-bold uppercase mb-1 block flex justify-between items-center">
+                                    <label htmlFor="supplier_id" className="text-[10px] font-bold uppercase mb-1 block text-gray-500 flex justify-between items-center">
                                         Supplier *
-                                        <button type="button" className="text-primary hover:underline lowercase font-normal text-[10px]" onClick={() => setFormData(prev => ({ ...prev, is_new_supplier: !prev.is_new_supplier }))}>
+                                        <button type="button" className="text-primary hover:underline lowercase font-normal text-[9px]" onClick={() => setFormData(prev => ({ ...prev, is_new_supplier: !prev.is_new_supplier }))}>
                                             {formData.is_new_supplier ? 'Select Existing' : '+ Add New'}
                                         </button>
                                     </label>
                                     {!formData.is_new_supplier ? (
-                                        <select id="supplier_id" className="form-select font-semibold" value={formData.supplier_id} onChange={handleFormChange} required={!formData.is_new_supplier}>
+                                        <select id="supplier_id" className="form-select py-1.5 text-xs font-semibold" value={formData.supplier_id} onChange={handleFormChange} required={!formData.is_new_supplier}>
                                             <option value="">Select Supplier</option>
                                             {suppliers.map(s => <option key={s.id || s._id} value={s.id || s._id}>{s.name}</option>)}
                                         </select>
                                     ) : (
-                                        <div className="space-y-2 p-3 bg-gray-50 dark:bg-dark-light/10 rounded-lg border border-dashed border-gray-200">
-                                            <input id="new_supplier_name" type="text" placeholder="Name" className="form-input py-1.5 text-xs" value={formData.new_supplier_name} onChange={handleFormChange} required />
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <input id="new_supplier_email" type="email" placeholder="Email" className="form-input py-1.5 text-xs" value={formData.new_supplier_email} onChange={handleFormChange} required />
-                                                <input id="new_supplier_phone" type="text" placeholder="Phone" className="form-input py-1.5 text-xs" value={formData.new_supplier_phone} onChange={handleFormChange} required />
+                                        <div className="space-y-1.5 p-2 bg-gray-50 dark:bg-dark-light/10 rounded-lg border border-dashed border-gray-200">
+                                            <input id="new_supplier_name" type="text" placeholder="Name" className="form-input py-1 text-[11px]" value={formData.new_supplier_name} onChange={handleFormChange} required />
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <input id="new_supplier_email" type="email" placeholder="Email" className="form-input py-1 text-[11px]" value={formData.new_supplier_email} onChange={handleFormChange} required />
+                                                <input id="new_supplier_phone" type="text" placeholder="Phone" className="form-input py-1 text-[11px]" value={formData.new_supplier_phone} onChange={handleFormChange} required />
                                             </div>
                                         </div>
                                     )}
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label htmlFor="notes" className="text-xs font-bold uppercase mb-1 block">Purchase Notes</label>
-                                    <textarea id="notes" rows={2} className="form-textarea" placeholder="Add any details..." value={formData.notes} onChange={handleFormChange}></textarea>
+                                    <label htmlFor="notes" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Purchase Notes</label>
+                                    <textarea id="notes" rows={1} className="form-textarea py-1.5 text-xs" placeholder="Add any details..." value={formData.notes} onChange={handleFormChange}></textarea>
                                 </div>
                             </div>
                         </div>
@@ -452,99 +334,89 @@ const AddPurchase = () => {
                                 </button>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 {orderItems.map((item, index) => (
-                                    <div key={index} className={`flex flex-col p-4 bg-white dark:bg-[#0e1726] border-2 rounded-2xl transition-all shadow-md ${item.product_id ? 'border-success/30 bg-success/5' : 'border-gray-100 dark:border-gray-800'}`}>
-                                        
-                                        {/* Row Line 1: Primary Search & Identity */}
-                                        <div className="flex items-center gap-5 mb-4 pb-4 border-b border-gray-50 dark:border-gray-900/40">
-                                            <div className="w-12 h-12 flex-shrink-0 bg-gray-50 dark:bg-black/20 rounded-xl flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner">
-                                                {item.image ? (
-                                                    <img src={item.image} alt="" className="w-full h-full object-contain" />
-                                                ) : (
-                                                    <IconBox className="w-6 h-6 text-gray-200" />
-                                                )}
+                                    <div key={index} className={`flex items-center gap-3 p-2 bg-white dark:bg-[#0e1726] border rounded-xl transition-all hover:shadow-md ${item.product_id ? 'border-success/30 bg-success/5' : 'border-gray-200 dark:border-gray-800'}`}>
+
+                                        {/* Image & Basic Info */}
+                                        <div className="w-8 h-8 flex-shrink-0 bg-gray-100 dark:bg-black/20 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-800">
+                                            {item.image ? <img src={item.image} alt="" className="w-full h-full object-contain" /> : <IconBox className="w-4 h-4 text-gray-300" />}
+                                        </div>
+
+                                        {/* Barcode/UTC Search */}
+                                        <div className="w-32 flex-shrink-0">
+                                            <input
+                                                type="text"
+                                                placeholder="UTC / Barcode"
+                                                autoFocus={index === 0}
+                                                readOnly={!!item.product_id}
+                                                className={`form-input h-8 py-1 px-2 text-[10px] font-bold tracking-tight rounded-lg w-full ${item.product_id ? 'bg-transparent border-none text-primary p-0' : 'bg-gray-50 border-gray-100 focus:border-primary'}`}
+                                                value={item.utc || ''}
+                                                onChange={(e) => {
+                                                    const newItems = [...orderItems];
+                                                    newItems[index].utc = e.target.value;
+                                                    setOrderItems(newItems);
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* Product Name */}
+                                        <div className="flex-1 min-w-0">
+                                            {item.name ? (
+                                                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200 uppercase truncate block">
+                                                    {item.name}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[9px] text-gray-400 italic">Scan to identify item...</span>
+                                            )}
+                                        </div>
+
+                                        {/* Cost & Sell */}
+                                        <div className="flex items-center gap-2">
+                                            <div className="relative w-20">
+                                                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold">₹</span>
+                                                <input type="number" placeholder="Cost" className="form-input h-8 pl-4 pr-1 text-center text-[10px] font-bold rounded-lg border-gray-100" value={item.price || ''} onChange={(e) => handleItemChange(index, 'price', e.target.value)} />
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Barcode Identification</span>
-                                                    {item.isSearching && <span className="animate-spin rounded-full border-2 border-primary border-l-transparent w-2.5 h-2.5" />}
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Scan / Enter UTC ID" 
-                                                        autoFocus={index === 0}
-                                                        readOnly={!!item.product_id}
-                                                        className={`form-input h-9 py-2 px-3 text-xs font-black tracking-widest rounded-xl transition-all w-full max-w-sm ${item.product_id ? 'bg-transparent border-none text-primary p-0' : 'bg-gray-50 border-gray-200 focus:border-primary shadow-sm'}`} 
-                                                        value={item.utc || ''} 
-                                                        onChange={(e) => {
-                                                            const newItems = [...orderItems];
-                                                            newItems[index].utc = e.target.value;
-                                                            setOrderItems(newItems);
-                                                        }}
-                                                    />
-                                                    {item.name && (
-                                                        <div className="bg-white dark:bg-black px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-2">
-                                                            <span className="text-[11px] font-black text-gray-700 dark:text-gray-200 uppercase truncate max-w-[200px]">{item.name}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-right">
-                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block leading-none mb-1">Net Subtotal</span>
-                                                    <span className="text-xl font-black text-primary block leading-none">₹{item.subtotal.toFixed(2)}</span>
-                                                </div>
-                                                <button type="button" className="w-10 h-10 rounded-2xl bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all shadow-sm flex items-center justify-center border border-danger/5" onClick={() => removeItem(index)}>
-                                                    <IconTrashLines className="w-5 h-5" />
-                                                </button>
+                                            <div className="relative w-20">
+                                                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold">₹</span>
+                                                <input type="number" placeholder="Sell" className="form-input h-8 pl-4 pr-1 text-center text-[10px] font-bold rounded-lg border-gray-100" value={item.sell_price || ''} onChange={(e) => handleItemChange(index, 'sell_price', e.target.value)} />
                                             </div>
                                         </div>
 
-                                        {/* Row Line 2: Financial Details - Zero Overlap Layout */}
-                                        <div className="flex flex-wrap items-center justify-between gap-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex flex-col gap-1.5 min-w-[100px]">
-                                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full" /> Cost ₹
-                                                    </label>
-                                                    <input type="number" className="form-input h-10 w-full text-center text-xs font-black rounded-xl border-gray-200 dark:border-gray-700 bg-white dark:bg-black transition-all focus:border-primary" value={item.price} onChange={(e) => handleItemChange(index, 'price', e.target.value)} />
-                                                </div>
-                                                <div className="flex flex-col gap-1.5 min-w-[100px]">
-                                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                                        <span className="w-1.5 h-1.5 bg-success rounded-full" /> Sell ₹
-                                                    </label>
-                                                    <input type="number" className="form-input h-10 w-full text-center text-xs font-black rounded-xl border-gray-200 dark:border-gray-700 bg-white dark:bg-black transition-all focus:border-success" value={item.sell_price} onChange={(e) => handleItemChange(index, 'sell_price', e.target.value)} />
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
-                                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Tax Percentages (Individual GST Buckets)</label>
-                                                <div className="flex items-center p-1.5 bg-gray-50/50 dark:bg-black/40 rounded-2xl gap-2 border border-gray-100 dark:border-gray-800 shadow-inner">
-                                                    {[
-                                                        { label: 'CGST%', field: 'cgst' },
-                                                        { label: 'SGST%', field: 'sgst' },
-                                                        { label: 'IGST%', field: 'igst' },
-                                                        { label: 'CESS%', field: 'cess' }
-                                                    ].map((tax, tidx) => (
-                                                        <div key={tax.field} className={`flex flex-col items-center flex-1 ${tidx > 0 ? 'border-l border-gray-200 dark:border-gray-800' : ''}`}>
-                                                            <span className="text-[7px] font-bold text-gray-500 uppercase mb-1">{tax.label}</span>
-                                                            <input type="number" className="form-input h-6 w-full p-0 text-center text-[10px] font-black rounded-lg border-transparent hover:border-gray-300 focus:bg-white" value={item[tax.field as keyof typeof item]} onChange={(e) => handleItemChange(index, tax.field, e.target.value)} />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col gap-1.5 min-w-[140px]">
-                                                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Purchase Qty</label>
-                                                <div className="flex items-center w-full h-10 bg-white dark:bg-black rounded-xl border-2 border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
-                                                    <button type="button" className="w-10 h-full hover:bg-gray-50 text-gray-400 font-bold border-r border-gray-100 dark:border-gray-800 text-lg" onClick={() => handleItemChange(index, 'quantity', Math.max(1, (Number(item.quantity) || 0) - 1))}>−</button>
-                                                    <input type="number" className="bg-transparent text-sm text-center font-black w-full outline-none p-0 border-none px-2" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} />
-                                                    <button type="button" className="w-10 h-full hover:bg-gray-50 text-gray-400 font-bold border-l border-gray-100 dark:border-gray-800 text-lg" onClick={() => handleItemChange(index, 'quantity', (Number(item.quantity) || 0) + 1)}>+</button>
-                                                </div>
-                                            </div>
+                                        {/* Quantity */}
+                                        <div className="flex items-center w-24 h-8 bg-gray-50 dark:bg-black rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+                                            <button type="button" className="w-8 h-full hover:bg-gray-100 dark:hover:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-xs" onClick={() => handleItemChange(index, 'quantity', Math.max(1, (Number(item.quantity) || 0) - 1))}>−</button>
+                                            <input type="number" className="bg-transparent text-[10px] text-center font-bold w-full outline-none p-0 border-none" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} />
+                                            <button type="button" className="w-8 h-full hover:bg-gray-100 dark:hover:bg-gray-900 border-l border-gray-200 dark:border-gray-800 text-xs" onClick={() => handleItemChange(index, 'quantity', (Number(item.quantity) || 0) + 1)}>+</button>
                                         </div>
+
+                                        {/* Taxes (Compact) */}
+                                        <div className="flex items-center p-1 bg-gray-100/50 dark:bg-black/20 rounded-lg gap-1 border border-gray-200 dark:border-gray-800">
+                                            {['cgst', 'sgst', 'igst', 'cess'].map((tax) => (
+                                                <input
+                                                    key={tax}
+                                                    type="number"
+                                                    placeholder={tax.toUpperCase()}
+                                                    className="form-input h-6 w-9 p-0 text-center text-[9px] font-bold rounded border-transparent bg-transparent hover:bg-white"
+                                                    value={item[tax as keyof typeof item] || ''}
+                                                    onChange={(e) => handleItemChange(index, tax, e.target.value)}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* Subtotal */}
+                                        <div className="w-20 text-right">
+                                            <span className="text-[11px] font-black text-primary">₹{item.subtotal.toFixed(2)}</span>
+                                        </div>
+
+                                        {/* Delete */}
+                                        <button
+                                            type="button"
+                                            className="w-8 h-8 rounded-lg bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all flex items-center justify-center"
+                                            onClick={() => removeItem(index)}
+                                        >
+                                            <IconTrashLines className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -553,52 +425,64 @@ const AddPurchase = () => {
 
                     {/* RIGHT COLUMN (1/3 Width) */}
                     <div className="space-y-6">
-                        <div className="panel">
-                            <h6 className="text-base font-bold mb-5 border-b pb-2 text-gray-700 dark:text-white-light">Order Summary</h6>
-                            <div className="space-y-4">
+                        <div className="panel p-4">
+                            <h6 className="text-[11px] font-bold uppercase mb-4 border-b pb-2">Order Summary</h6>
+                            <div className="space-y-3">
                                 <div>
-                                    <label htmlFor="status" className="text-xs font-bold uppercase mb-1 block">Purchase Status</label>
-                                    <select id="status" className="form-select font-semibold" value={formData.status} onChange={handleFormChange}>
+                                    <label htmlFor="status" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Status</label>
+                                    <select id="status" className="form-select py-1.5 text-xs font-semibold" value={formData.status} onChange={handleFormChange}>
                                         <option value="received">Received</option>
                                         <option value="pending">Pending</option>
                                         <option value="ordered">Ordered</option>
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label htmlFor="order_tax" className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Order Tax</label>
-                                        <input id="order_tax" type="number" className="form-input h-9 text-xs font-bold" value={formData.order_tax} onChange={handleFormChange} />
+                                        <label htmlFor="order_tax" className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Order Tax</label>
+                                        <input id="order_tax" type="number" className="form-input py-1 text-xs font-bold" value={formData.order_tax} onChange={handleFormChange} />
                                     </div>
                                     <div>
-                                        <label htmlFor="discount" className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Discount</label>
-                                        <input id="discount" type="number" className="form-input h-9 text-xs font-bold" value={formData.discount} onChange={handleFormChange} />
+                                        <label htmlFor="discount" className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Discount</label>
+                                        <input id="discount" type="number" className="form-input py-1 text-xs font-bold" value={formData.discount} onChange={handleFormChange} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="shipping" className="text-[10px] font-black uppercase text-gray-500 mb-1 block">Shipping Cost</label>
-                                    <input id="shipping" type="number" className="form-input h-9 text-xs font-bold" value={formData.shipping} onChange={handleFormChange} />
+                                    <label htmlFor="shipping" className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Shipping</label>
+                                    <input id="shipping" type="number" className="form-input py-1 text-xs font-bold" value={formData.shipping} onChange={handleFormChange} />
                                 </div>
-                                <div className="pt-4 border-t mt-4 flex justify-between items-center px-4 bg-primary/5 py-3 rounded-xl border border-primary/10">
-                                    <span className="text-[10px] font-black uppercase text-gray-400">Grand Total</span>
-                                    <span className="text-2xl font-black text-primary">₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                <div className="pt-3 border-t mt-3 flex justify-between items-center px-3 bg-primary/5 py-2.5 rounded-lg border border-primary/10">
+                                    <span className="text-[9px] font-bold uppercase text-gray-400">Total</span>
+                                    <span className="text-lg font-black text-primary">₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="panel">
-                            <h6 className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest">Document Attachment</h6>
-                            <div className="flex flex-col gap-3">
-                                <label className="text-xs font-bold uppercase mb-1 block">Upload Invoice (PDF/Image)</label>
-                                <div className="relative group overflow-hidden bg-gray-50 dark:bg-black/20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/50 transition-all p-4 text-center cursor-pointer">
-                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleFileChange} accept=".pdf,image/*" />
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                                            <IconFile className="w-5 h-5" />
-                                        </div>
-                                        <span className="text-[11px] font-bold text-gray-500 uppercase">{formData.invoice ? formData.invoice.name : 'Click to Upload Document'}</span>
-                                        <p className="text-[9px] text-gray-400">Max size: 1MB (PDF, PNG, JPG)</p>
+                        <div className="panel p-4">
+                            <h6 className="text-[10px] font-bold uppercase text-gray-400 mb-2 tracking-widest border-b pb-1">Attachments</h6>
+                            <div className="flex flex-col gap-2">
+                                <div className="relative group overflow-hidden bg-gray-50 dark:bg-black/20 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/50 transition-all p-3 text-center cursor-pointer">
+                                    <input
+                                        type="file"
+                                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                        onChange={handleFileChange}
+                                        accept=".pdf,image/*"
+                                    />
+                                    <div className="flex flex-col items-center gap-1">
+                                        <IconFile className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+                                        <span className="text-[10px] font-bold text-gray-500 uppercase">
+                                            {formData.invoice ? formData.invoice.name : 'Upload Invoice'}
+                                        </span>
                                     </div>
                                 </div>
+                                {formData.invoice && (
+                                    <button
+                                        type="button"
+                                        className="text-[9px] text-danger hover:underline font-bold self-center"
+                                        onClick={() => setFormData(prev => ({ ...prev, invoice: null }))}
+                                    >
+                                        Remove File
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

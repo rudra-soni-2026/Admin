@@ -20,18 +20,28 @@ const ProductList = () => {
     const [status, setStatus] = useState('all');
     const [dateRange, setDateRange] = useState<any>('');
     const [categoryId, setCategoryId] = useState('');
+    
     const [brand, setBrand] = useState('');
+    const [debouncedBrand, setDebouncedBrand] = useState('');
+    
     const [minPrice, setMinPrice] = useState('');
+    const [debouncedMinPrice, setDebouncedMinPrice] = useState('');
+    
     const [maxPrice, setMaxPrice] = useState('');
+    const [debouncedMaxPrice, setDebouncedMaxPrice] = useState('');
+    
     const [sortBy, setSortBy] = useState('createdAt:desc');
 
-    // Debounce Search
+    // Consolidated Debounce Logic
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedSearch(search);
+            setDebouncedBrand(brand);
+            setDebouncedMinPrice(minPrice);
+            setDebouncedMaxPrice(maxPrice);
         }, 500);
         return () => clearTimeout(handler);
-    }, [search]);
+    }, [search, brand, minPrice, maxPrice]);
 
     const fetchProducts = async (currentPage: number) => {
         try {
@@ -42,10 +52,10 @@ const ProductList = () => {
             if (status === 'active') query += `&isActive=true`;
             else if (status === 'inactive') query += `&isActive=false`;
 
-            if (brand) query += `&brand=${encodeURIComponent(brand)}`;
+            if (debouncedBrand) query += `&brand=${encodeURIComponent(debouncedBrand)}`;
             if (categoryId) query += `&categoryId=${categoryId}`;
-            if (minPrice) query += `&minPrice=${minPrice}`;
-            if (maxPrice) query += `&maxPrice=${maxPrice}`;
+            if (debouncedMinPrice) query += `&minPrice=${debouncedMinPrice}`;
+            if (debouncedMaxPrice) query += `&maxPrice=${debouncedMaxPrice}`;
             if (sortBy) query += `&sortBy=${sortBy}`;
 
             if (dateRange && dateRange.length === 2) {
@@ -121,7 +131,7 @@ const ProductList = () => {
     const lastFilters = React.useRef('');
 
     useEffect(() => {
-        const currentFilters = JSON.stringify({ debouncedSearch, status, categoryId, brand, minPrice, maxPrice, dateRange, sortBy });
+        const currentFilters = JSON.stringify({ debouncedSearch, status, categoryId, debouncedBrand, debouncedMinPrice, debouncedMaxPrice, dateRange, sortBy });
         if (lastFilters.current !== currentFilters) {
             lastFilters.current = currentFilters;
             if (page !== 1) {
@@ -130,7 +140,7 @@ const ProductList = () => {
             }
         }
         fetchProducts(page);
-    }, [page, debouncedSearch, status, categoryId, brand, minPrice, maxPrice, sortBy, dateRange]);
+    }, [page, debouncedSearch, status, categoryId, debouncedBrand, debouncedMinPrice, debouncedMaxPrice, sortBy, dateRange]);
 
     const router = useRouter();
 
