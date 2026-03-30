@@ -115,11 +115,53 @@ const AddPurchase = () => {
         setOrderItems(newItems);
     };
 
-    // Automatic search and product lookup have been disabled per user request.
-    // Barcodes are now manually entered and saved directly in the purchase JSON.
+    const fetchProductByUtc = async (utc: string, index: number) => {
+        if (!utc || utc.length < 8) return;
+        try {
+            const newItems = [...orderItems];
+            newItems[index].isSearching = true;
+            newItems[index].searchedUtc = utc;
+            setOrderItems(newItems);
+
+            const res = await callApi(`/products/utc/${utc}`, 'GET');
+            const productData = res?.product || res?.data || res;
+            const product = Array.isArray(productData) ? productData[0] : productData;
+
+            if (product && (product._id || product.id)) {
+                const variant = product.variants?.find((v: any) => v.barcode === utc || v.utc_id === utc) || product.variants?.[0] || {};
+                
+                const updatedItems = [...orderItems];
+                updatedItems[index] = {
+                    ...updatedItems[index],
+                    product_id: product._id || product.id,
+                    name: product.name || variant.unit_label || 'Unnamed Item',
+                    image: product.image || variant.image || '/assets/images/profile-1.jpeg',
+                    price: variant.original_price || product.original_price || 0,
+                    sell_price: variant.price || product.price || 0,
+                    isSearching: false
+                };
+                setOrderItems(updatedItems);
+                showMessage('Product details fetched!', 'success');
+            } else {
+                const failedItems = [...orderItems];
+                failedItems[index].isSearching = false;
+                setOrderItems(failedItems);
+            }
+        } catch (error) {
+            console.error('Error fetching product by UTC:', error);
+            const failedItems = [...orderItems];
+            failedItems[index].isSearching = false;
+            setOrderItems(failedItems);
+        }
+    };
+
     const handleItemChange = (index: number, field: string, value: any) => {
         const newItems = [...orderItems];
         newItems[index][field] = value;
+
+        if (field === 'utc' && (value.length >= 8 && value.length <= 16)) {
+            fetchProductByUtc(value, index);
+        }
 
         const price = Number(newItems[index].price) || 0;
         const qty = Number(newItems[index].quantity) || 0;
@@ -352,11 +394,7 @@ const AddPurchase = () => {
                                                 readOnly={!!item.product_id}
                                                 className={`form-input h-8 py-1 px-2 text-[10px] font-bold tracking-tight rounded-lg w-full ${item.product_id ? 'bg-transparent border-none text-primary p-0' : 'bg-gray-50 border-gray-100 focus:border-primary'}`}
                                                 value={item.utc || ''}
-                                                onChange={(e) => {
-                                                    const newItems = [...orderItems];
-                                                    newItems[index].utc = e.target.value;
-                                                    setOrderItems(newItems);
-                                                }}
+                                                onChange={(e) => handleItemChange(index, 'utc', e.target.value)}
                                             />
                                         </div>
 
@@ -366,6 +404,11 @@ const AddPurchase = () => {
                                                 <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200 uppercase truncate block">
                                                     {item.name}
                                                 </span>
+                                            ) : item.isSearching ? (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="animate-spin h-2 w-2 border border-primary border-t-transparent rounded-full"></span>
+                                                    <span className="text-[9px] text-primary font-bold animate-pulse">Searching for product...</span>
+                                                </div>
                                             ) : (
                                                 <span className="text-[9px] text-gray-400 italic">Scan to identify item...</span>
                                             )}

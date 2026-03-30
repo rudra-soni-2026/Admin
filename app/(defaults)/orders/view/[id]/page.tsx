@@ -134,6 +134,24 @@ const OrderDetail = () => {
                         <span>Delivery</span>
                         <span>+₹{calc.delivery_fee || 0}</span>
                     </div>
+                    {calc.handling_fee > 0 && (
+                        <div className="flex justify-between text-[13px] font-bold text-success uppercase">
+                            <span>Handling Fee</span>
+                            <span>+₹{calc.handling_fee}</span>
+                        </div>
+                    )}
+                    {calc.small_cart_fee > 0 && (
+                        <div className="flex justify-between text-[13px] font-bold text-success uppercase">
+                            <span>Small Cart Fee</span>
+                            <span>+₹{calc.small_cart_fee}</span>
+                        </div>
+                    )}
+                    {calc.platform_fee > 0 && (
+                        <div className="flex justify-between text-[13px] font-bold text-success uppercase">
+                            <span>Platform Fee</span>
+                            <span>+₹{calc.platform_fee}</span>
+                        </div>
+                    )}
                     {calc.discount > 0 && (
                         <div className="flex justify-between text-[13px] font-bold text-danger uppercase">
                             <span>Discount</span>

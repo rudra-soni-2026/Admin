@@ -50,23 +50,32 @@ const OrderList = () => {
     }, [search]);
 
     const mapOrderData = (orders: any[]) => {
-        return orders.map((order: any) => ({
-            ...order,
-            id: order.id || order._id,
-            originalId: order.id || order._id,
-            order_id: order.order_id || order.id || order._id || order.shortId || 'N/A',
-            orderTime: (order.createdAt || order.created_at) ? new Date(order.createdAt || order.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
-            deliveryTime: order.delivery_at ? new Date(order.delivery_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--',
-            duration: order.delivery_duration || '--',
-            customerName: order.user?.name || 'Unknown',
-            customerPhone: order.user?.phone || 'N/A',
-            isNewCustomer: order.isNewCustomer || false,
-            rider: order.rider?.name || '-',
-            pay: order.paymentMethod || 'COD',
-            amount: `₹${order.totalAmount || 0}`,
-            status: order.status || 'Pending',
-            storeName: order.store?.name || 'N/A'
-        }));
+        return orders.map((order: any) => {
+            let calc = {};
+            try {
+                calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
+            } catch (e) {}
+            
+            const total = (calc as any).total || order.totalAmount || 0;
+
+            return {
+                ...order,
+                id: order.id || order._id,
+                originalId: order.id || order._id,
+                order_id: order.order_id || order.id || order._id || order.shortId || 'N/A',
+                orderTime: (order.createdAt || order.created_at) ? new Date(order.createdAt || order.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                deliveryTime: order.delivery_at ? new Date(order.delivery_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--',
+                duration: order.delivery_duration || '--',
+                customerName: order.user?.name || 'Unknown',
+                customerPhone: order.user?.phone || 'N/A',
+                isNewCustomer: order.isNewCustomer || false,
+                rider: order.rider?.name || '-',
+                pay: order.paymentMethod || 'COD',
+                amount: `₹${total}`,
+                status: order.status || 'Pending',
+                storeName: order.store?.name || 'N/A'
+            };
+        });
     };
 
     const fetchOrders = (currentPage: number) => {
@@ -322,6 +331,7 @@ const OrderList = () => {
                         <span>Handling Fee</span>
                         <span>₹${calc.handling_fee || 0}</span>
                     </div>
+                    ${calc.small_cart_fee ? `<div class="row"><span>Small Cart Fee</span><span>₹${calc.small_cart_fee}</span></div>` : ''}
                     ${calc.platform_fee ? `<div class="row"><span>Platform Fee</span><span>₹${calc.platform_fee}</span></div>` : ''}
                     <div class="row bold">
                         <span>AMOUNT</span>

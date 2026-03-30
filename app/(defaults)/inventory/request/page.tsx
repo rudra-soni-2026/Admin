@@ -22,7 +22,14 @@ const StockTransfer = () => {
     // Inventory States
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [inventoryData, setInventoryData] = useState<any[]>([]);
+    
+    // Pagination & Search States
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [totalRecords, setTotalRecords] = useState(0);
+
     const [selectedRecords, setSelectedRecords] = useState<any[]>([]);
     
     // Transfer States
@@ -87,12 +94,18 @@ const StockTransfer = () => {
         }
     };
 
-    const fetchWarehouseInventory = async (warehouseId: string) => {
+    const fetchWarehouseInventory = async () => {
+        if (!selectedWarehouse) return;
         try {
             setInventoryLoading(true);
-            const response = await callApi(`/management/admin/warehouse-inventory?warehouse_id=${warehouseId}&limit=500`, 'GET');
+            let query = `/management/admin/warehouse-inventory?warehouse_id=${selectedWarehouse.value}&page=${page}&limit=${pageSize}`;
+            if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
+
+            const response = await callApi(query, 'GET');
+            
             if (response?.data) {
                 setInventoryData(response.data);
+                setTotalRecords(response.pagination?.total_items || response.totalCount || response.data.length);
             }
         } catch (error) {
             console.error('Error fetching inventory:', error);
@@ -101,15 +114,30 @@ const StockTransfer = () => {
         }
     };
 
+    // Debounce search input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setPage(1); // Reset to first page on new search
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
+
     useEffect(() => {
         if (selectedWarehouse) {
-            fetchWarehouseInventory(selectedWarehouse.value);
+            fetchWarehouseInventory();
+        }
+    }, [selectedWarehouse, page, pageSize, debouncedSearch]);
+
+    useEffect(() => {
+        if (selectedWarehouse) {
             setSelectedRecords([]);
             setQuantities({});
         } else {
             setInventoryData([]);
             setSelectedRecords([]);
             setQuantities({});
+            setTotalRecords(0);
         }
     }, [selectedWarehouse]);
 
@@ -197,10 +225,6 @@ const StockTransfer = () => {
         }
     };
 
-    const filteredInventory = inventoryData.filter(item => 
-        item.product?.name?.toLowerCase().includes(search.toLowerCase())
-    );
-
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -276,7 +300,7 @@ const StockTransfer = () => {
                             <div className="datatables">
                                 <DataTable
                                     className="table-hover whitespace-nowrap"
-                                    records={filteredInventory}
+                                    records={inventoryData}
                                     columns={[
                                         {
                                             accessor: 'product',
@@ -346,10 +370,15 @@ const StockTransfer = () => {
                                     fetching={inventoryLoading}
                                     selectedRecords={selectedRecords}
                                     onSelectedRecordsChange={(recs) => {
-                                        // Only allow selecting records with stock > 0
                                         const filtered = recs.filter(r => r.stock_count > 0);
                                         setSelectedRecords(filtered);
                                     }}
+                                    totalRecords={totalRecords}
+                                    recordsPerPage={pageSize}
+                                    page={page}
+                                    onPageChange={(p) => setPage(p)}
+                                    recordsPerPageOptions={[10, 20, 50, 100]}
+                                    onRecordsPerPageChange={setPageSize}
                                     minHeight={250}
                                 />
                             </div>
