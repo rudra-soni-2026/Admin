@@ -65,16 +65,7 @@ export default function AddProduct() {
     const [ingredients, setIngredients] = useState(['']);
     const [info, setInfo] = useState([{ key: '', value: '' }]);
     const [highlights, setHighlights] = useState(['']);
-    const [variants, setVariants] = useState<any[]>([{ 
-        unit_label: '', 
-        unit_type: 'piece', 
-        price: '', 
-        original_price: '', 
-        stock: 100, 
-        sku: '',
-        barcode: '',
-        image: ''
-    }]);
+    const [variants, setVariants] = useState<any[]>([{ unit_label: '', unit_type: 'piece', price: '', original_price: '', discount_percent: 0, stock: 100, sku: '', isActive: true, barcode: '', image: '' }]);
 
     useEffect(() => {
         fetchL1();
@@ -344,6 +335,18 @@ export default function AddProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
+
+        // SYNC LOGIC: Automatically sync the main Barcode with the first variant
+        if (id === 'utc_id' && variants.length > 0) {
+            setVariants(prev => {
+                const nv = [...prev];
+                if (!nv[0].barcode || nv[0].barcode === formData.utc_id) {
+                    nv[0].barcode = value;
+                }
+                return nv;
+            });
+        }
+
         if (id === 'utc_id' && (value.length === 13 || value.length === 8 || value.length === 12)) {
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
             fetchProductByUtc(value); // Instant trigger for barcodes
@@ -441,6 +444,11 @@ export default function AddProduct() {
 
                 return {
                     ...v,
+                    utc_id: v.barcode || v.utc_id || '', // Explicitly set it here for backend
+                    unit_type: v.unit_type || 'piece',
+                    discount_percent: Number(v.discount_percent) || 0,
+                    sku: v.sku || '',
+                    isActive: v.isActive !== undefined ? v.isActive : true,
                     price: Number(v.price) || Number(v.original_price) || 0,
                     original_price: Number(v.original_price) || 0,
                     stock: Number(v.stock) || 100,
@@ -466,9 +474,14 @@ export default function AddProduct() {
                 info: info.filter(it => it.key && it.value).map(it => ({ [it.key]: it.value }))
             };
 
+            const mainProductImage = (images.length > 0 ? (images[0].dataURL || images[0]) : "") || mainVariant?.image || "";
+            const mainProductImages = images.length > 0 
+                ? images.map(img => img.dataURL || img)
+                : (mainVariant?.images?.length > 0 ? mainVariant.images.map((img: any) => typeof img === 'string' ? img : img.image_url) : []);
+
             const payload = {
                 ...formData,
-                utc_id: mainVariant?.barcode || formData.utc_id || '',
+                utc_id: formData.utc_id || mainVariant?.barcode || '',
                 subcategory_id: formData.subcategory_id || null,
                 unit_label: mainVariant?.unit_label || formData.unit_label || '',
                 price: Number(mainVariant?.price) || 0,
@@ -483,9 +496,9 @@ export default function AddProduct() {
                 ingredients: ingredients.filter(i => i),
                 features: features.filter(f => f.title).map(f => ({ title: f.title, description: f.description })),
                 variants: updatedVariants,
-                image: mainVariant?.image || "",
-                images: mainVariant?.images?.map((img: any) => typeof img === 'string' ? img : img.image_url) || [],
-                thumbnail: mainVariant?.image || "",
+                image: mainProductImage,
+                images: mainProductImages,
+                thumbnail: mainProductImage,
                 tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
                 order: Number(formData.order)
             };
@@ -537,7 +550,11 @@ export default function AddProduct() {
                                     <input id="brand" type="text" className="form-input" value={formData.brand} onChange={handleChange} />
                                 </div>
 
-                                <div className="md:col-span-2">
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-bold uppercase">Barcode (UTC ID) *</label>
+                                    <input id="utc_id" type="text" className="form-input font-mono" value={formData.utc_id} onChange={handleChange} placeholder="Scan or enter Barcode" />
+                                </div>
+                                <div className="md:col-span-1">
                                     <label className="text-xs font-bold uppercase">Display Order</label>
                                     <input id="order" type="number" className="form-input" value={formData.order} onChange={handleChange} />
                                 </div>
@@ -621,7 +638,7 @@ export default function AddProduct() {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between border-b pb-2">
                                 <h6 className="text-base font-bold text-primary">Variants Inventory</h6>
-                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', original_price: '', barcode: '', images: [] }])}>
+                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', price: '', original_price: '', discount_percent: 0, stock: 100, sku: '', isActive: true, barcode: '', image: '' }])}>
                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                    Add Another Variant 
                                 </button>
@@ -694,43 +711,44 @@ export default function AddProduct() {
                                             {/* Variant Fields */}
                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                 <div>
-                                                    <label className="text-[10px] uppercase font-bold text-gray-400">Unit Label</label>
+                                                    <label className="text-[10px] uppercase font-bold text-gray-400">Unit Label (Weight/Size)</label>
                                                     <input className="form-input py-2 text-sm" value={v.unit_label} onChange={(e) => { const nv = [...variants]; nv[i].unit_label = e.target.value; setVariants(nv); }} placeholder="e.g. 1 Unit" />
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center justify-between mb-1">
                                                         <label className="text-[10px] uppercase font-bold text-gray-400">Barcode (UTC)</label>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => generateUtc(i)}
-                                                            className="text-[10px] font-bold text-primary hover:underline underline-offset-4"
-                                                        >
-                                                            GENERATE
-                                                        </button>
+                                                        <span className="text-[8px] font-bold text-primary cursor-pointer uppercase" onClick={() => generateUtc(i)}>GENERATE</span>
                                                     </div>
-                                                    <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => { 
+                                                    <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => { const nv = [...variants]; nv[i].barcode = e.target.value; setVariants(nv); }} placeholder="Barcode" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-gray-400">MRP (₹)</label>
+                                                    <input className="form-input py-2 text-sm font-bold text-danger" value={v.original_price} onChange={(e) => { 
+                                                        const nv = [...variants]; 
                                                         const val = e.target.value;
-                                                        const nv = [...variants]; nv[i].barcode = val; setVariants(nv);
-                                                        if (val.length >= 8) {
-                                                            if (debounceTimer.current) clearTimeout(debounceTimer.current);
-                                                            debounceTimer.current = setTimeout(() => fetchProductByUtc(val, i), 400);
+                                                        nv[i].original_price = val; 
+                                                        if (nv[i].price && val) {
+                                                            nv[i].discount_percent = Math.round(((Number(val) - Number(nv[i].price)) / Number(val)) * 100);
                                                         }
-                                                    }} placeholder="Scan Barcode" />
+                                                        setVariants(nv); 
+                                                    }} placeholder="0.00" />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] uppercase font-bold text-gray-400">MRP (Price)</label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
-                                                        <input className="form-input py-2 pl-5 text-sm font-bold text-danger" value={v.original_price} onChange={(e) => { const nv = [...variants]; nv[i].original_price = e.target.value; setVariants(nv); }} placeholder="0.00" />
-                                                    </div>
+                                                    <label className="text-[10px] uppercase font-bold text-primary">Selling (₹)</label>
+                                                    <input className="form-input py-2 text-sm font-bold text-primary" value={v.price} onChange={(e) => { 
+                                                        const nv = [...variants]; 
+                                                        const val = e.target.value;
+                                                        nv[i].price = val; 
+                                                        if (nv[i].original_price && val) {
+                                                            nv[i].discount_percent = Math.round(((Number(nv[i].original_price) - Number(val)) / Number(nv[i].original_price)) * 100);
+                                                        }
+                                                        setVariants(nv); 
+                                                    }} placeholder="0.00" />
                                                 </div>
-                                                <div>
-                                                    <label className="text-[10px] uppercase font-bold text-primary">Selling Price</label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
-                                                        <input className="form-input py-2 pl-5 text-sm font-bold text-primary" value={v.price} onChange={(e) => { const nv = [...variants]; nv[i].price = e.target.value; setVariants(nv); }} placeholder="0.00" />
-                                                    </div>
-                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-2 border-t mt-4 border-gray-100">
+                                                <Toggle checked={v.isActive} onChange={(v_val) => { const nv = [...variants]; nv[i].isActive = v_val; setVariants(nv); }} />
+                                                <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Show this variant in store</p>
                                             </div>
                                         </div>
                                     </div>
@@ -741,6 +759,44 @@ export default function AddProduct() {
 
                     {/* Right Side: Category, SEO */}
                     <div className="space-y-6">
+                        <div className="panel">
+                             <h6 className="text-base font-bold mb-5 border-b pb-2 text-primary">Main Image (Thumbnail)</h6>
+                             <div className="space-y-4">
+                                <ImageUploading
+                                    value={images}
+                                    onChange={onImageChange}
+                                    maxNumber={1}
+                                >
+                                    {({ imageList, onImageUpload, onImageRemove, isDragging, dragProps }) => (
+                                        <div className="upload__image-wrapper">
+                                            {imageList.length === 0 ? (
+                                                <button
+                                                    type="button"
+                                                    className={`w-full h-48 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary hover:bg-primary/5'}`}
+                                                    onClick={onImageUpload}
+                                                    {...dragProps}
+                                                >
+                                                    <div className="bg-primary/10 p-3 rounded-full">
+                                                        <IconCamera className="w-6 h-6 text-primary" />
+                                                    </div>
+                                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Upload Primary Product Image</p>
+                                                    <p className="text-[10px] text-gray-400">Max size 1MB (Recommended 800x800)</p>
+                                                </button>
+                                            ) : (
+                                                <div className="relative group rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white aspect-square w-full">
+                                                    <img src={imageList[0].dataURL} alt="main" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                        <button type="button" className="btn btn-sm btn-primary py-1 px-3 text-[10px]" onClick={() => onImageUpload()}>CHANGE</button>
+                                                        <button type="button" className="btn btn-sm btn-danger py-1 px-3 text-[10px]" onClick={() => onImageRemove(0)}>REMOVE</button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </ImageUploading>
+                             </div>
+                        </div>
+
                         <div className="panel">
                             <h6 className="text-base font-bold mb-5 border-b pb-2">Category Map</h6>
                             <div className="grid grid-cols-1 gap-6">

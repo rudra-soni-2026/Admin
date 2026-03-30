@@ -93,7 +93,7 @@ const ProductList = () => {
                             </div>
                         ),
                         brand: product.brand || mainVariant.brand_name || 'N/A',
-                        barcode: product.utc_id || mainVariant.barcode || 'N/A',
+                        barcode: product.utc_id || mainVariant.barcode || mainVariant.utc_id || 'N/A',
                         image: product.image || mainVariant.image || '/assets/images/profile-1.jpeg',
                         category: product.subcategory_id?.name
                             || product.category_id?.name
