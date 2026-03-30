@@ -58,29 +58,50 @@ const ProductList = () => {
 
             const response = await callApi(query, 'GET');
 
-            if (response && response.data) {
-                const mappedData = response.data.map((product: any) => ({
-                    id: product.utc_id || (product._id ? `#${String(product._id).substring(18).toUpperCase()}` : '#UNKNOWN'),
-                    originalId: product._id,
-                    name: product.name || 'Unknown Product',
-                    brand: product.brand || 'N/A',
-                    barcode: product.utc_id || 'N/A',
-                    image: product.image || '/assets/images/profile-1.jpeg',
-                    // categoryId can be a populated object, or a string ID — try all paths
-                    category: product.subcategory_id?.name
-                        || (typeof product.subcategory_id === 'string' && product.subcategory_id ? product.subcategory_id : null)
-                        || product.subcategory_id?.name
-                        || product.subcategory_id
-                        || 'N/A',
-                    price: product.price !== undefined ? `₹${product.price}` : '₹0',
-                    mrp: product.original_price !== undefined ? `₹${Number(product.original_price) || 0}` : '₹0',
-                    status: product.isActive ? 'Active' : 'Inactive',
-                    joinedDate: product.createdAt ? new Date(product.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
-                }));
+            const rawData = response?.data || response?.['Product table data'] || response?.products || [];
+            
+            if (response && rawData) {
+                const mappedData = rawData.map((product: any) => {
+                    const mainVariant = product.variants?.[0] || {};
+                    const variantsCount = product.variants?.length || 0;
+                    return {
+                        id: product.utc_id || mainVariant.barcode || (product._id ? `#${String(product._id).substring(18).toUpperCase()}` : '#UNKNOWN'),
+                        originalId: product._id,
+                        name: (
+                            <div className="flex flex-col">
+                                <span className="font-bold text-gray-800 dark:text-white-light leading-tight mb-1">{product.name || 'Unknown Product'}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20 whitespace-nowrap">
+                                        {variantsCount} {variantsCount === 1 ? 'Variant' : 'Variants'}
+                                    </span>
+                                    {mainVariant.unit_label && (
+                                        <span className="text-[9px] font-black uppercase bg-secondary/10 text-secondary px-1.5 py-0.5 rounded border border-secondary/20 whitespace-nowrap">
+                                            {mainVariant.unit_label}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ),
+                        brand: product.brand || mainVariant.brand_name || 'N/A',
+                        barcode: product.utc_id || mainVariant.barcode || 'N/A',
+                        image: product.image || mainVariant.image || '/assets/images/profile-1.jpeg',
+                        category: product.subcategory_id?.name
+                            || product.category_id?.name
+                            || (typeof product.subcategory_id === 'string' && product.subcategory_id ? product.subcategory_id : null)
+                            || product.subcategory_id
+                            || 'N/A',
+                        price: (mainVariant.price || product.price) ? `₹${mainVariant.price || product.price}` : '₹0',
+                        mrp: (mainVariant.original_price || product.original_price) ? `₹${mainVariant.original_price || product.original_price}` : '₹0',
+                        status: product.isActive ? 'Active' : 'Inactive',
+                        joinedDate: product.createdAt ? new Date(product.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
+                    };
+                });
                 setProductData(mappedData);
                 const count = 
                     response.pagination?.total_items ??
+                    response.pagination?.totalCount ??
                     response.totalCount ??
+                    response.total_items ??
                     response.stats?.totalProduct ??
                     0;
                 setTotalRecords(count);
@@ -97,12 +118,18 @@ const ProductList = () => {
         }
     };
 
+    const lastFilters = React.useRef('');
+
     useEffect(() => {
-        if (page !== 1 && (debouncedSearch || status !== 'all' || categoryId || brand || minPrice || maxPrice || dateRange)) {
-            setPage(1);
-        } else {
-            fetchProducts(page);
+        const currentFilters = JSON.stringify({ debouncedSearch, status, categoryId, brand, minPrice, maxPrice, dateRange, sortBy });
+        if (lastFilters.current !== currentFilters) {
+            lastFilters.current = currentFilters;
+            if (page !== 1) {
+                setPage(1);
+                return;
+            }
         }
+        fetchProducts(page);
     }, [page, debouncedSearch, status, categoryId, brand, minPrice, maxPrice, sortBy, dateRange]);
 
     const router = useRouter();

@@ -40,7 +40,7 @@ const AddPurchase = () => {
     });
 
     const [orderItems, setOrderItems] = useState<any[]>([
-        { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, subtotal: 0, isSearching: false, searchedUtc: '' }
+        { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }
     ]);
 
     useEffect(() => {
@@ -103,14 +103,14 @@ const AddPurchase = () => {
     };
 
     const addItem = () => {
-        setOrderItems([{ utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, subtotal: 0, isSearching: false, searchedUtc: '' }, ...orderItems]);
+        setOrderItems([{ utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }, ...orderItems]);
     };
 
     const removeItem = (index: number) => {
         let newItems = [...orderItems];
         newItems.splice(index, 1);
         if (newItems.length === 0) {
-            newItems = [{ utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, subtotal: 0, isSearching: false, searchedUtc: '' }];
+            newItems = [{ utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }];
         }
         setOrderItems(newItems);
     };
@@ -171,7 +171,7 @@ const AddPurchase = () => {
                         isSearching: false
                     };
 
-                    const emptyItem = { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, subtotal: 0, isSearching: false, searchedUtc: '' };
+                    const emptyItem = { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' };
                     
                     setOrderItems(prev => {
                         const next = [...prev];
@@ -238,9 +238,19 @@ const AddPurchase = () => {
     const handleItemChange = (index: number, field: string, value: any) => {
         const newItems = [...orderItems];
         newItems[index][field] = value;
-        if (field === 'price' || field === 'quantity') {
-            newItems[index].subtotal = Number(newItems[index].price) * Number(newItems[index].quantity);
-        }
+        
+        const price = Number(newItems[index].price) || 0;
+        const qty = Number(newItems[index].quantity) || 0;
+        const cgst = Number(newItems[index].cgst) || 0;
+        const sgst = Number(newItems[index].sgst) || 0;
+        const igst = Number(newItems[index].igst) || 0;
+        const cess = Number(newItems[index].cess) || 0;
+        
+        const totalTaxPercent = cgst + sgst + igst + cess;
+        const baseAmount = price * qty;
+        const taxAmount = (baseAmount * totalTaxPercent) / 100;
+        
+        newItems[index].subtotal = baseAmount + taxAmount;
         setOrderItems(newItems);
     };
 
@@ -331,6 +341,10 @@ const AddPurchase = () => {
                     purchase_cost: Number(item.price),
                     selling_price: Number(item.sell_price),
                     quantity: Number(item.quantity),
+                    cgst_percent: Number(item.cgst),
+                    sgst_percent: Number(item.sgst),
+                    igst_percent: Number(item.igst),
+                    cess_percent: Number(item.cess),
                     subtotal: Number(item.subtotal)
                 }))
             };
@@ -438,78 +452,98 @@ const AddPurchase = () => {
                                 </button>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-4">
                                 {orderItems.map((item, index) => (
-                                    <div key={index} className={`flex items-center h-13 gap-2 p-1 px-3 bg-white dark:bg-[#0e1726] border rounded-xl transition-all ${item.product_id ? 'border-success/20 bg-success/5 shadow-none' : 'border-gray-100 dark:border-gray-800'}`}>
+                                    <div key={index} className={`flex flex-col p-4 bg-white dark:bg-[#0e1726] border-2 rounded-2xl transition-all shadow-md ${item.product_id ? 'border-success/30 bg-success/5' : 'border-gray-100 dark:border-gray-800'}`}>
                                         
-                                        {/* 1. Medium Image */}
-                                        <div className="w-9 h-9 flex-shrink-0 bg-gray-50 dark:bg-black/20 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-800">
-                                            {item.image ? (
-                                                <img src={item.image} alt="" className="w-full h-full object-contain" />
-                                            ) : (
-                                                <IconBox className="w-5 h-5 text-gray-200" />
-                                            )}
-                                        </div>
-
-                                        {/* 2. Barcode & Name */}
-                                        <div className="w-40 flex-shrink-0 flex flex-col justify-center">
-                                            <input 
-                                                type="text" 
-                                                placeholder="Scan..." 
-                                                autoFocus={index === 0}
-                                                readOnly={!!item.product_id}
-                                                className={`form-input h-7 py-0.5 px-2 text-[11px] font-black tracking-widest rounded-lg ${item.product_id ? 'bg-transparent border-transparent text-primary' : 'bg-gray-50 border-gray-200 focus:border-primary'}`} 
-                                                value={item.utc || ''} 
-                                                onChange={(e) => {
-                                                    const newItems = [...orderItems];
-                                                    newItems[index].utc = e.target.value;
-                                                    setOrderItems(newItems);
-                                                }}
-                                            />
-                                            <div className="h-3.5 flex items-center overflow-hidden pl-1 mt-0.5">
-                                                {item.name ? (
-                                                    <span className="text-[10px] font-black text-gray-700 dark:text-gray-200 uppercase truncate block w-full">
-                                                        {item.name}
-                                                    </span>
+                                        {/* Row Line 1: Primary Search & Identity */}
+                                        <div className="flex items-center gap-5 mb-4 pb-4 border-b border-gray-50 dark:border-gray-900/40">
+                                            <div className="w-12 h-12 flex-shrink-0 bg-gray-50 dark:bg-black/20 rounded-xl flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-800 shadow-inner">
+                                                {item.image ? (
+                                                    <img src={item.image} alt="" className="w-full h-full object-contain" />
                                                 ) : (
-                                                    <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Ready</span>
+                                                    <IconBox className="w-6 h-6 text-gray-200" />
                                                 )}
                                             </div>
-                                        </div>
-
-                                        {/* 3. Controls (Compact but Readable) */}
-                                        <div className="flex items-center justify-end gap-2 flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[8px] font-black text-gray-400 uppercase">Cost</span>
-                                                <input type="text" className="form-input h-8 w-14 text-center text-xs font-black rounded-lg border-gray-200 dark:border-gray-700 bg-white dark:bg-black" value={item.price} onChange={(e) => handleItemChange(index, 'price', e.target.value)} />
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[8px] font-black text-gray-400 uppercase">Sell</span>
-                                                <input type="text" className="form-input h-8 w-14 text-center text-xs font-black rounded-lg border-gray-200 dark:border-gray-700 bg-white dark:bg-black" value={item.sell_price} onChange={(e) => handleItemChange(index, 'sell_price', e.target.value)} />
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[8px] font-black text-gray-400 uppercase">Qty</span>
-                                                <div className="flex items-center w-20 h-8 bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-                                                    <button type="button" className="w-7 h-full hover:bg-gray-50 font-bold border-r border-gray-100 dark:border-gray-800" onClick={() => handleItemChange(index, 'quantity', Math.max(1, (Number(item.quantity) || 0) - 1))}>-</button>
-                                                    <input type="text" className="bg-transparent text-xs text-center font-black w-full outline-none" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} />
-                                                    <button type="button" className="w-7 h-full hover:bg-gray-50 font-bold border-l border-gray-100 dark:border-gray-800" onClick={() => handleItemChange(index, 'quantity', (Number(item.quantity) || 0) + 1)}>+</button>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">Barcode Identification</span>
+                                                    {item.isSearching && <span className="animate-spin rounded-full border-2 border-primary border-l-transparent w-2.5 h-2.5" />}
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Scan / Enter UTC ID" 
+                                                        autoFocus={index === 0}
+                                                        readOnly={!!item.product_id}
+                                                        className={`form-input h-9 py-2 px-3 text-xs font-black tracking-widest rounded-xl transition-all w-full max-w-sm ${item.product_id ? 'bg-transparent border-none text-primary p-0' : 'bg-gray-50 border-gray-200 focus:border-primary shadow-sm'}`} 
+                                                        value={item.utc || ''} 
+                                                        onChange={(e) => {
+                                                            const newItems = [...orderItems];
+                                                            newItems[index].utc = e.target.value;
+                                                            setOrderItems(newItems);
+                                                        }}
+                                                    />
+                                                    {item.name && (
+                                                        <div className="bg-white dark:bg-black px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-2">
+                                                            <span className="text-[11px] font-black text-gray-700 dark:text-gray-200 uppercase truncate max-w-[200px]">{item.name}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="w-16 text-right border-l pl-3 dark:border-gray-800">
-                                                <span className="text-sm font-black text-primary truncate block">₹{item.subtotal.toFixed(0)}</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block leading-none mb-1">Net Subtotal</span>
+                                                    <span className="text-xl font-black text-primary block leading-none">₹{item.subtotal.toFixed(2)}</span>
+                                                </div>
+                                                <button type="button" className="w-10 h-10 rounded-2xl bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all shadow-sm flex items-center justify-center border border-danger/5" onClick={() => removeItem(index)}>
+                                                    <IconTrashLines className="w-5 h-5" />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        {/* 4. Delete (Prominent Red) */}
-                                        <div className="flex-shrink-0">
-                                            <button 
-                                                type="button" 
-                                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-danger/10 text-danger border border-danger/10 hover:bg-danger hover:text-white transition-all shadow-sm" 
-                                                onClick={() => removeItem(index)} 
-                                                title="Delete"
-                                            >
-                                                <IconTrashLines className="w-4 h-4" />
-                                            </button>
+                                        {/* Row Line 2: Financial Details - Zero Overlap Layout */}
+                                        <div className="flex flex-wrap items-center justify-between gap-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex flex-col gap-1.5 min-w-[100px]">
+                                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full" /> Cost ₹
+                                                    </label>
+                                                    <input type="number" className="form-input h-10 w-full text-center text-xs font-black rounded-xl border-gray-200 dark:border-gray-700 bg-white dark:bg-black transition-all focus:border-primary" value={item.price} onChange={(e) => handleItemChange(index, 'price', e.target.value)} />
+                                                </div>
+                                                <div className="flex flex-col gap-1.5 min-w-[100px]">
+                                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 px-1">
+                                                        <span className="w-1.5 h-1.5 bg-success rounded-full" /> Sell ₹
+                                                    </label>
+                                                    <input type="number" className="form-input h-10 w-full text-center text-xs font-black rounded-xl border-gray-200 dark:border-gray-700 bg-white dark:bg-black transition-all focus:border-success" value={item.sell_price} onChange={(e) => handleItemChange(index, 'sell_price', e.target.value)} />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+                                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Tax Percentages (Individual GST Buckets)</label>
+                                                <div className="flex items-center p-1.5 bg-gray-50/50 dark:bg-black/40 rounded-2xl gap-2 border border-gray-100 dark:border-gray-800 shadow-inner">
+                                                    {[
+                                                        { label: 'CGST%', field: 'cgst' },
+                                                        { label: 'SGST%', field: 'sgst' },
+                                                        { label: 'IGST%', field: 'igst' },
+                                                        { label: 'CESS%', field: 'cess' }
+                                                    ].map((tax, tidx) => (
+                                                        <div key={tax.field} className={`flex flex-col items-center flex-1 ${tidx > 0 ? 'border-l border-gray-200 dark:border-gray-800' : ''}`}>
+                                                            <span className="text-[7px] font-bold text-gray-500 uppercase mb-1">{tax.label}</span>
+                                                            <input type="number" className="form-input h-6 w-full p-0 text-center text-[10px] font-black rounded-lg border-transparent hover:border-gray-300 focus:bg-white" value={item[tax.field as keyof typeof item]} onChange={(e) => handleItemChange(index, tax.field, e.target.value)} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5 min-w-[140px]">
+                                                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Purchase Qty</label>
+                                                <div className="flex items-center w-full h-10 bg-white dark:bg-black rounded-xl border-2 border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
+                                                    <button type="button" className="w-10 h-full hover:bg-gray-50 text-gray-400 font-bold border-r border-gray-100 dark:border-gray-800 text-lg" onClick={() => handleItemChange(index, 'quantity', Math.max(1, (Number(item.quantity) || 0) - 1))}>−</button>
+                                                    <input type="number" className="bg-transparent text-sm text-center font-black w-full outline-none p-0 border-none px-2" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} />
+                                                    <button type="button" className="w-10 h-full hover:bg-gray-50 text-gray-400 font-bold border-l border-gray-100 dark:border-gray-800 text-lg" onClick={() => handleItemChange(index, 'quantity', (Number(item.quantity) || 0) + 1)}>+</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -517,10 +551,10 @@ const AddPurchase = () => {
                         </div>
                     </div>
 
-                    {/* Right Column: Summary */}
+                    {/* RIGHT COLUMN (1/3 Width) */}
                     <div className="space-y-6">
                         <div className="panel">
-                            <h6 className="text-base font-bold mb-5 border-b pb-2">Order Summary</h6>
+                            <h6 className="text-base font-bold mb-5 border-b pb-2 text-gray-700 dark:text-white-light">Order Summary</h6>
                             <div className="space-y-4">
                                 <div>
                                     <label htmlFor="status" className="text-xs font-bold uppercase mb-1 block">Purchase Status</label>
@@ -551,44 +585,27 @@ const AddPurchase = () => {
                             </div>
                         </div>
 
-
                         <div className="panel">
                             <h6 className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest">Document Attachment</h6>
                             <div className="flex flex-col gap-3">
                                 <label className="text-xs font-bold uppercase mb-1 block">Upload Invoice (PDF/Image)</label>
                                 <div className="relative group overflow-hidden bg-gray-50 dark:bg-black/20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/50 transition-all p-4 text-center cursor-pointer">
-                                    <input 
-                                        type="file" 
-                                        className="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                                        onChange={handleFileChange} 
-                                        accept=".pdf,image/*"
-                                    />
+                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleFileChange} accept=".pdf,image/*" />
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                                             <IconFile className="w-5 h-5" />
                                         </div>
-                                        <span className="text-[11px] font-bold text-gray-500 uppercase">
-                                            {formData.invoice ? formData.invoice.name : 'Click to Upload Document'}
-                                        </span>
+                                        <span className="text-[11px] font-bold text-gray-500 uppercase">{formData.invoice ? formData.invoice.name : 'Click to Upload Document'}</span>
                                         <p className="text-[9px] text-gray-400">Max size: 1MB (PDF, PNG, JPG)</p>
                                     </div>
                                 </div>
-                                {formData.invoice && (
-                                    <button 
-                                        type="button" 
-                                        className="text-[10px] text-danger hover:underline font-bold self-end"
-                                        onClick={() => setFormData(prev => ({ ...prev, invoice: null }))}
-                                    >
-                                        Remove File
-                                    </button>
-                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Sticky Footer Actions */}
-                <div className="panel sticky bottom-0 z-10 flex justify-end gap-3 shadow-xl mt-8 border-t border-gray-100 py-4 bg-white/80 backdrop-blur-md dark:bg-black/80">
+                <div className="panel sticky bottom-0 z-10 flex justify-end gap-3 shadow-xl mt-8 border-t border-gray-100 py-4 bg-white/80 backdrop-blur-md dark:bg-black/80 rounded-t-none">
                     <button type="button" className="btn btn-outline-danger px-8 uppercase font-bold text-xs" onClick={() => router.push('/purchase/list')}>
                         Discard
                     </button>

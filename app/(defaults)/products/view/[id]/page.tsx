@@ -64,36 +64,54 @@ export default function ViewProduct() {
     const features: any[] = Array.isArray(product.features) ? product.features : [];
     const ingredients: string[] = Array.isArray(product.ingredients) ? product.ingredients : [];
 
-    // description can be a string OR an object {info, highlights}
-    const descObj = product.description && typeof product.description === 'object' ? product.description : null;
-    const descText = typeof product.description === 'string' ? product.description : null;
-
-    // info: try product.info first, then product.description.info
-    const rawInfo = product.info || descObj?.info;
-    const info: { key: string; value: string }[] = Array.isArray(rawInfo)
-        ? rawInfo.map((item: any) => {
-            if (typeof item === 'object' && item !== null) {
-                const entries = Object.entries(item);
-                return entries.length > 0 ? { key: String(entries[0][0]), value: String(entries[0][1]) } : null;
-            }
-            return null;
-        }).filter(Boolean) as { key: string; value: string }[]
-        : rawInfo && typeof rawInfo === 'object'
-        ? Object.entries(rawInfo).map(([k, v]) => ({ key: k, value: String(v) }))
-        : [];
-
-    // highlights from description.highlights
-    const highlights: string[] = Array.isArray(descObj?.highlights) ? descObj.highlights : [];
-
     // Safe string helper — prevents "Objects are not valid as React child"
+    // Also intelligently extracts values from simple objects like { "ANY_KEY": "Value" }
     const safeStr = (val: any): string => {
         if (val === null || val === undefined) return '';
         if (typeof val === 'string') return val;
         if (typeof val === 'number' || typeof val === 'boolean') return String(val);
         if (Array.isArray(val)) return val.map(v => safeStr(v)).join(', ');
-        if (typeof val === 'object') return JSON.stringify(val);
+        if (typeof val === 'object') {
+            const entries = Object.entries(val);
+            if (entries.length === 1) return safeStr(entries[0][1]);
+            return JSON.stringify(val);
+        }
         return String(val);
     };
+
+    // Parse product_details if it's a JSON string
+    let detailsObj: any = null;
+    if (typeof product.product_details === 'string' && product.product_details.trim().startsWith('{')) {
+        try {
+            detailsObj = JSON.parse(product.product_details);
+        } catch (e) {
+            console.error("Failed to parse product_details", e);
+        }
+    }
+
+    // description can be a string OR an object {info, highlights}
+    const descObj = (product.description && typeof product.description === 'object') ? product.description : detailsObj;
+    const descText = typeof product.description === 'string'
+        ? product.description
+        : (typeof detailsObj?.description === 'string' ? detailsObj.description : null);
+
+    // info: prioritize product.info, then descObj.info
+    const rawInfo = (Array.isArray(product.info) && product.info.length > 0) ? product.info : descObj?.info;
+    const info: { key: string; value: string }[] = Array.isArray(rawInfo)
+        ? rawInfo.map((item: any) => {
+            if (typeof item === 'object' && item !== null) {
+                const entries = Object.entries(item);
+                return entries.length > 0 ? { key: String(entries[0][0]), value: safeStr(entries[0][1]) } : null;
+            }
+            return { key: 'Info', value: safeStr(item) };
+        }).filter(Boolean) as { key: string; value: string }[]
+        : rawInfo && typeof rawInfo === 'object'
+        ? Object.entries(rawInfo).map(([k, v]) => ({ key: k, value: safeStr(v) }))
+        : [];
+
+    // highlights: prioritize product.highlights, then descObj.highlights
+    const rawHighlights = (Array.isArray(product.highlights) && product.highlights.length > 0) ? product.highlights : descObj?.highlights;
+    const highlights: any[] = Array.isArray(rawHighlights) ? rawHighlights : [];
 
     return (
         <div className="animate__animated animate__fadeIn">
@@ -213,6 +231,41 @@ export default function ViewProduct() {
                             </div>
                         )}
                     </div>
+
+                    {/* Variants Table */}
+                    {product.variants?.length > 0 && (
+                        <div className="panel animate__animated animate__fadeInUp">
+                            <h6 className="text-sm font-black uppercase tracking-wider mb-4 text-gray-600 border-b pb-2">Available Variants</h6>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className="bg-gray-50 dark:bg-black/20 text-gray-500 font-extrabold uppercase tracking-wider border-b border-gray-100">
+                                            <th className="px-4 py-2.5 text-left rounded-tl-lg">Unit</th>
+                                            <th className="px-4 py-2.5 text-left">Type</th>
+                                            <th className="px-4 py-2.5 text-right">Price</th>
+                                            <th className="px-4 py-2.5 text-right">MRP</th>
+                                            <th className="px-4 py-2.5 text-center rounded-tr-lg">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {product.variants.map((v: any, i: number) => (
+                                            <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
+                                                <td className="px-4 py-3 font-bold text-black dark:text-white">{safeStr(v.unit_label)}</td>
+                                                <td className="px-4 py-3 text-gray-500 font-medium">{safeStr(v.unit_type)}</td>
+                                                <td className="px-4 py-3 text-right font-black text-success">₹{safeStr(v.price)}</td>
+                                                <td className="px-4 py-3 text-right font-bold text-danger/60 line-through">₹{safeStr(v.original_price)}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${v.isActive !== false ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                                                        {v.isActive !== false ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* RIGHT: Details Panel */}
@@ -227,11 +280,24 @@ export default function ViewProduct() {
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-gray-400">Brand</p>
-                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{safeStr(product.brand) || 'N/A'}</p>
+                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    {safeStr(product.brand?.name || product.brand || product.variants?.[0]?.brand_name || product.brand_id?.name) || 'N/A'}
+                                </p>
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-gray-400">Category</p>
-                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{product.categoryId?.name ? safeStr(product.categoryId.name) : 'N/A'}</p>
+                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    {safeStr(
+                                        product.subcategory_id?.name || 
+                                        product.categoryId?.name || 
+                                        product.category?.name || 
+                                        product.p_category?.name || 
+                                        (typeof product.categoryId === 'string' ? null : product.categoryId) || 
+                                        product.p_category || 
+                                        product.categoryId || 
+                                        'N/A'
+                                    )}
+                                </p>
                             </div>
                             {product.subcategory_id?.name && (
                                 <div>
@@ -241,44 +307,47 @@ export default function ViewProduct() {
                             )}
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-gray-400">Unit Label</p>
-                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{safeStr(product.unit_label) || 'N/A'}</p>
+                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{safeStr(product.unit_label || product.variants?.[0]?.unit_label) || 'N/A'}</p>
                             </div>
-                            <div>
-                                <p className="text-[10px] uppercase font-black tracking-widest text-gray-400">Barcode / UTC</p>
-                                <p className="text-sm font-mono font-bold text-gray-700 dark:text-gray-300">{safeStr(product.utc_id || product._id) || 'N/A'}</p>
-                            </div>
-                            {product.original_price !== undefined && (
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-danger/5 border border-danger/10">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-danger">MRP</p>
-                                    <p className="text-lg font-black text-danger">₹{Number(product.original_price) || 0}</p>
+                            {product.utc_id && (
+                                <div>
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-gray-400">Barcode / UTC</p>
+                                    <p className="text-sm font-mono font-bold text-gray-700 dark:text-gray-300">{safeStr(product.utc_id || product._id) || 'N/A'}</p>
                                 </div>
                             )}
-                            {product.price !== undefined && product.price > 0 && (
+                            {(product.original_price || product.variants?.[0]?.original_price) && (
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-danger/5 border border-danger/10">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-danger">MRP</p>
+                                    <p className="text-lg font-black text-danger">₹{safeStr(product.variants?.[0]?.original_price || product.original_price || 0)}</p>
+                                </div>
+                            )}
+                            {(product.price || product.variants?.[0]?.price) && (
                                 <div className="flex items-center justify-between p-3 rounded-xl bg-success/5 border border-success/10">
                                     <p className="text-[10px] uppercase font-black tracking-widest text-success">Selling Price</p>
-                                    <p className="text-lg font-black text-success">₹{product.price}</p>
+                                    <p className="text-lg font-black text-success">₹{safeStr(product.variants?.[0]?.price || product.price || 0)}</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Description */}
-                    {(product.product_details || descText || highlights.length > 0) && (
+                    {(descText || highlights.length > 0 || (product.product_details && !detailsObj)) && (
                         <div className="panel">
                             <h6 className="text-sm font-black uppercase tracking-wider mb-3 text-gray-600 border-b pb-2">Description</h6>
-                            {product.product_details && (
+                            {/* Only show product_details if it's NOT a JSON string we already parsed */}
+                            {product.product_details && !detailsObj && (
                                 <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{safeStr(product.product_details)}</p>
                             )}
                             {descText && (
-                                <p className="text-xs text-gray-500 leading-relaxed">{descText}</p>
+                                <p className="text-xs text-gray-500 leading-relaxed mb-4">{safeStr(descText)}</p>
                             )}
                             {highlights.length > 0 && (
-                                <div className="mt-3 space-y-1">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-2">Highlights</p>
-                                    {highlights.map((h: string, i: number) => (
-                                        <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
-                                            {h}
+                                <div className="space-y-1.5">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-2 underline decoration-primary/30 underline-offset-4">Highlights</p>
+                                    {highlights.map((h: any, i: number) => (
+                                        <div key={i} className="flex items-start gap-2 text-xs font-medium text-gray-600">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-success mt-1.5 shrink-0" />
+                                            {safeStr(h)}
                                         </div>
                                     ))}
                                 </div>
