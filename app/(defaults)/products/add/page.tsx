@@ -16,9 +16,8 @@ const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean
     <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 ease-in-out ${
-            checked ? 'bg-primary' : 'bg-gray-200'
-        }`}
+        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 ease-in-out ${checked ? 'bg-primary' : 'bg-gray-200'
+            }`}
     >
         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-all duration-200 ${checked ? 'translate-x-6' : 'translate-x-0.5'}`} />
     </button>
@@ -38,9 +37,9 @@ export default function AddProduct() {
         description: '',
         product_details: '',
         original_price: '',
-        p_category: '', 
-        categoryId: '', 
-        subcategory_id: '', 
+        p_category: '',
+        categoryId: '',
+        subcategory_id: '',
         unit_label: '',
         brand: '',
         price: '',
@@ -65,7 +64,16 @@ export default function AddProduct() {
     const [ingredients, setIngredients] = useState(['']);
     const [info, setInfo] = useState([{ key: '', value: '' }]);
     const [highlights, setHighlights] = useState(['']);
-    const [variants, setVariants] = useState<any[]>([{ unit_label: '', unit_type: 'piece', price: '', original_price: '', discount_percent: 0, stock: 100, sku: '', isActive: true, barcode: '', image: '' }]);
+    const [variants, setVariants] = useState<any[]>([{
+        unit_label: '',
+        unit_type: 'piece',
+        price: '',
+        original_price: '',
+        stock: 100,
+        sku: '',
+        barcode: '',
+        image: ''
+    }]);
 
     useEffect(() => {
         fetchL1();
@@ -187,13 +195,13 @@ export default function AddProduct() {
 
                     showMessage(`Scanner: Variant info and ${Array.isArray(rawHighlights) ? rawHighlights.length : 0} highlights found!`, 'success');
                     setFetchingUtc(false);
-                    return; 
+                    return;
                 }
 
                 // ALWAYS update the specific variant scanned (Images, Prices, Barcode)
                 const foundImages = Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []);
                 const formattedImages = foundImages.map((url: string) => ({ dataURL: url }));
-                
+
                 setVariants(prev => {
                     const nv = [...prev];
                     if (nv[variantIndex]) {
@@ -207,7 +215,7 @@ export default function AddProduct() {
 
                 showMessage(`Variant ${variantIndex + 1} data updated from cache!`, 'success');
                 setFetchingUtc(false);
-                return; 
+                return;
             }
 
             // 2. Fallback to OpenFoodFacts result if local data not found
@@ -234,12 +242,12 @@ export default function AddProduct() {
                         setIngredients([p.ingredients_text]);
                     }
                 }
-                
+
                 const apiImages = [
-                    p.image_url, 
-                    p.image_front_url, 
-                    p.image_ingredients_url, 
-                    p.image_nutrition_url, 
+                    p.image_url,
+                    p.image_front_url,
+                    p.image_ingredients_url,
+                    p.image_nutrition_url,
                     p.image_packaging_url,
                     p.selected_images?.front?.display?.en,
                     p.selected_images?.ingredients?.display?.en,
@@ -272,14 +280,14 @@ export default function AddProduct() {
                 }
                 if (p.manufacturing_places || p.countries) newFeatures.push({ title: 'Product Origin', description: p.manufacturing_places || p.countries });
                 if (p.nutriscore_grade) newFeatures.push({ title: 'Nutri-Score', description: `Grade ${p.nutriscore_grade.toUpperCase()}` });
-                
+
                 if (newFeatures.length > 0) setFeatures(newFeatures);
 
                 const newInfo: { key: string, value: string }[] = [];
                 newInfo.push({ key: 'Barcode', value: p.code || utc });
                 if (p.packaging) newInfo.push({ key: 'Packaging', value: p.packaging });
                 if (p.additives_n >= 0) newInfo.push({ key: 'Additives Count', value: String(p.additives_n) });
-                
+
                 if (p.nutriments) {
                     const n = p.nutriments;
                     const per = p.nutrition_data_per || '100g';
@@ -335,18 +343,6 @@ export default function AddProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
-
-        // SYNC LOGIC: Automatically sync the main Barcode with the first variant
-        if (id === 'utc_id' && variants.length > 0) {
-            setVariants(prev => {
-                const nv = [...prev];
-                if (!nv[0].barcode || nv[0].barcode === formData.utc_id) {
-                    nv[0].barcode = value;
-                }
-                return nv;
-            });
-        }
-
         if (id === 'utc_id' && (value.length === 13 || value.length === 8 || value.length === 12)) {
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
             fetchProductByUtc(value); // Instant trigger for barcodes
@@ -354,7 +350,7 @@ export default function AddProduct() {
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
             debounceTimer.current = setTimeout(() => {
                 fetchProductByUtc(value);
-            }, 300); 
+            }, 300);
         }
     };
 
@@ -389,7 +385,7 @@ export default function AddProduct() {
 
         try {
             setLoading(true);
-            
+
             // Collect existing URLs (e.g. from API auto-fill)
             let finalImageUrls: string[] = images
                 .filter(img => !img.file && img.dataURL)
@@ -444,17 +440,12 @@ export default function AddProduct() {
 
                 return {
                     ...v,
-                    utc_id: v.barcode || v.utc_id || '', // Explicitly set it here for backend
-                    unit_type: v.unit_type || 'piece',
-                    discount_percent: Number(v.discount_percent) || 0,
-                    sku: v.sku || '',
-                    isActive: v.isActive !== undefined ? v.isActive : true,
                     price: Number(v.price) || Number(v.original_price) || 0,
                     original_price: Number(v.original_price) || 0,
                     stock: Number(v.stock) || 100,
                     image: vImages.length > 0 ? vImages[0] : "",
-                    images: vImages.map((url, idx) => ({ 
-                        image_url: url, 
+                    images: vImages.map((url, idx) => ({
+                        image_url: url,
                         alt: v.unit_label || "variant image",
                         order: String(idx)
                     }))
@@ -465,8 +456,8 @@ export default function AddProduct() {
 
             // Ensure at least one highlight if description exists but highlights are empty
             const activeHighlights = highlights.filter(h => h.trim());
-            const finalHighlights = activeHighlights.length > 0 
-                ? activeHighlights 
+            const finalHighlights = activeHighlights.length > 0
+                ? activeHighlights
                 : (formData.description ? [formData.description] : []);
 
             const detailsObj = {
@@ -475,7 +466,7 @@ export default function AddProduct() {
             };
 
             const mainProductImage = (images.length > 0 ? (images[0].dataURL || images[0]) : "") || mainVariant?.image || "";
-            const mainProductImages = images.length > 0 
+            const mainProductImages = images.length > 0
                 ? images.map(img => img.dataURL || img)
                 : (mainVariant?.images?.length > 0 ? mainVariant.images.map((img: any) => typeof img === 'string' ? img : img.image_url) : []);
 
@@ -565,8 +556,8 @@ export default function AddProduct() {
                                 <div className="md:col-span-2">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className="text-xs font-bold uppercase">Full Description</label>
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             className="text-primary text-[10px] font-black underline uppercase flex items-center gap-1 hover:scale-105 transition-transform disabled:opacity-50"
                                             onClick={handleAiGenerate}
                                             disabled={isAiGenerating}
@@ -597,7 +588,7 @@ export default function AddProduct() {
                                     <label className="text-xs font-extrabold uppercase mb-3 block text-primary">Product Highlights (Key Points)</label>
                                     {highlights.map((h, i) => (
                                         <div key={i} className="flex gap-2 mb-2">
-                                            <input placeholder={`Highlight #${i+1} (e.g. "Pure Cotton", "Imported")`} className="form-input text-xs" value={h} onChange={(e) => {
+                                            <input placeholder={`Highlight #${i + 1} (e.g. "Pure Cotton", "Imported")`} className="form-input text-xs" value={h} onChange={(e) => {
                                                 const nh = [...highlights]; nh[i] = e.target.value; setHighlights(nh);
                                             }} />
                                             <button type="button" className="text-danger p-1" onClick={() => setHighlights(highlights.filter((_, idx) => idx !== i))} disabled={highlights.length === 1}>×</button>
@@ -611,9 +602,9 @@ export default function AddProduct() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             {ingredients.map((ing, i) => (
                                                 <div key={i} className="flex gap-2 animate__animated animate__fadeIn">
-                                                    <input placeholder={`Ingredient #${i+1}`} className="form-input text-xs" value={ing} onChange={(e) => { 
-                                                        const ni = [...ingredients]; ni[i] = e.target.value; setIngredients(ni); 
-                                                     }} />
+                                                    <input placeholder={`Ingredient #${i + 1}`} className="form-input text-xs" value={ing} onChange={(e) => {
+                                                        const ni = [...ingredients]; ni[i] = e.target.value; setIngredients(ni);
+                                                    }} />
                                                     <button type="button" className="text-danger hover:scale-110 transition-transform" onClick={() => setIngredients(ingredients.filter((_, idx) => idx !== i))} disabled={ingredients.length === 1}>×</button>
                                                 </div>
                                             ))}
@@ -638,12 +629,12 @@ export default function AddProduct() {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between border-b pb-2">
                                 <h6 className="text-base font-bold text-primary">Variants Inventory</h6>
-                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', price: '', original_price: '', discount_percent: 0, stock: 100, sku: '', isActive: true, barcode: '', image: '' }])}>
-                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                   Add Another Variant 
+                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', original_price: '', barcode: '', images: [] }])}>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                    Add Another Variant
                                 </button>
                             </div>
-                            
+
                             <div className="grid grid-cols-1 gap-6">
                                 {variants.map((v, i) => (
                                     <div key={i} className="panel bg-white dark:bg-black/20 border border-gray-200 shadow-sm animate__animated animate__fadeInUp relative overflow-hidden">
@@ -659,9 +650,9 @@ export default function AddProduct() {
                                             <div className="p-4 bg-gray-50/30 rounded-xl border border-dashed border-gray-200">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <label className="text-[10px] font-black uppercase text-gray-400">Variant Images</label>
-                                                    <a 
-                                                        href={`https://www.google.com/search?q=${encodeURIComponent((formData.brand || '') + ' ' + (formData.name || '') + ' ' + (v.unit_label || '') + ' image')}&tbm=isch`} 
-                                                        target="_blank" 
+                                                    <a
+                                                        href={`https://www.google.com/search?q=${encodeURIComponent((formData.brand || '') + ' ' + (formData.name || '') + ' ' + (v.unit_label || '') + ' image')}&tbm=isch`}
+                                                        target="_blank"
                                                         rel="noreferrer"
                                                         className="btn btn-xs btn-outline-secondary gap-1.5 font-extrabold uppercase py-1 text-[9px]"
                                                     >
@@ -711,44 +702,43 @@ export default function AddProduct() {
                                             {/* Variant Fields */}
                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                 <div>
-                                                    <label className="text-[10px] uppercase font-bold text-gray-400">Unit Label (Weight/Size)</label>
+                                                    <label className="text-[10px] uppercase font-bold text-gray-400">Unit Label</label>
                                                     <input className="form-input py-2 text-sm" value={v.unit_label} onChange={(e) => { const nv = [...variants]; nv[i].unit_label = e.target.value; setVariants(nv); }} placeholder="e.g. 1 Unit" />
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center justify-between mb-1">
                                                         <label className="text-[10px] uppercase font-bold text-gray-400">Barcode (UTC)</label>
-                                                        <span className="text-[8px] font-bold text-primary cursor-pointer uppercase" onClick={() => generateUtc(i)}>GENERATE</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => generateUtc(i)}
+                                                            className="text-[10px] font-bold text-primary hover:underline underline-offset-4"
+                                                        >
+                                                            GENERATE
+                                                        </button>
                                                     </div>
-                                                    <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => { const nv = [...variants]; nv[i].barcode = e.target.value; setVariants(nv); }} placeholder="Barcode" />
+                                                    <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const nv = [...variants]; nv[i].barcode = val; setVariants(nv);
+                                                        if (val.length >= 8) {
+                                                            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                                                            debounceTimer.current = setTimeout(() => fetchProductByUtc(val, i), 400);
+                                                        }
+                                                    }} placeholder="Scan Barcode" />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] uppercase font-bold text-gray-400">MRP (₹)</label>
-                                                    <input className="form-input py-2 text-sm font-bold text-danger" value={v.original_price} onChange={(e) => { 
-                                                        const nv = [...variants]; 
-                                                        const val = e.target.value;
-                                                        nv[i].original_price = val; 
-                                                        if (nv[i].price && val) {
-                                                            nv[i].discount_percent = Math.round(((Number(val) - Number(nv[i].price)) / Number(val)) * 100);
-                                                        }
-                                                        setVariants(nv); 
-                                                    }} placeholder="0.00" />
+                                                    <label className="text-[10px] uppercase font-bold text-gray-400">MRP (Price)</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
+                                                        <input className="form-input py-2 pl-5 text-sm font-bold text-danger" value={v.original_price} onChange={(e) => { const nv = [...variants]; nv[i].original_price = e.target.value; setVariants(nv); }} placeholder="0.00" />
+                                                    </div>
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] uppercase font-bold text-primary">Selling (₹)</label>
-                                                    <input className="form-input py-2 text-sm font-bold text-primary" value={v.price} onChange={(e) => { 
-                                                        const nv = [...variants]; 
-                                                        const val = e.target.value;
-                                                        nv[i].price = val; 
-                                                        if (nv[i].original_price && val) {
-                                                            nv[i].discount_percent = Math.round(((Number(nv[i].original_price) - Number(val)) / Number(nv[i].original_price)) * 100);
-                                                        }
-                                                        setVariants(nv); 
-                                                    }} placeholder="0.00" />
+                                                    <label className="text-[10px] uppercase font-bold text-primary">Selling Price</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
+                                                        <input className="form-input py-2 pl-5 text-sm font-bold text-primary" value={v.price} onChange={(e) => { const nv = [...variants]; nv[i].price = e.target.value; setVariants(nv); }} placeholder="0.00" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 pt-2 border-t mt-4 border-gray-100">
-                                                <Toggle checked={v.isActive} onChange={(v_val) => { const nv = [...variants]; nv[i].isActive = v_val; setVariants(nv); }} />
-                                                <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Show this variant in store</p>
                                             </div>
                                         </div>
                                     </div>
@@ -760,8 +750,8 @@ export default function AddProduct() {
                     {/* Right Side: Category, SEO */}
                     <div className="space-y-6">
                         <div className="panel">
-                             <h6 className="text-base font-bold mb-5 border-b pb-2 text-primary">Main Image (Thumbnail)</h6>
-                             <div className="space-y-4">
+                            <h6 className="text-base font-bold mb-5 border-b pb-2 text-primary">Main Image (Thumbnail)</h6>
+                            <div className="space-y-4">
                                 <ImageUploading
                                     value={images}
                                     onChange={onImageChange}
@@ -794,7 +784,7 @@ export default function AddProduct() {
                                         </div>
                                     )}
                                 </ImageUploading>
-                             </div>
+                            </div>
                         </div>
 
                         <div className="panel">
@@ -854,7 +844,7 @@ export default function AddProduct() {
                                 </div>
                                 <div className="pt-4 border-t flex items-center justify-between">
                                     <span className="text-xs font-bold uppercase text-gray-500">Active Status</span>
-                                    <Toggle checked={formData.isActive} onChange={() => setFormData({...formData, isActive: !formData.isActive})} />
+                                    <Toggle checked={formData.isActive} onChange={() => setFormData({ ...formData, isActive: !formData.isActive })} />
                                 </div>
                             </div>
                         </div>

@@ -15,9 +15,8 @@ const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean
     <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 ease-in-out ${
-            checked ? 'bg-primary' : 'bg-gray-200'
-        }`}
+        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 ease-in-out ${checked ? 'bg-primary' : 'bg-gray-200'
+            }`}
     >
         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-all duration-200 ${checked ? 'translate-x-6' : 'translate-x-0.5'}`} />
     </button>
@@ -41,9 +40,9 @@ export default function EditProduct() {
         description: '',
         product_details: '',
         original_price: '',
-        p_category: '', 
-        categoryId: '', 
-        subcategory_id: '', 
+        p_category: '',
+        categoryId: '',
+        subcategory_id: '',
         unit_label: '',
         brand: '',
         price: '',
@@ -68,7 +67,7 @@ export default function EditProduct() {
     const [ingredients, setIngredients] = useState(['']);
     const [info, setInfo] = useState([{ key: '', value: '' }]);
     const [highlights, setHighlights] = useState(['']);
-    const [variants, setVariants] = useState<any[]>([{ unit_label: '', unit_type: 'piece', price: '', original_price: '', discount_percent: 0, stock: 100, sku: '', isActive: true }]);
+    const [variants, setVariants] = useState<any[]>([{ unit_label: '', unit_type: 'piece', price: '', original_price: '', stock: 100, sku: '' }]);
 
     useEffect(() => {
         const init = async () => {
@@ -85,7 +84,7 @@ export default function EditProduct() {
             setFetching(true);
             const response = await callApi(`/products/${productId}`, 'GET');
             const p = response?.product || response?.data || response;
-            
+
             if (p) {
                 // Set main form data
                 setFormData({
@@ -112,7 +111,7 @@ export default function EditProduct() {
                 // Set content lists
                 if (p.ingredients) setIngredients(p.ingredients);
                 else if (p.description?.ingredients) setIngredients(p.description.ingredients || []);
-                
+
                 // Smartly handle highlights from multiple fallback locations
                 const rawHighlights = p.highlights || p.description?.highlights || (p.product_details ? JSON.parse(typeof p.product_details === 'string' ? p.product_details : '{}').highlights : null);
                 if (Array.isArray(rawHighlights)) {
@@ -144,7 +143,7 @@ export default function EditProduct() {
                         original_price: String(v.original_price || ''),
                         stock: v.stock || 100,
                         barcode: v.barcode || v.utc_id || '',
-                        images: Array.isArray(v.images) ? v.images.map((img: any) => typeof img === 'string' ? {dataURL: img} : img) : []
+                        images: Array.isArray(v.images) ? v.images.map((img: any) => typeof img === 'string' ? { dataURL: img } : img) : []
                     })));
                 }
 
@@ -278,7 +277,7 @@ export default function EditProduct() {
                 // ALWAYS update the specific variant scanned (Images, Prices, Barcode)
                 const foundImages = Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []);
                 const formattedImages = foundImages.map((url: string) => ({ dataURL: url }));
-                
+
                 setVariants(prev => {
                     const nv = [...prev];
                     if (nv[variantIndex]) {
@@ -292,7 +291,7 @@ export default function EditProduct() {
 
                 showMessage(`Variant ${variantIndex + 1} data updated from cache!`, 'success');
                 setFetchingUtc(false);
-                return; 
+                return;
             }
 
             // 2. Fallback to OpenFoodFacts result if local data not found
@@ -312,10 +311,10 @@ export default function EditProduct() {
                 }));
 
                 const apiImages = [
-                    p.image_url, 
-                    p.image_front_url, 
-                    p.image_ingredients_url, 
-                    p.image_nutrition_url, 
+                    p.image_url,
+                    p.image_front_url,
+                    p.image_ingredients_url,
+                    p.image_nutrition_url,
                     p.image_packaging_url
                 ].filter((url: any) => url);
 
@@ -384,18 +383,7 @@ export default function EditProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
-
-        // SYNC LOGIC: If the main Barcode is updated, sync it with the first variant if the variant's barcode is empty
-        if (id === 'utc_id' && variants.length > 0) {
-            setVariants(prev => {
-                const nv = [...prev];
-                // Only sync if the first variant's barcode is empty or matches the old main barcode
-                if (!nv[0].barcode || nv[0].barcode === formData.utc_id) {
-                    nv[0].barcode = value;
-                }
-                return nv;
-            });
-        }
+        // Automatic fetchProductByUtc has been disabled per user request
     };
 
     const onImageChange = (imageList: ImageListType) => {
@@ -429,7 +417,7 @@ export default function EditProduct() {
 
         try {
             setLoading(true);
-            
+
             // Collect existing URLs
             let finalImageUrls: string[] = images
                 .filter(img => !img.file && img.dataURL)
@@ -480,17 +468,12 @@ export default function EditProduct() {
 
                 return {
                     ...v,
-                    utc_id: v.barcode || v.utc_id || '', // Explicitly set it here for backend
-                    unit_type: v.unit_type || 'piece',
-                    discount_percent: Number(v.discount_percent) || 0,
-                    sku: v.sku || '',
-                    isActive: v.isActive !== undefined ? v.isActive : true,
                     price: Number(v.price) || Number(v.original_price) || 0,
                     original_price: Number(v.original_price) || 0,
                     stock: Number(v.stock) || 100,
                     image: vImages.length > 0 ? vImages[0] : "",
-                    images: vImages.map((url, idx) => ({ 
-                        image_url: url, 
+                    images: vImages.map((url, idx) => ({
+                        image_url: url,
                         alt: v.unit_label || "variant image",
                         order: String(idx)
                     }))
@@ -501,8 +484,8 @@ export default function EditProduct() {
 
             // Ensure at least one highlight if description exists but highlights are empty
             const activeHighlights = highlights.filter(h => h.trim());
-            const finalHighlights = activeHighlights.length > 0 
-                ? activeHighlights 
+            const finalHighlights = activeHighlights.length > 0
+                ? activeHighlights
                 : (formData.description ? [formData.description] : []);
 
             const detailsObj = {
@@ -512,14 +495,14 @@ export default function EditProduct() {
 
             // Determine final main image (Fallback to existing if variant is empty)
             const mainProductImage = mainVariant?.image || (images.length > 0 ? (images[0].dataURL || images[0]) : "");
-            const mainProductImages = mainVariant?.images?.length > 0 
+            const mainProductImages = mainVariant?.images?.length > 0
                 ? mainVariant.images.map((img: any) => typeof img === 'string' ? img : img.image_url)
                 : images.map(img => img.dataURL || img);
 
             const payload = {
                 ...formData,
                 utc_id: formData.utc_id || mainVariant?.barcode || '',
-                subcategory_id: formData.subcategory_id || null, 
+                subcategory_id: formData.subcategory_id || null,
                 unit_label: mainVariant?.unit_label || formData.unit_label || '',
                 price: Number(mainVariant?.price) || 0,
                 original_price: Number(mainVariant?.original_price) || 0,
@@ -610,8 +593,8 @@ export default function EditProduct() {
                                 <div className="md:col-span-2">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className="text-xs font-bold uppercase">Full Description</label>
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             className="text-primary text-[10px] font-black underline uppercase flex items-center gap-1 hover:scale-105 transition-transform disabled:opacity-50"
                                             onClick={handleAiGenerate}
                                             disabled={isAiGenerating}
@@ -625,186 +608,181 @@ export default function EditProduct() {
                         </div>
 
                         <div className="panel">
-                             <h6 className="text-base font-bold mb-5 border-b pb-2">Content (Features & Highlights)</h6>
-                             <div className="space-y-6">
-                                 <div>
-                                     <label className="text-xs font-bold uppercase mb-3 block text-primary">Features List</label>
-                                     {features.map((f, i) => (
-                                         <div key={i} className="flex gap-2 mb-2">
-                                             <input placeholder="Feature Title" className="form-input text-xs w-1/3" value={f.title} onChange={(e) => { const nf = [...features]; nf[i].title = e.target.value; setFeatures(nf); }} />
-                                             <input placeholder="Feature Description" className="form-input text-xs flex-1" value={f.description} onChange={(e) => { const nf = [...features]; nf[i].description = e.target.value; setFeatures(nf); }} />
-                                             <button type="button" className="text-danger" onClick={() => setFeatures(features.filter((_, idx) => idx !== i))}>×</button>
-                                         </div>
-                                     ))}
-                                     <button type="button" className="btn btn-xs btn-outline-primary" onClick={() => setFeatures([...features, { title: '', description: '' }])}>+ Add Feature</button>
-                                 </div>
-                                 <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
-                                     <label className="text-xs font-extrabold uppercase mb-3 block text-primary">Product Highlights</label>
-                                     {highlights.map((h, i) => (
-                                         <div key={i} className="flex gap-2 mb-2">
-                                             <input placeholder={`Highlight #${i+1}`} className="form-input text-xs" value={h} onChange={(e) => {
-                                                 const nh = [...highlights]; nh[i] = e.target.value; setHighlights(nh);
-                                             }} />
-                                             <button type="button" className="text-danger p-1" onClick={() => setHighlights(highlights.filter((_, idx) => idx !== i))} disabled={highlights.length === 1}>×</button>
-                                         </div>
-                                     ))}
-                                     <button type="button" className="btn btn-xs btn-primary mt-2" onClick={() => setHighlights([...highlights, ''])}>+ Add Highlight</button>
-                                 </div>
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                     <div className="md:col-span-2">
-                                         <label className="text-xs font-bold uppercase mb-3 block text-info underline decoration-info/30">Ingredients List</label>
-                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                             {ingredients.map((ing, i) => (
-                                                 <div key={i} className="flex gap-2 animate__animated animate__fadeIn">
-                                                     <input placeholder={`Ingredient #${i+1}`} className="form-input text-xs" value={ing} onChange={(e) => { 
-                                                         const ni = [...ingredients]; ni[i] = e.target.value; setIngredients(ni); 
-                                                      }} />
-                                                     <button type="button" className="text-danger hover:scale-110 transition-transform" onClick={() => setIngredients(ingredients.filter((_, idx) => idx !== i))} disabled={ingredients.length === 1}>×</button>
-                                                 </div>
-                                             ))}
-                                         </div>
-                                         <button type="button" className="btn btn-xs btn-outline-info mt-3" onClick={() => setIngredients([...ingredients, ''])}>+ Add Ingredient</button>
-                                     </div>
-                                     <div>
-                                         <label className="text-xs font-bold uppercase mb-3 block text-info">Tech Info</label>
-                                         {info.map((it, i) => (
-                                             <div key={i} className="flex gap-2 mb-2">
-                                                 <input placeholder="Key" className="form-input text-xs" value={it.key} onChange={(e) => { const ni = [...info]; ni[i].key = e.target.value; setInfo(ni); }} />
-                                                 <input placeholder="Value" className="form-input text-xs" value={it.value} onChange={(e) => { const ni = [...info]; ni[i].value = e.target.value; setInfo(ni); }} />
-                                                 <button type="button" className="text-danger" onClick={() => setInfo(info.filter((_, idx) => idx !== i))}>×</button>
-                                             </div>
-                                         ))}
-                                         <button type="button" className="btn btn-xs btn-outline-info" onClick={() => setInfo([...info, { key: '', value: '' }])}>+ Add Info</button>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
- 
-                         <div className="space-y-6">
-                             <div className="flex items-center justify-between border-b pb-2">
-                                 <h6 className="text-base font-bold text-primary">Variants Inventory</h6>
-                                 <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', original_price: '', barcode: '', images: [] }])}>
+                            <h6 className="text-base font-bold mb-5 border-b pb-2">Content (Features & Highlights)</h6>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-xs font-bold uppercase mb-3 block text-primary">Features List</label>
+                                    {features.map((f, i) => (
+                                        <div key={i} className="flex gap-2 mb-2">
+                                            <input placeholder="Feature Title" className="form-input text-xs w-1/3" value={f.title} onChange={(e) => { const nf = [...features]; nf[i].title = e.target.value; setFeatures(nf); }} />
+                                            <input placeholder="Feature Description" className="form-input text-xs flex-1" value={f.description} onChange={(e) => { const nf = [...features]; nf[i].description = e.target.value; setFeatures(nf); }} />
+                                            <button type="button" className="text-danger" onClick={() => setFeatures(features.filter((_, idx) => idx !== i))}>×</button>
+                                        </div>
+                                    ))}
+                                    <button type="button" className="btn btn-xs btn-outline-primary" onClick={() => setFeatures([...features, { title: '', description: '' }])}>+ Add Feature</button>
+                                </div>
+                                <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
+                                    <label className="text-xs font-extrabold uppercase mb-3 block text-primary">Product Highlights</label>
+                                    {highlights.map((h, i) => (
+                                        <div key={i} className="flex gap-2 mb-2">
+                                            <input placeholder={`Highlight #${i + 1}`} className="form-input text-xs" value={h} onChange={(e) => {
+                                                const nh = [...highlights]; nh[i] = e.target.value; setHighlights(nh);
+                                            }} />
+                                            <button type="button" className="text-danger p-1" onClick={() => setHighlights(highlights.filter((_, idx) => idx !== i))} disabled={highlights.length === 1}>×</button>
+                                        </div>
+                                    ))}
+                                    <button type="button" className="btn btn-xs btn-primary mt-2" onClick={() => setHighlights([...highlights, ''])}>+ Add Highlight</button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs font-bold uppercase mb-3 block text-info underline decoration-info/30">Ingredients List</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {ingredients.map((ing, i) => (
+                                                <div key={i} className="flex gap-2 animate__animated animate__fadeIn">
+                                                    <input placeholder={`Ingredient #${i + 1}`} className="form-input text-xs" value={ing} onChange={(e) => {
+                                                        const ni = [...ingredients]; ni[i] = e.target.value; setIngredients(ni);
+                                                    }} />
+                                                    <button type="button" className="text-danger hover:scale-110 transition-transform" onClick={() => setIngredients(ingredients.filter((_, idx) => idx !== i))} disabled={ingredients.length === 1}>×</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button type="button" className="btn btn-xs btn-outline-info mt-3" onClick={() => setIngredients([...ingredients, ''])}>+ Add Ingredient</button>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold uppercase mb-3 block text-info">Tech Info</label>
+                                        {info.map((it, i) => (
+                                            <div key={i} className="flex gap-2 mb-2">
+                                                <input placeholder="Key" className="form-input text-xs" value={it.key} onChange={(e) => { const ni = [...info]; ni[i].key = e.target.value; setInfo(ni); }} />
+                                                <input placeholder="Value" className="form-input text-xs" value={it.value} onChange={(e) => { const ni = [...info]; ni[i].value = e.target.value; setInfo(ni); }} />
+                                                <button type="button" className="text-danger" onClick={() => setInfo(info.filter((_, idx) => idx !== i))}>×</button>
+                                            </div>
+                                        ))}
+                                        <button type="button" className="btn btn-xs btn-outline-info" onClick={() => setInfo([...info, { key: '', value: '' }])}>+ Add Info</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b pb-2">
+                                <h6 className="text-base font-bold text-primary">Variants Inventory</h6>
+                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', original_price: '', barcode: '', images: [] }])}>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                                    Add Another Variant 
-                                 </button>
-                             </div>
-                             
-                             <div className="grid grid-cols-1 gap-6">
-                                 {variants.map((v: any, i: number) => (
-                                     <div key={i} className="panel bg-white dark:bg-black/20 border border-gray-200 shadow-sm animate__animated animate__fadeInUp relative overflow-hidden">
-                                         <div className="flex items-center justify-between mb-4 bg-gray-50/50 dark:bg-white/5 -m-5 px-5 py-3 border-b border-gray-100">
-                                             <span className="text-xs font-black uppercase text-gray-400"># Variant {i + 1}</span>
-                                             <button type="button" className="text-danger hover:bg-danger/10 p-1.5 rounded-full transition-colors" onClick={() => setVariants(variants.filter((_, idx: number) => idx !== i))} disabled={variants.length === 1}>
-                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                             </button>
-                                         </div>
+                                    Add Another Variant
+                                </button>
+                            </div>
 
-                                         <div className="space-y-5">
-                                             <div className="p-4 bg-gray-50/30 rounded-xl border border-dashed border-gray-200">
-                                                 <div className="flex items-center justify-between mb-3">
-                                                     <label className="text-[10px] font-black uppercase text-gray-400">Variant Images</label>
-                                                     <a 
-                                                         href={`https://www.google.com/search?q=${encodeURIComponent((formData.brand || '') + ' ' + (formData.name || '') + ' ' + (v.unit_label || '') + ' image')}&tbm=isch`} 
-                                                         target="_blank" 
-                                                         rel="noreferrer"
-                                                         className="btn btn-xs btn-outline-secondary gap-1.5 font-extrabold uppercase py-1 text-[9px]"
-                                                     >
-                                                         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                                                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                                                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                                                             <path d="M5.84 14.09c-.22-.67-.35-1.39-.35-2.09s.13-1.42.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-                                                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                                                         </svg>
-                                                         Search {v.unit_label || 'Variant'} Image
-                                                     </a>
-                                                 </div>
-                                                 <ImageUploading
-                                                     multiple
-                                                     value={Array.isArray(v.images) ? (typeof v.images[0] === 'string' ? v.images.map((url: string) => ({dataURL: url})) : v.images) : []}
-                                                     onChange={(imageList) => {
-                                                         const nv = [...variants];
-                                                         nv[i].images = imageList;
-                                                         setVariants(nv);
-                                                     }}
-                                                     maxNumber={5}
-                                                 >
-                                                     {({ imageList, onImageUpload, onImageRemove, isDragging, dragProps }) => (
-                                                         <div className="flex flex-wrap gap-3">
-                                                             {imageList.map((image, index) => (
-                                                                 <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-100 shadow-xs bg-white">
-                                                                     <img src={image.dataURL} alt="" className="w-full h-full object-cover" />
-                                                                     <button type="button" className="absolute top-0 right-0 bg-danger text-white p-0.5 rounded-bl hover:bg-danger/80" onClick={() => onImageRemove(index)}>
-                                                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                     </button>
-                                                                 </div>
-                                                             ))}
-                                                             <button
-                                                                 type="button"
-                                                                 className={`w-20 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary hover:bg-primary/5'}`}
-                                                                 onClick={onImageUpload}
-                                                                 {...dragProps}
-                                                             >
-                                                                 <IconCamera className="w-5 h-5 text-gray-400" />
-                                                                 <span className="text-[8px] font-bold uppercase text-gray-400 mt-1">Add Image</span>
-                                                             </button>
-                                                         </div>
-                                                     )}
-                                                 </ImageUploading>
-                                             </div>
+                            <div className="grid grid-cols-1 gap-6">
+                                {variants.map((v: any, i: number) => (
+                                    <div key={i} className="panel bg-white dark:bg-black/20 border border-gray-200 shadow-sm animate__animated animate__fadeInUp relative overflow-hidden">
+                                        <div className="flex items-center justify-between mb-4 bg-gray-50/50 dark:bg-white/5 -m-5 px-5 py-3 border-b border-gray-100">
+                                            <span className="text-xs font-black uppercase text-gray-400"># Variant {i + 1}</span>
+                                            <button type="button" className="text-danger hover:bg-danger/10 p-1.5 rounded-full transition-colors" onClick={() => setVariants(variants.filter((_, idx: number) => idx !== i))} disabled={variants.length === 1}>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </div>
 
-                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                     <div>
-                                                         <label className="text-[10px] uppercase font-bold text-gray-400">Unit Label (Weight/Size)</label>
-                                                         <input className="form-input py-2 text-sm" value={v.unit_label} onChange={(e) => { const nv = [...variants]; nv[i].unit_label = e.target.value; setVariants(nv); }} placeholder="e.g. 1 Unit" />
-                                                     </div>
-                                                     <div>
-                                                         <div className="flex items-center justify-between mb-1">
-                                                             <label className="text-[10px] uppercase font-bold text-gray-400">Barcode (UTC)</label>
-                                                             <span className="text-[8px] font-bold text-primary cursor-pointer uppercase" onClick={() => generateUtc(i)}>GENERATE</span>
-                                                         </div>
-                                                         <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => { const nv = [...variants]; nv[i].barcode = e.target.value; setVariants(nv); }} placeholder="Barcode" />
-                                                     </div>
-                                                     <div>
-                                                         <label className="text-[10px] uppercase font-bold text-gray-400">MRP (₹)</label>
-                                                         <input className="form-input py-2 text-sm font-bold text-danger" value={v.original_price} onChange={(e) => { 
-                                                             const nv = [...variants]; 
-                                                             const val = e.target.value;
-                                                             nv[i].original_price = val; 
-                                                             if (nv[i].price && val) {
-                                                                 nv[i].discount_percent = Math.round(((Number(val) - Number(nv[i].price)) / Number(val)) * 100);
-                                                             }
-                                                             setVariants(nv); 
-                                                         }} placeholder="0.00" />
-                                                     </div>
-                                                     <div>
-                                                         <label className="text-[10px] uppercase font-bold text-primary">Selling (₹)</label>
-                                                         <input className="form-input py-2 text-sm font-bold text-primary" value={v.price} onChange={(e) => { 
-                                                             const nv = [...variants]; 
-                                                             const val = e.target.value;
-                                                             nv[i].price = val; 
-                                                             if (nv[i].original_price && val) {
-                                                                 nv[i].discount_percent = Math.round(((Number(nv[i].original_price) - Number(val)) / Number(nv[i].original_price)) * 100);
-                                                             }
-                                                             setVariants(nv); 
-                                                         }} placeholder="0.00" />
-                                                     </div>
-                                                 </div>
-                                                 <div className="flex items-center gap-2 pt-2 border-t mt-4 border-gray-100">
-                                                     <Toggle checked={v.isActive} onChange={(v_val) => { const nv = [...variants]; nv[i].isActive = v_val; setVariants(nv); }} />
-                                                     <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Show this variant in store</p>
-                                                 </div>
-                                         </div>
-                                     </div>
-                                 ))}
-                             </div>
-                         </div>
+                                        <div className="space-y-5">
+                                            <div className="p-4 bg-gray-50/30 rounded-xl border border-dashed border-gray-200">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <label className="text-[10px] font-black uppercase text-gray-400">Variant Images</label>
+                                                    <a
+                                                        href={`https://www.google.com/search?q=${encodeURIComponent((formData.brand || '') + ' ' + (formData.name || '') + ' ' + (v.unit_label || '') + ' image')}&tbm=isch`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="btn btn-xs btn-outline-secondary gap-1.5 font-extrabold uppercase py-1 text-[9px]"
+                                                    >
+                                                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                                                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                                                            <path d="M5.84 14.09c-.22-.67-.35-1.39-.35-2.09s.13-1.42.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                                                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                                                        </svg>
+                                                        Search {v.unit_label || 'Variant'} Image
+                                                    </a>
+                                                </div>
+                                                <ImageUploading
+                                                    multiple
+                                                    value={Array.isArray(v.images) ? (typeof v.images[0] === 'string' ? v.images.map((url: string) => ({ dataURL: url })) : v.images) : []}
+                                                    onChange={(imageList) => {
+                                                        const nv = [...variants];
+                                                        nv[i].images = imageList;
+                                                        setVariants(nv);
+                                                    }}
+                                                    maxNumber={5}
+                                                >
+                                                    {({ imageList, onImageUpload, onImageRemove, isDragging, dragProps }) => (
+                                                        <div className="flex flex-wrap gap-3">
+                                                            {imageList.map((image, index) => (
+                                                                <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-100 shadow-xs bg-white">
+                                                                    <img src={image.dataURL} alt="" className="w-full h-full object-cover" />
+                                                                    <button type="button" className="absolute top-0 right-0 bg-danger text-white p-0.5 rounded-bl hover:bg-danger/80" onClick={() => onImageRemove(index)}>
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            <button
+                                                                type="button"
+                                                                className={`w-20 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary hover:bg-primary/5'}`}
+                                                                onClick={onImageUpload}
+                                                                {...dragProps}
+                                                            >
+                                                                <IconCamera className="w-5 h-5 text-gray-400" />
+                                                                <span className="text-[8px] font-bold uppercase text-gray-400 mt-1">Add Image</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </ImageUploading>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-gray-400">Unit Label</label>
+                                                    <input className="form-input py-2 text-sm" value={v.unit_label} onChange={(e) => { const nv = [...variants]; nv[i].unit_label = e.target.value; setVariants(nv); }} placeholder="e.g. 1 Unit" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <label className="text-[10px] uppercase font-bold text-gray-400">Barcode (UTC)</label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => generateUtc(i)}
+                                                            className="text-[10px] font-bold text-primary hover:underline underline-offset-4"
+                                                        >
+                                                            GENERATE
+                                                        </button>
+                                                    </div>
+                                                    <input className="form-input py-2 text-sm" value={v.barcode} onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const nv = [...variants]; nv[i].barcode = val; setVariants(nv);
+                                                    }} placeholder="Scan Barcode" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-gray-400">MRP (Price)</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
+                                                        <input className="form-input py-2 pl-5 text-sm font-bold text-danger" value={v.original_price} onChange={(e) => { const nv = [...variants]; nv[i].original_price = e.target.value; setVariants(nv); }} placeholder="0.00" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-primary">Selling Price</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
+                                                        <input className="form-input py-2 pl-5 text-sm font-bold text-primary" value={v.price} onChange={(e) => { const nv = [...variants]; nv[i].price = e.target.value; setVariants(nv); }} placeholder="0.00" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Right Side: Category, SEO */}
                     <div className="space-y-6">
                         <div className="panel">
-                             <h6 className="text-base font-bold mb-5 border-b pb-2 text-primary">Main Image (Thumbnail)</h6>
-                             <div className="space-y-4">
+                            <h6 className="text-base font-bold mb-5 border-b pb-2 text-primary">Main Image (Thumbnail)</h6>
+                            <div className="space-y-4">
                                 <ImageUploading
                                     value={images}
                                     onChange={onImageChange}
@@ -837,15 +815,15 @@ export default function EditProduct() {
                                         </div>
                                     )}
                                 </ImageUploading>
-                             </div>
+                            </div>
                         </div>
 
                         <div className="panel">
-                             <h6 className="text-base font-bold mb-5 border-b pb-2">Category Map</h6>
-                             <div className="space-y-4">
+                            <h6 className="text-base font-bold mb-5 border-b pb-2">Category Map</h6>
+                            <div className="space-y-4">
                                 <div>
                                     <label className="text-[10px] font-black uppercase text-gray-400 mb-1">1. Parent (L1)</label>
-                                    <Select 
+                                    <Select
                                         options={parentCategories.map(c => ({ value: c._id, label: c.name }))}
                                         onChange={(selected) => handleCategoryChange(selected, 'p_category')}
                                         isLoading={fetchingL1}
@@ -856,7 +834,7 @@ export default function EditProduct() {
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase text-gray-400 mb-1">2. Category (L2)</label>
-                                    <Select 
+                                    <Select
                                         options={level2Categories.map(c => ({ value: c._id, label: c.name }))}
                                         onChange={(selected) => handleCategoryChange(selected, 'categoryId')}
                                         isLoading={fetchingL2}
@@ -867,7 +845,7 @@ export default function EditProduct() {
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase text-gray-400 mb-1">3. Sub (L3)</label>
-                                    <Select 
+                                    <Select
                                         options={level3Categories.map(c => ({ value: c._id, label: c.name }))}
                                         onChange={(selected) => handleCategoryChange(selected, 'subcategory_id')}
                                         isLoading={fetchingL3}
@@ -880,11 +858,11 @@ export default function EditProduct() {
                                     <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Product Active Status</span>
                                     <Toggle checked={formData.isActive} onChange={(v) => setFormData({ ...formData, isActive: v })} />
                                 </div>
-                             </div>
+                            </div>
                         </div>
 
                         <div className="panel">
-                             <h6 className="text-base font-bold mb-5 border-b pb-2">SEO Settings</h6>
+                            <h6 className="text-base font-bold mb-5 border-b pb-2">SEO Settings</h6>
                             <div className="space-y-4">
                                 <div>
                                     <label className="text-xs font-bold uppercase">Meta Title</label>
