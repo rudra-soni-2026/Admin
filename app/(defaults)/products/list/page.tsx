@@ -20,16 +20,16 @@ const ProductList = () => {
     const [status, setStatus] = useState('all');
     const [dateRange, setDateRange] = useState<any>('');
     const [categoryId, setCategoryId] = useState('');
-    
+
     const [brand, setBrand] = useState('');
     const [debouncedBrand, setDebouncedBrand] = useState('');
-    
+
     const [minPrice, setMinPrice] = useState('');
     const [debouncedMinPrice, setDebouncedMinPrice] = useState('');
-    
+
     const [maxPrice, setMaxPrice] = useState('');
     const [debouncedMaxPrice, setDebouncedMaxPrice] = useState('');
-    
+
     const [sortBy, setSortBy] = useState('createdAt:desc');
 
     // Consolidated Debounce Logic
@@ -48,7 +48,7 @@ const ProductList = () => {
             setLoading(true);
             let query = `/management/admin/products?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
-            
+
             if (status === 'active') query += `&isActive=true`;
             else if (status === 'inactive') query += `&isActive=false`;
 
@@ -69,13 +69,13 @@ const ProductList = () => {
             const response = await callApi(query, 'GET');
 
             const rawData = response?.data || response?.['Product table data'] || response?.products || [];
-            
+
             if (response && rawData) {
                 const mappedData = rawData.map((product: any) => {
                     const mainVariant = product.variants?.[0] || {};
                     const variantsCount = product.variants?.length || 0;
                     return {
-                        id: product.utc_id || mainVariant.barcode || (product._id ? `#${String(product._id).substring(18).toUpperCase()}` : '#UNKNOWN'),
+                        id: mainVariant.utc_id || (product._id ? `#${String(product._id).substring(18).toUpperCase()}` : '#UNKNOWN'),
                         originalId: product._id,
                         name: (
                             <div className="flex flex-col">
@@ -93,7 +93,7 @@ const ProductList = () => {
                             </div>
                         ),
                         brand: product.brand || mainVariant.brand_name || 'N/A',
-                        barcode: product.utc_id || mainVariant.barcode || 'N/A',
+                        barcode:  mainVariant.utc_id || 'N/A',
                         image: product.image || mainVariant.image || '/assets/images/profile-1.jpeg',
                         category: product.subcategory_id?.name
                             || product.category_id?.name
@@ -107,7 +107,7 @@ const ProductList = () => {
                     };
                 });
                 setProductData(mappedData);
-                const count = 
+                const count =
                     response.pagination?.total_items ??
                     response.pagination?.totalCount ??
                     response.totalCount ??
@@ -196,11 +196,11 @@ const ProductList = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Product" 
-                    data={productData} 
-                    columns={columns} 
-                    userType="Product" 
+                <UserManagerTable
+                    title="Product"
+                    data={productData}
+                    columns={columns}
+                    userType="Product"
                     totalRecords={totalRecords}
                     page={page}
                     pageSize={pageSize}

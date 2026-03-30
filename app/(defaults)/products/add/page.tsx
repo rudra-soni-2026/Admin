@@ -343,6 +343,18 @@ export default function AddProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
+
+        // SYNC LOGIC: Automatically sync the main Barcode with the first variant
+        if (id === 'utc_id' && variants.length > 0) {
+            setVariants(prev => {
+                const nv = [...prev];
+                if (!nv[0].barcode || nv[0].barcode === formData.utc_id) {
+                    nv[0].barcode = value;
+                }
+                return nv;
+            });
+        }
+ 
         if (id === 'utc_id' && (value.length === 13 || value.length === 8 || value.length === 12)) {
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
             fetchProductByUtc(value); // Instant trigger for barcodes
@@ -440,6 +452,7 @@ export default function AddProduct() {
 
                 return {
                     ...v,
+                    utc_id: v.barcode || v.utc_id || '', // Explicitly set it here for backend
                     price: Number(v.price) || Number(v.original_price) || 0,
                     original_price: Number(v.original_price) || 0,
                     stock: Number(v.stock) || 100,

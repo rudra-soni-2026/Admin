@@ -143,7 +143,11 @@ export default function EditProduct() {
                         original_price: String(v.original_price || ''),
                         stock: v.stock || 100,
                         barcode: v.barcode || v.utc_id || '',
-                        images: Array.isArray(v.images) ? v.images.map((img: any) => typeof img === 'string' ? { dataURL: img } : img) : []
+                        images: Array.isArray(v.images) ? v.images.map((img: any) => {
+                            if (typeof img === 'string') return { dataURL: img };
+                            if (img.image_url) return { dataURL: img.image_url };
+                            return img;
+                        }) : []
                     })));
                 }
 
@@ -383,7 +387,17 @@ export default function EditProduct() {
     const handleChange = (e: any) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
-        // Automatic fetchProductByUtc has been disabled per user request
+
+        // SYNC LOGIC: If the main Barcode is updated, sync it with the first variant
+        if (id === 'utc_id' && variants.length > 0) {
+            setVariants(prev => {
+                const nv = [...prev];
+                if (!nv[0].barcode || nv[0].barcode === formData.utc_id) {
+                    nv[0].barcode = value;
+                }
+                return nv;
+            });
+        }
     };
 
     const onImageChange = (imageList: ImageListType) => {
@@ -468,6 +482,7 @@ export default function EditProduct() {
 
                 return {
                     ...v,
+                    utc_id: v.barcode || v.utc_id || '', // Explicitly set it here for backend
                     price: Number(v.price) || Number(v.original_price) || 0,
                     original_price: Number(v.original_price) || 0,
                     stock: Number(v.stock) || 100,
