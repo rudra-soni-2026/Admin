@@ -9,6 +9,7 @@ import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconBell from '@/components/icon/icon-bell';
 import ImageUploading, { ImageListType } from 'react-images-uploading';
 import IconCamera from '@/components/icon/icon-camera';
+import IconCalendar from '@/components/icon/icon-calendar';
 
 const NotificationSend = () => {
     const [title, setTitle] = useState('');
@@ -20,6 +21,10 @@ const NotificationSend = () => {
     const [type, setType] = useState('PROMOTIONAL'); // TRANSACTIONAL, PROMOTIONAL, etc.
     const [metadata, setMetadata] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // Scheduling states
+    const [isScheduled, setIsScheduled] = useState(false);
+    const [scheduledAt, setScheduledAt] = useState('');
 
     const loadUserOptions = async (inputValue: string) => {
         try {
@@ -93,13 +98,15 @@ const NotificationSend = () => {
                     ? (targetIds[0]?.value || targetIds[0] || null) 
                     : targetIds.map(u => typeof u === 'object' ? u.value : u),
                 type,
-                metadata: metadata ? JSON.parse(metadata) : {}
+                metadata: metadata ? JSON.parse(metadata) : {},
+                scheduledAt: isScheduled ? scheduledAt : null,
+                status: isScheduled ? 'PENDING' : 'SENT'
             };
 
             const response = await callApi('/management/admin/send-notification', 'POST', payload);
             console.log(response,"response")
             if (response) {
-                showMessage('Broadcast Sent Successfully!', 'success');
+                showMessage(isScheduled ? 'Notification Scheduled Successfully!' : 'Broadcast Sent Successfully!', 'success');
                 // Reset form
                 setTitle('');
                 setMessage('');
@@ -107,6 +114,8 @@ const NotificationSend = () => {
                 setImages([]);
                 setImage('');
                 setMetadata('');
+                setIsScheduled(false);
+                setScheduledAt('');
             }
         } catch (error: any) {
             showMessage(error.message || 'Something went wrong', 'danger');
@@ -135,20 +144,17 @@ const NotificationSend = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Form Section */}
-                <div className="lg:col-span-7 panel shadow-sm border-none rounded-3xl p-6">
+                <div className="lg:col-span-7 panel shadow-2xl border-none rounded-[32px] p-6 bg-white dark:bg-[#1a1c2d]">
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Notification Title</label>
-                                <input type="text" placeholder="e.g. Flash Sale Live! 🔥" className="form-input text-xs font-bold" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        {/* Header Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            <div className="md:col-span-8">
+                                <label className="text-[10px] font-black uppercase text-gray-400 mb-1.5 ml-1 tracking-widest">Notification Title</label>
+                                <input type="text" placeholder="e.g. Flash Sale Live! 🔥" className="form-input text-xs font-black py-3 rounded-2xl border-gray-100 dark:border-gray-800 focus:ring-primary/20 transition-all hover:border-primary/30" value={title} onChange={(e) => setTitle(e.target.value)} />
                             </div>
-                            <div className="md:col-span-2">
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Message Body</label>
-                                <textarea rows={3} placeholder="Write your message here..." className="form-textarea text-xs font-medium" value={message} onChange={(e) => setMessage(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Notification Category</label>
-                                <select className="form-select text-xs font-bold" value={type} onChange={(e) => setType(e.target.value)}>
+                            <div className="md:col-span-4">
+                                <label className="text-[10px] font-black uppercase text-gray-400 mb-1.5 ml-1 tracking-widest">Category</label>
+                                <select className="form-select text-xs font-black py-3 rounded-2xl border-gray-100 dark:border-gray-800 focus:ring-primary/20 transition-all hover:border-primary/30" value={type} onChange={(e) => setType(e.target.value)}>
                                     <option value="PROMOTIONAL">Promotional</option>
                                     <option value="TRANSACTIONAL">Transactional</option>
                                     <option value="ALERT">System Alert</option>
@@ -156,83 +162,139 @@ const NotificationSend = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                        {/* Message Row */}
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-gray-400 mb-1.5 ml-1 tracking-widest">Message Body</label>
+                            <textarea rows={2} placeholder="Write your message here..." className="form-textarea text-xs font-medium py-3 rounded-2xl border-gray-100 dark:border-gray-800 focus:ring-primary/20 transition-all hover:border-primary/30" value={message} onChange={(e) => setMessage(e.target.value)} />
+                        </div>
+
+                        {/* Targeting & Scheduling */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                             <div>
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Target Audience</label>
-                                <select className="form-select text-xs font-bold" value={targetType} onChange={(e) => {
-                                    setTargetType(e.target.value);
-                                    setTargetIds([]);
-                                }}>
-                                    <option value="all">All Customers</option>
-                                    <option value="single">Single Specific User</option>
-                                    <option value="multiple">Selected User Group</option>
-                                </select>
+                                <label className="text-[10px] font-black uppercase text-gray-400 mb-1.5 ml-1 tracking-widest">Target Audience</label>
+                                <div className="relative">
+                                    <select className="form-select text-xs font-black py-3 rounded-2xl border-gray-100 dark:border-gray-800 transition-all hover:border-primary/30" value={targetType} onChange={(e) => {
+                                        setTargetType(e.target.value);
+                                        setTargetIds([]);
+                                    }}>
+                                        <option value="all">Everyone (Broadcast)</option>
+                                        <option value="single">Specific Customer</option>
+                                        <option value="multiple">Selected User Segment</option>
+                                    </select>
+                                </div>
                             </div>
 
+                            <div className={`transition-all duration-500 rounded-2xl p-0.5 ${isScheduled ? 'bg-gradient-to-r from-primary to-blue-600 shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                                <div className={`h-full w-full rounded-[14px] flex items-center justify-between px-4 py-2 transition-all ${isScheduled ? 'bg-white/95 dark:bg-black/90' : 'bg-transparent'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-1.5 rounded-lg transition-all ${isScheduled ? 'bg-primary text-white scale-110 shadow-md' : 'text-gray-400 bg-gray-200/50 dark:bg-gray-700'}`}>
+                                            <IconCalendar className="w-3.5 h-3.5" />
+                                        </div>
+                                        <span className={`text-[11px] font-black uppercase tracking-tight ${isScheduled ? 'text-primary' : 'text-gray-400'}`}>Scheduling</span>
+                                    </div>
+                                    <label className="w-10 h-5 relative rounded-full cursor-pointer overflow-hidden">
+                                        <input type="checkbox" className="absolute w-full h-full opacity-0 z-10 cursor-pointer peer" checked={isScheduled} onChange={() => setIsScheduled(!isScheduled)} />
+                                        <span className="block h-full w-full bg-gray-300 dark:bg-gray-600 transition-all peer-checked:bg-primary">
+                                            <span className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-all duration-300 ${isScheduled ? 'translate-x-5' : 'translate-x-0'} shadow-sm`}></span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* User Search Expansion */}
                             {(targetType === 'single' || targetType === 'multiple') && (
-                                <div className="space-y-1">
-                                    <label className="text-[11px] font-black uppercase text-primary mb-1">Select User(s)</label>
+                                <div className="md:col-span-2 animate__animated animate__fadeIn animate__faster bg-primary/5 p-4 rounded-[24px] border border-primary/10">
+                                    <label className="text-[10px] font-black uppercase text-primary mb-2 ml-1 tracking-[0.1em] flex items-center gap-2">
+                                        <div className="w-1 h-1 bg-primary rounded-full"></div> Search Customer(s)
+                                    </label>
                                     <AsyncSelect
                                         isMulti={targetType === 'multiple'}
                                         cacheOptions
                                         loadOptions={loadUserOptions}
                                         defaultOptions
-                                        placeholder="Search name or phone..."
-                                        className="text-xs font-bold"
+                                        placeholder="Type name or phone number..."
+                                        className="text-[11px] font-black"
+                                        styles={{
+                                            control: (provided) => ({ ...provided, border: 'none', borderRadius: '14px', padding: '2px 8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }),
+                                            placeholder: (p) => ({ ...p, color: '#94a3b8' })
+                                        }}
                                         onChange={(opt: any) => setTargetIds(Array.isArray(opt) ? opt : (opt ? [opt] : []))}
                                     />
                                 </div>
                             )}
+                            
+                            {/* Schedule Time Expansion */}
+                            {isScheduled && (
+                                <div className="md:col-span-2 animate__animated animate__fadeIn animate__faster bg-gradient-to-br from-primary/10 to-blue-500/5 p-4 rounded-[24px] border border-primary/20">
+                                    <label className="text-[10px] font-black uppercase text-primary mb-2 ml-1 tracking-[0.1em] flex items-center gap-2">
+                                        <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div> Dispatch Time Configuration
+                                    </label>
+                                    <div className="relative group">
+                                        <input 
+                                            type="datetime-local" 
+                                            className="form-input bg-white dark:bg-[#0e1726] border-none shadow-md text-xs font-black py-4 pl-4 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" 
+                                            value={scheduledAt} 
+                                            onChange={(e) => setScheduledAt(e.target.value)}
+                                            min={new Date().toISOString().slice(0, 16)}
+                                        />
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary/30 pointer-events-none group-hover:text-primary transition-colors">
+                                            <IconCalendar className="w-5 h-5" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
-                             {/* <div className="md:col-span-2">
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-1">Metadata (JSON format - Optional)</label>
-                                <input type="text" placeholder='{"link": "/offers", "category": "beauty"}' className="form-input text-[10px] font-mono" value={metadata} onChange={(e) => setMetadata(e.target.value)} />
-                            </div> */}
-
-                            <div className="md:col-span-2 pt-4 border-t">
-                                <label className="text-[11px] font-black uppercase text-gray-500 mb-2 block tracking-widest">Notification Hero Image (Optional)</label>
+                        {/* Image Upload Row */}
+                        <div className="pt-4 border-t border-gray-50 dark:border-gray-800">
+                             <div className="flex items-center gap-4 bg-gray-50/50 dark:bg-gray-800/20 p-3 rounded-3xl border border-gray-100 dark:border-gray-800/50">
+                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Attachment</span>
                                 <ImageUploading value={images} onChange={(list) => setImages(list)} maxNumber={1}>
                                     {({ imageList, onImageUpload, onImageRemove, isDragging, dragProps }) => (
-                                        <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1 flex items-center gap-4">
                                             <div
-                                                className={`flex-1 border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-primary/5 ${
-                                                    isDragging ? 'border-primary bg-primary/10' : 'border-gray-200 dark:border-gray-800'
+                                                className={`flex-1 h-12 border-2 border-dashed rounded-2xl flex items-center justify-center cursor-pointer transition-all ${
+                                                    isDragging ? 'border-primary bg-primary/10' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300'
                                                 }`}
                                                 onClick={onImageUpload}
                                                 {...dragProps}
                                             >
-                                                <IconCamera className="w-8 h-8 text-gray-400 mb-2" />
-                                                <p className="text-[10px] font-black uppercase text-gray-400">Click or Drag Image</p>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-1 bg-white dark:bg-gray-800 rounded shadow-sm">
+                                                        <IconCamera className="w-4 h-4 text-primary" />
+                                                    </div>
+                                                    <p className="text-[10px] font-black uppercase text-gray-500 tracking-tighter">Click or Drag Hero Image (Optional)</p>
+                                                </div>
                                             </div>
                                             {imageList.length > 0 && (
-                                                <div className="relative w-32 h-20 rounded-xl overflow-hidden shadow-sm border border-gray-100 group">
+                                                <div className="relative w-16 h-12 rounded-xl overflow-hidden shadow-lg border-2 border-white ring-1 ring-gray-100 group shrink-0">
                                                     <img src={imageList[0].dataURL} alt="upload" className="w-full h-full object-cover" />
-                                                    <button
-                                                        type="button"
-                                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        onClick={() => onImageRemove(0)}
-                                                    >
-                                                        <IconTrashLines className="text-white w-5 h-5" />
+                                                    <button type="button" className="absolute inset-0 bg-red-600/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-110 group-hover:scale-100" onClick={() => onImageRemove(0)}>
+                                                        <IconTrashLines className="text-white w-4 h-4" />
                                                     </button>
                                                 </div>
                                             )}
                                         </div>
                                     )}
                                 </ImageUploading>
-                            </div>
+                             </div>
                         </div>
 
-                        <div className="pt-6 flex items-center gap-3">
-                            <button type="button" className="btn btn-primary gap-2 py-3 px-8 rounded-2xl shadow-lg shadow-primary/20 flex-1 uppercase font-black tracking-widest text-[12px]" onClick={handleSendNotification} disabled={loading}>
-                                {loading ? <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-4 h-4 mr-1"></span> : <IconSend className="w-5 h-5" />}
-                                {loading ? 'Broadcasting...' : 'Dispatch Notification'}
-                            </button>
-                            <button type="button" className="btn btn-outline-danger p-3 rounded-2xl" onClick={() => { setTitle(''); setMessage(''); setTargetIds([]); setImages([]); setImage(''); setMetadata(''); }}>
-                                <IconTrashLines className="w-5 h-5" />
+                        {/* Action Row */}
+                        <div className="pt-6">
+                            <button type="button" className="btn btn-primary w-full py-4 rounded-[20px] shadow-xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all overflow-hidden relative group" onClick={handleSendNotification} disabled={loading}>
+                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                                {loading ? (
+                                    <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-5 h-5"></span>
+                                ) : (
+                                    <IconSend className={`w-5 h-5 ${isScheduled ? 'rotate-12' : ''}`} />
+                                )}
+                                <span className="uppercase font-black text-xs tracking-[0.2em]">{loading ? 'Processing Broadcast...' : (isScheduled ? 'Confirm Schedule' : 'Send Push Update')}</span>
                             </button>
                         </div>
                     </div>
                 </div>
+
 
                 {/* Preview Section */}
                 <div className="lg:col-span-5 p-6 bg-gray-50 dark:bg-black/20 rounded-[40px] border-2 border-gray-100 dark:border-gray-800">

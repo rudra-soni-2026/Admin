@@ -29,7 +29,10 @@ const CouponForm = (props: CouponFormProps) => {
         targetIds: [] as any[],
         usageLimit: 0,
         usagePerUser: 1,
-        isActive: true
+        isActive: true,
+        applicability: 'ALL', // ALL, PRODUCTS, CATEGORIES
+        productIds: [] as any[],
+        categoryIds: [] as any[]
     });
 
     const isEdit = !!props.id;
@@ -40,19 +43,46 @@ const CouponForm = (props: CouponFormProps) => {
                 ...formData,
                 ...props.editData,
                 expiryDate: props.editData.expiryDate ? new Date(props.editData.expiryDate) : formData.expiryDate,
-                targetIds: typeof props.editData.targetIds === 'string' ? JSON.parse(props.editData.targetIds) : (props.editData.targetIds || [])
+                targetIds: typeof props.editData.targetIds === 'string' ? JSON.parse(props.editData.targetIds) : (props.editData.targetIds || []),
+                productIds: typeof props.editData.productIds === 'string' ? JSON.parse(props.editData.productIds) : (props.editData.productIds || []),
+                categoryIds: typeof props.editData.categoryIds === 'string' ? JSON.parse(props.editData.categoryIds) : (props.editData.categoryIds || [])
             });
         }
     }, [props.id, props.editData]);
 
     const loadUserOptions = async (inputValue: string) => {
         try {
-            // Using a higher limit for default display
             const response = await callApi(`/management/admin/users?role=user&search=${inputValue || ''}&limit=50`, 'GET');
             if (response && response.data) {
                 return response.data.map((u: any) => ({
                     value: u.id || u._id,
                     label: `${u.name} - ${u.phone || u.email || 'No Phone'}`
+                }));
+            }
+            return [];
+        } catch (error) { return []; }
+    };
+
+    const loadProductOptions = async (inputValue: string) => {
+        try {
+            const response = await callApi(`/management/admin/products?search=${inputValue || ''}&limit=50`, 'GET');
+            if (response && response.data) {
+                return response.data.map((p: any) => ({
+                    value: p.id || p._id,
+                    label: `${p.name} (${p.brand || 'No Brand'}) - ₹${p.price}`
+                }));
+            }
+            return [];
+        } catch (error) { return []; }
+    };
+
+    const loadCategoryOptions = async (inputValue: string) => {
+        try {
+            const response = await callApi(`/products/parent-categories?level=0&limit=1000`, 'GET');
+            if (response && response.data) {
+                return response.data.map((c: any) => ({
+                    value: c.id || c._id,
+                    label: `${c.name} ${c.level ? '(Level ' + c.level + ')' : ''}`
                 }));
             }
             return [];
@@ -74,7 +104,9 @@ const CouponForm = (props: CouponFormProps) => {
             setLoading(true);
             const payload = { 
                 ...formData, 
-                targetIds: formData.targetIds.map(u => typeof u === 'object' ? u.value : u)
+                targetIds: formData.targetIds.map(u => typeof u === 'object' ? u.value : u),
+                productIds: formData.productIds.map(p => typeof p === 'object' ? p.value : p),
+                categoryIds: formData.categoryIds.map(c => typeof c === 'object' ? c.value : c)
             };
             const response = await callApi(isEdit ? `/management/admin/coupons/${props.id}` : '/management/admin/coupons', isEdit ? 'PATCH' : 'POST', payload);
             if (response) {
@@ -146,7 +178,7 @@ const CouponForm = (props: CouponFormProps) => {
                                     isMulti={formData.targetType === 'MULTIPLE'}
                                     cacheOptions
                                     loadOptions={loadUserOptions}
-                                    defaultOptions={true} // Automatically load first batch
+                                    defaultOptions={true}
                                     placeholder="Click to see list or Type to search..."
                                     className="text-xs font-bold"
                                     value={formData.targetIds.length > 0 ? (Array.isArray(formData.targetIds) && typeof formData.targetIds[0] === 'object' ? formData.targetIds : null) : null}
@@ -154,6 +186,51 @@ const CouponForm = (props: CouponFormProps) => {
                                 />
                             </div>
                         )}
+
+                        <div className="md:col-span-2 pt-4 mt-2 border-t border-dashed">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[11px] font-bold uppercase text-gray-500 mb-1">Coupon Restricted To</label>
+                                    <select id="applicability" className="form-select text-xs font-black text-primary" value={formData.applicability} onChange={handleChange}>
+                                        <option value="ALL">ALL PRODUCTS (ENTIRE STORE)</option>
+                                        <option value="PRODUCTS">SPECIFIC PRODUCTS ONLY</option>
+                                        <option value="CATEGORIES">SPECIFIC CATEGORIES ONLY</option>
+                                    </select>
+                                </div>
+
+                                {formData.applicability === 'PRODUCTS' && (
+                                    <div className="animate__animated animate__fadeIn">
+                                        <label className="text-[11px] font-bold uppercase text-primary mb-1">Select Restricted Product(s)</label>
+                                        <AsyncSelect
+                                            isMulti
+                                            cacheOptions
+                                            loadOptions={loadProductOptions}
+                                            defaultOptions={true}
+                                            placeholder="Search products by name..."
+                                            className="text-xs font-black"
+                                            value={formData.productIds.length > 0 ? (Array.isArray(formData.productIds) && typeof formData.productIds[0] === 'object' ? formData.productIds : null) : null}
+                                            onChange={(opt: any) => setFormData({...formData, productIds: Array.isArray(opt) ? opt : (opt ? [opt] : [])})}
+                                        />
+                                    </div>
+                                )}
+
+                                {formData.applicability === 'CATEGORIES' && (
+                                    <div className="animate__animated animate__fadeIn">
+                                        <label className="text-[11px] font-bold uppercase text-primary mb-1">Select Restricted Category(ies)</label>
+                                        <AsyncSelect
+                                            isMulti
+                                            cacheOptions
+                                            loadOptions={loadCategoryOptions}
+                                            defaultOptions={true}
+                                            placeholder="Search categories..."
+                                            className="text-xs font-black"
+                                            value={formData.categoryIds.length > 0 ? (Array.isArray(formData.categoryIds) && typeof formData.categoryIds[0] === 'object' ? formData.categoryIds : null) : null}
+                                            onChange={(opt: any) => setFormData({...formData, categoryIds: Array.isArray(opt) ? opt : (opt ? [opt] : [])})}
+                                        />
+                                    </div>
+                                )}
+                             </div>
+                        </div>
 
                         <div>
                             <label className="text-[11px] font-bold uppercase text-gray-500 mb-1">Usage Limit (Global)</label>
