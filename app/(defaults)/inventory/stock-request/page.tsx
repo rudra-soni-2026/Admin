@@ -18,6 +18,8 @@ const StockRequestPage = () => {
     const [stores, setStores] = useState<any[]>([]);
     const [selectedWarehouse, setSelectedWarehouse] = useState<any>(null);
     const [selectedStore, setSelectedStore] = useState<any>(null);
+    const [storedRole, setStoredRole] = useState<string | null>(null);
+    const [userData, setUserData] = useState<any>(null);
     
     // Inventory States
     const [inventoryLoading, setInventoryLoading] = useState(false);
@@ -32,7 +34,27 @@ const StockRequestPage = () => {
     // Initial Fetch
     useEffect(() => {
         fetchInitialData();
+        const role = localStorage.getItem('role');
+        const userString = localStorage.getItem('userData');
+        if (role) setStoredRole(role);
+        if (userString) {
+            try { setUserData(JSON.parse(userString)); } catch (e) {}
+        }
     }, []);
+
+    useEffect(() => {
+        if (storedRole && userData && (warehouses.length > 0 || stores.length > 0)) {
+            const assignedId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id;
+            
+            if (storedRole === 'store_manager' && stores.length > 0) {
+                const myStore = stores.find(s => String(s.value) === String(assignedId));
+                if (myStore) setSelectedStore(myStore);
+            } else if (storedRole === 'warehouse_manager' && warehouses.length > 0) {
+                const myWh = warehouses.find(w => String(w.value) === String(assignedId));
+                if (myWh) setSelectedWarehouse(myWh);
+            }
+        }
+    }, [storedRole, userData, warehouses, stores]);
 
     const fetchInitialData = async () => {
         try {
@@ -181,6 +203,7 @@ const StockRequestPage = () => {
                                     placeholder="Select your store"
                                     options={stores}
                                     value={selectedStore}
+                                    isDisabled={storedRole === 'store_manager' || (storedRole === 'warehouse_manager' && !!selectedStore)}
                                     onChange={(val) => setSelectedStore(val)}
                                     menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                     styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
@@ -192,6 +215,7 @@ const StockRequestPage = () => {
                                     placeholder="Which warehouse has stock?"
                                     options={warehouses}
                                     value={selectedWarehouse}
+                                    isDisabled={storedRole === 'warehouse_manager' || (storedRole === 'store_manager' && !!selectedWarehouse && false)} // Allow store manager to pick any warehouse
                                     onChange={(val) => setSelectedWarehouse(val)}
                                     menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                     styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}

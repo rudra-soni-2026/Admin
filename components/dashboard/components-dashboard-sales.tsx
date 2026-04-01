@@ -44,20 +44,32 @@ const ComponentsDashboardSales = () => {
     const [stats, setStats] = useState<any>(null);
     const [stores, setStores] = useState<any[]>([]);
     const [selectedStore, setSelectedStore] = useState('all');
+    const [userRole, setUserRole] = useState<string | null>(null);
 
     useEffect(() => {
         setIsMounted(true);
+        const role = localStorage.getItem('role');
+        const userDataString = localStorage.getItem('userData');
+        setUserRole(role);
+
+        let initialStoreId = 'all';
+        if ((role === 'store_manager' || role === 'warehouse_manager') && userDataString) {
+            try {
+                const userData = JSON.parse(userDataString);
+                initialStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id || 'all';
+            } catch (e) {}
+        }
+        setSelectedStore(initialStoreId);
+
         // Fetch Stores
         callApi('/management/admin/stores?page=1&limit=100', 'GET').then((res: any) => {
             if (res && res.data) setStores(res.data);
         });
 
         // Socket Setup
-        initiateSocket();
+        initiateSocket(initialStoreId);
         subscribeToDashboardStats((err, data) => {
-            console.log("📊 DASHBOARD_STATS_DATA received:", data);
             if (data) {
-                // If data is wrapped in another data property, unwrap it
                 const actualData = data.data || data;
                 setStats(actualData);
             }
@@ -78,7 +90,7 @@ const ComponentsDashboardSales = () => {
     };
 
     useEffect(() => {
-        if (isMounted) {
+        if (isMounted && selectedStore) {
             fetchStats();
         }
     }, [date1, selectedStore, isMounted]);
@@ -516,16 +528,18 @@ const ComponentsDashboardSales = () => {
                         </li>
                     </ul>
                     <div className="flex items-center gap-4 ltr:ml-auto rtl:mr-auto">
-                        <select 
-                            className="form-select w-40 h-10 no-print" 
-                            value={selectedStore} 
-                            onChange={(e) => setSelectedStore(e.target.value)}
-                        >
-                            <option value="all">All Stores</option>
-                            {stores.map((s: any) => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
+                        {(userRole === 'super_admin' || userRole === 'admin') && (
+                            <select 
+                                className="form-select w-40 h-10 no-print" 
+                                value={selectedStore} 
+                                onChange={(e) => setSelectedStore(e.target.value)}
+                            >
+                                <option value="all">All Stores</option>
+                                {stores.map((s: any) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        )}
                         <div className="relative no-print">
                             <Flatpickr
                                 options={{

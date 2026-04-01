@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
@@ -58,6 +58,8 @@ interface UserListTableProps {
     hideTotal?: boolean;
     onDeleteClick?: (item: any) => void;
     onPrint?: (item: any) => void;
+    loading?: boolean;
+    onExportClick?: () => void;
 }
 
 const UserListTable = ({
@@ -101,9 +103,25 @@ const UserListTable = ({
     hideView = false,
     hideFilter = false,
     disableNameClick = false,
-    hideTotal = false
+    hideTotal = false,
+    loading = false,
+    onExportClick
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
+
+    const [localSearch, setLocalSearch] = useState(search || '');
+
+    // Sync local search when prop changes from outside
+    useEffect(() => {
+        if (search !== localSearch) {
+            setLocalSearch(search || '');
+        }
+    }, [search]);
+
+    const handleSearchChange = (val: string) => {
+        setLocalSearch(val);
+        onSearchChange?.(val);
+    };
 
     return (
         <div className="mt-1">
@@ -129,11 +147,12 @@ const UserListTable = ({
                     <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                         <div className="relative flex-1 sm:flex-initial sm:w-48">
                             <input
+                                id="global-search-input-users"
                                 type="text"
                                 placeholder="Search..."
                                 className="form-input peer !bg-gray-50 !border-gray-100 focus:!border-primary/40 focus:!bg-white transition-all text-sm py-2 rounded-lg"
-                                value={search}
-                                onChange={(e) => onSearchChange?.(e.target.value)}
+                                value={localSearch}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                             />
                             <div className="absolute top-1/2 -translate-y-1/2 ltr:right-[8px] rtl:left-[8px] peer-focus:text-primary">
                                 <IconSearch className="h-3.5 w-3.5 opacity-40" />
@@ -143,6 +162,12 @@ const UserListTable = ({
                             <button type="button" className="btn btn-outline-primary btn-sm px-4 py-2 gap-2 shadow-sm transition-all" onClick={() => setShowFilter(true)}>
                                 <IconFilter className="h-4 w-4" />
                                 <span className="text-[12px] font-bold uppercase">Filter</span>
+                            </button>
+                        )}
+                        {onExportClick && (
+                            <button type="button" className="btn btn-success btn-sm px-4 py-2 gap-2 shadow-sm transition-all" onClick={onExportClick}>
+                                <IconDownload className="h-4 w-4" />
+                                <span className="text-[12px] font-bold uppercase">Export</span>
                             </button>
                         )}
                         {onAddClick && (
@@ -172,7 +197,13 @@ const UserListTable = ({
                     setMaxPrice={onMaxPriceChange}
                 />
 
-                <div className="table-responsive mb-0 overflow-x-auto border-t border-gray-100">
+                <div className="table-responsive mb-0 overflow-x-auto border-t border-gray-100 relative min-h-[200px]">
+                    {/* Interior Loading Overlay */}
+                    {loading && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 dark:bg-black/20 backdrop-blur-[1px]">
+                            <span className="inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-8 h-8 align-middle"></span>
+                        </div>
+                    )}
                     <table className="table-hover w-full min-w-[800px]">
                         <thead>
                             <tr>
@@ -187,7 +218,7 @@ const UserListTable = ({
                         <tbody>
                             {data.length > 0 ? (
                                 data.map((item) => (
-                                    <tr key={item.id} className="bg-white dark:bg-transparent border-t border-gray-100">
+                                    <tr key={item.id} className="bg-white dark:bg-transparent border-t border-gray-100 opacity-90">
                                         {columns.map((col) => (
                                             <td key={col.key} className={`px-4 py-1.5 sm:py-2 ${col.key === 'status' || col.key === 'image' ? 'text-center' : ''} ${columns.indexOf(col) === 0 ? 'sm:pl-8' : ''}`}>
                                                 {col.key === 'user' ? (
@@ -300,15 +331,20 @@ const UserListTable = ({
                                                         {item.email && <span className="text-[10px] text-gray-400 font-medium normal-case">{item.email}</span>}
                                                     </div>
                                                 ) : col.key === 'status' ? (
-                                                    <label className="relative mb-0 inline-block h-4 w-8 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="peer absolute z-10 h-full w-full cursor-pointer opacity-0 focus:outline-none focus:ring-0"
-                                                            checked={item[col.key] === 'Active'}
-                                                            onChange={() => onStatusToggle?.(item.originalId, item[col.key])}
-                                                        />
-                                                        <span className="block h-full rounded-full border border-[#adb5bd] bg-white before:absolute before:bottom-[2px] before:h-3 before:w-3 before:rounded-full before:bg-[#adb5bd] before:transition-all before:duration-300 ltr:before:left-0.5 peer-checked:border-primary peer-checked:bg-primary peer-checked:before:bg-white ltr:peer-checked:before:left-4.5 rtl:before:right-0.5 rtl:peer-checked:before:right-4.5 dark:bg-dark dark:before:bg-white-dark"></span>
-                                                    </label>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className={`text-[9px] font-black uppercase tracking-wider ${item[col.key] === 'Active' ? 'text-success' : 'text-danger'}`}>
+                                                            {item[col.key]}
+                                                        </span>
+                                                        <label className="relative mb-0 inline-block h-4 w-8 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="peer absolute z-10 h-full w-full cursor-pointer opacity-0 focus:outline-none focus:ring-0"
+                                                                checked={item[col.key] === 'Active'}
+                                                                onChange={() => onStatusToggle?.(item.originalId, item[col.key])}
+                                                            />
+                                                            <span className="block h-full rounded-full border border-[#adb5bd] bg-white before:absolute before:bottom-[2px] before:h-3 before:w-3 before:rounded-full before:bg-[#adb5bd] before:transition-all before:duration-300 ltr:before:left-0.5 peer-checked:border-primary peer-checked:bg-primary peer-checked:before:bg-white ltr:peer-checked:before:left-4.5 rtl:before:right-0.5 rtl:peer-checked:before:right-4.5 dark:bg-dark dark:before:bg-white-dark"></span>
+                                                        </label>
+                                                    </div>
                                                 ) : col.key === 'purchase_status' ? (
                                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${item[col.key] === 'Received' ? 'bg-success/10 text-success border-success/20' : item[col.key] === 'Pending' ? 'bg-warning/10 text-warning border-warning/20' : 'bg-info/10 text-info border-info/20'}`}>
                                                         {item[col.key]}
@@ -316,9 +352,9 @@ const UserListTable = ({
                                                 ) : col.key === 'status_label' ? (
                                                     <span
                                                         className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border cursor-pointer hover:opacity-80 transition-all ${item[col.key] === 'COMPLETED' ? 'bg-success/10 text-success border-success/20' :
-                                                                item[col.key] === 'PENDING' ? 'bg-warning/10 text-warning border-warning/20' :
-                                                                    item[col.key] === 'OUT_FOR_DELIVERY' ? 'bg-info/10 text-info border-info/20' :
-                                                                        'bg-danger/10 text-danger border-danger/20'
+                                                            item[col.key] === 'PENDING' ? 'bg-warning/10 text-warning border-warning/20' :
+                                                                item[col.key] === 'OUT_FOR_DELIVERY' ? 'bg-info/10 text-info border-info/20' :
+                                                                    'bg-danger/10 text-danger border-danger/20'
                                                             }`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -394,13 +430,13 @@ const UserListTable = ({
                                                     )}
                                                     {userType === 'Product' && onPrint && (
                                                         <Tippy content="Generate & Print Barcode">
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="p-1 text-secondary hover:text-secondary-dark transition-colors"
                                                                 onClick={() => onPrint?.(item)}
                                                             >
                                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
-                                                                    <path d="M3 5H5V19H3V5ZM20 5H22V19H20V5ZM7 5H9V19H7V5ZM11 5H13V19H11V5ZM15 5H16V19H15V5ZM18 5H19V19H18V5Z" fill="currentColor"/>
+                                                                    <path d="M3 5H5V19H3V5ZM20 5H22V19H20V5ZM7 5H9V19H7V5ZM11 5H13V19H11V5ZM15 5H16V19H15V5ZM18 5H19V19H18V5Z" fill="currentColor" />
                                                                 </svg>
                                                             </button>
                                                         </Tippy>

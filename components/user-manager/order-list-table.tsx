@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
@@ -57,6 +57,8 @@ interface UserListTableProps {
     riders?: any[];
     onPrint?: (item: any) => void;
     onStatusUpdate?: (orderId: any, newStatus: string) => void;
+    hideFilter?: boolean;
+    loading?: boolean;
 }
 
 const OrderListTable = ({
@@ -87,7 +89,9 @@ const OrderListTable = ({
     addButtonLabel,
     riders = [],
     onPrint,
-    onStatusUpdate
+    onStatusUpdate,
+    hideFilter = false,
+    loading = false
 }: UserListTableProps) => {
     const [showFilter, setShowFilter] = useState(false);
     const [stagedRiders, setStagedRiders] = useState<{ [key: string]: string }>({});
@@ -98,6 +102,20 @@ const OrderListTable = ({
 
     const handleRiderAssignInternal = (orderId: string, rider: any) => {
         setStagedRiders({ ...stagedRiders, [orderId]: rider.name });
+    };
+
+    const [localSearch, setLocalSearch] = useState(search || '');
+
+    // Sync local search when prop changes from outside
+    useEffect(() => {
+        if (search !== localSearch) {
+            setLocalSearch(search || '');
+        }
+    }, [search]);
+
+    const handleSearchChange = (val: string) => {
+        setLocalSearch(val);
+        onSearchChange?.(val);
     };
 
     return (
@@ -134,20 +152,23 @@ const OrderListTable = ({
                     <div className="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0">
                         <div className="relative flex-1 sm:flex-initial sm:w-48">
                             <input
+                                id="global-search-input-orders" 
                                 type="text"
                                 placeholder="Search..."
                                 className="form-input peer !bg-gray-50 !border-gray-100 focus:!border-primary/40 focus:!bg-white transition-all text-xs py-1 rounded-md"
-                                value={search}
-                                onChange={(e) => onSearchChange?.(e.target.value)}
+                                value={localSearch}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                             />
                             <div className="absolute top-1/2 -translate-y-1/2 ltr:right-[8px] rtl:left-[8px] peer-focus:text-primary">
                                 <IconSearch className="h-3.5 w-3.5 opacity-40" />
                             </div>
                         </div>
-                        <button type="button" className="btn btn-primary btn-sm border-primary bg-primary px-2.5 py-1 gap-1 shadow-sm transition-all" onClick={() => setShowFilter(true)}>
-                            <IconFilter className="h-3.5 w-3.5" />
-                            <span className="text-[11px] font-bold uppercase">Filter</span>
-                        </button>
+                        {!hideFilter && (
+                            <button type="button" className="btn btn-primary btn-sm border-primary bg-primary px-2.5 py-1 gap-1 shadow-sm transition-all" onClick={() => setShowFilter(true)}>
+                                <IconFilter className="h-3.5 w-3.5" />
+                                <span className="text-[11px] font-bold uppercase">Filter</span>
+                            </button>
+                        )}
                         {onAddClick && (
                             <button type="button" className="btn btn-primary btn-sm border-primary bg-primary px-2.5 py-1 gap-1 shadow-sm transition-all" onClick={onAddClick}>
                                 <IconPlus className="h-3.5 w-3.5" />
@@ -166,7 +187,13 @@ const OrderListTable = ({
                     setStatus={onStatusChange || (() => { })}
                 />
 
-                <div className="table-responsive mb-3 overflow-x-auto">
+                <div className="table-responsive mb-3 overflow-x-auto relative min-h-[200px]">
+                    {/* Interior Loading Overlay */}
+                    {loading && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 dark:bg-black/20 backdrop-blur-[1px]">
+                            <span className="inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-8 h-8 align-middle"></span>
+                        </div>
+                    )}
                     <table className="table-hover whitespace-nowrap min-w-[1000px]">
                         <thead>
                             <tr>
@@ -188,7 +215,7 @@ const OrderListTable = ({
                                         {columns.map((col) => (
                                             <td key={col.key} className={`px-2 py-1.5 ${col.key === 'status' ? 'text-center' : ''}`}>
                                                 {col.key === 'order_id' ? (
-                                                    <div 
+                                                    <div
                                                         className="text-[12px] font-bold text-black dark:text-white tracking-tighter cursor-pointer hover:text-primary hover:underline transition-all"
                                                         onClick={() => onViewClick?.(item)}
                                                     >
@@ -323,14 +350,14 @@ const OrderListTable = ({
                                                 ) : col.key === 'order_status' ? (
                                                     <div className="text-center min-w-[80px]">
                                                         <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold uppercase w-full ${item.status === 'delivered' ? 'bg-success/10 text-success' :
-                                                                item.status === 'cancelled' ? 'bg-danger/10 text-danger' :
-                                                                    item.status === 'pending' ? 'bg-warning/10 text-warning' :
-                                                                        item.status === 'order_accepted' ? 'bg-primary/10 text-primary' :
-                                                                            item.status === 'packing' ? 'bg-info/10 text-info' :
-                                                                                item.status === 'pickup_accepted' ? 'bg-secondary/10 text-secondary' :
-                                                                                    item.status === 'in_transit' ? 'bg-info/10 text-info' :
-                                                                                        item.status === 'hold' || item.status === 'waiting' ? 'bg-gray-500/10 text-gray-500' :
-                                                                                            'bg-gray-100 text-gray-600'
+                                                            item.status === 'cancelled' ? 'bg-danger/10 text-danger' :
+                                                                item.status === 'pending' ? 'bg-warning/10 text-warning' :
+                                                                    item.status === 'order_accepted' ? 'bg-primary/10 text-primary' :
+                                                                        item.status === 'packing' ? 'bg-info/10 text-info' :
+                                                                            item.status === 'pickup_accepted' ? 'bg-secondary/10 text-secondary' :
+                                                                                item.status === 'in_transit' ? 'bg-info/10 text-info' :
+                                                                                    item.status === 'hold' || item.status === 'waiting' ? 'bg-gray-500/10 text-gray-500' :
+                                                                                        'bg-gray-100 text-gray-600'
                                                             }`}>
                                                             {item.status?.replace('_', ' ')}
                                                         </span>
@@ -346,14 +373,14 @@ const OrderListTable = ({
                                                                 className="group flex h-6 w-6 items-center justify-center rounded-md border border-gray-100 bg-white shadow-sm transition-all hover:border-primary/50 hover:bg-primary/5"
                                                             >
                                                                 <IconPrinter className="h-3 w-3 text-gray-400 transition-colors group-hover:text-primary" />
-                                                                </button>
-                                                            </Tippy>
+                                                            </button>
+                                                        </Tippy>
 
                                                         {item.status === 'pending' && (
                                                             <Tippy content="Accept Order">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => onStatusUpdate?.(item.originalId, 'order_accepted')}
-                                                                    type="button" 
+                                                                    type="button"
                                                                     className="group flex h-6 w-6 items-center justify-center rounded-md border border-success/20 bg-success/5 shadow-sm transition-all hover:bg-success hover:border-success"
                                                                 >
                                                                     <IconSquareCheck className="h-3.5 w-3.5 text-success transition-colors group-hover:text-white" />
@@ -363,9 +390,9 @@ const OrderListTable = ({
 
                                                         {(item.status === 'order_accepted' || item.status === 'hold' || item.status === 'waiting') && (
                                                             <Tippy content="Move to Packing">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => onStatusUpdate?.(item.originalId, 'packing')}
-                                                                    type="button" 
+                                                                    type="button"
                                                                     className="group flex h-6 w-6 items-center justify-center rounded-md border border-info/20 bg-info/5 shadow-sm transition-all hover:bg-info hover:border-info"
                                                                 >
                                                                     <IconBox className="h-3.5 w-3.5 text-info transition-colors group-hover:text-white" />
@@ -375,9 +402,9 @@ const OrderListTable = ({
 
                                                         {item.status === 'packing' && item.rider !== '-' && (
                                                             <Tippy content="Mark Delivered">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => onStatusUpdate?.(item.originalId, 'delivered')}
-                                                                    type="button" 
+                                                                    type="button"
                                                                     className="group flex h-6 w-6 items-center justify-center rounded-md border border-success/20 bg-success/5 shadow-sm transition-all hover:bg-success hover:border-success"
                                                                 >
                                                                     <IconCircleCheck className="h-3.5 w-3.5 text-success transition-colors group-hover:text-white" />
@@ -387,9 +414,9 @@ const OrderListTable = ({
 
                                                         {(item.status === 'pickup_accepted' || item.status === 'in_transit') && (
                                                             <Tippy content="Mark Delivered">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => onStatusUpdate?.(item.originalId, 'delivered')}
-                                                                    type="button" 
+                                                                    type="button"
                                                                     className="group flex h-6 w-6 items-center justify-center rounded-md border border-success/20 bg-success/5 shadow-sm transition-all hover:bg-success hover:border-success"
                                                                 >
                                                                     <IconCircleCheck className="h-3.5 w-3.5 text-success transition-colors group-hover:text-white" />
@@ -399,9 +426,9 @@ const OrderListTable = ({
 
                                                         {!['delivered', 'cancelled'].includes(item.status) && (
                                                             <Tippy content="Cancel Order">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => onStatusUpdate?.(item.originalId, 'cancelled')}
-                                                                    type="button" 
+                                                                    type="button"
                                                                     className="group flex h-6 w-6 items-center justify-center rounded-md border border-danger/20 bg-danger/5 shadow-sm transition-all hover:bg-danger hover:border-danger"
                                                                 >
                                                                     <IconXCircle className="h-3 w-3 text-danger transition-colors group-hover:text-white" />

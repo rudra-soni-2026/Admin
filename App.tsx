@@ -7,7 +7,7 @@ import Loading from '@/components/layouts/loading';
 import { getTranslation } from '@/i18n';
 import { usePathname, useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
-import { subscribeToOrders, unsubscribeFromOrders } from '@/utils/socket';
+import { subscribeToOrders, unsubscribeFromOrders, initiateSocket, disconnectSocket, joinStore } from '@/utils/socket';
 
 function App({ children }: PropsWithChildren) {
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
@@ -32,16 +32,25 @@ function App({ children }: PropsWithChildren) {
     // 📡 Socket Lifecycle (Runs on mount/token)
     useEffect(() => {
         const token = localStorage.getItem('AdminToken');
+        const role = localStorage.getItem('role');
+        const userDataString = localStorage.getItem('userData');
+        
+        let storeId = 'all';
+        if ((role === 'store_manager' || role === 'warehouse_manager') && userDataString) {
+            try {
+                const userData = JSON.parse(userDataString);
+                storeId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || 'all';
+            } catch (e) {}
+        }
+
         if (token && !socketInitialized.current) {
-            const { initiateSocket, disconnectSocket, joinStore } = require('@/utils/socket');
-            initiateSocket();
-            joinStore('all');
+            initiateSocket(storeId);
+            joinStore(storeId);
 
             // Pre-load audio
             if (!audioRef.current && typeof window !== 'undefined') {
                 audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                 audioRef.current.load();
-                console.log('🎵 Notification audio pre-loaded');
 
                 // Unlock audio context on first user interaction
                 const unlockAudio = () => {
@@ -50,7 +59,6 @@ function App({ children }: PropsWithChildren) {
                             audioRef.current?.pause();
                             if (audioRef.current) audioRef.current.currentTime = 0;
                             window.removeEventListener('click', unlockAudio);
-                            console.log('🔊 Audio context unlocked by user interaction');
                         }).catch(e => console.log('🔇 Unlock interaction failed:', e));
                     }
                 };
@@ -65,28 +73,29 @@ function App({ children }: PropsWithChildren) {
 
             subscribeToOrders((err, data) => {
                 if (err) return;
-                console.log('📡 Global Socket Event:', data.type || data.eventType);
-
+                
                 const orderInfo = data.order || data;
+                const orderStoreId = orderInfo.storeId || orderInfo.store_id || orderInfo.warehouseId || orderInfo.warehouse_id;
+
+                // Safety Check: Only play sound if order is for this store
+                // We also check for 'all' or being a super admin
+                const isRelevant = storeId === 'all' || (orderStoreId && String(orderStoreId) === String(storeId));
+
                 if (data.type === 'NEW_ORDER' || data.eventType === 'NEW_ORDER') {
-                    console.log('🔔 NEW_ORDER Detected! Playing sound...');
-                    if (audioRef.current) {
-                        // Force stop and restart
-                        audioRef.current.pause();
-                        audioRef.current.currentTime = 0;
-                        audioRef.current.play().then(() => {
-                            console.log('🔊 Sound played successfully');
-                        }).catch(e => {
-                            console.log('🔇 Audio blocked by browser policy. Interaction needed.', e);
-                            // Fallback: try playing again with a small delay
-                            setTimeout(() => {
-                                audioRef.current?.play().catch(() => { });
-                            }, 500);
-                        });
+                    if (isRelevant) {
+                        if (audioRef.current) {
+                            audioRef.current.pause();
+                            audioRef.current.currentTime = 0;
+                            audioRef.current.play().catch(e => {
+                                setTimeout(() => { audioRef.current?.play().catch(() => { }); }, 500);
+                            });
+                        }
+                        toast.fire({ icon: 'info', title: `🔔 New Order: ${orderInfo.order_id || 'ID N/A'}` });
                     }
-                    toast.fire({ icon: 'info', title: `🔔 New Order: ${orderInfo.order_id || 'ID N/A'}` });
                 } else if (data.type === 'STATUS_CHANGE' || data.type === 'ORDER_STATUS_CHANGED') {
-                    toast.fire({ icon: 'info', title: `📈 Status Updated: ${orderInfo.order_id || 'ID N/A'}` });
+                    if (isRelevant) {
+                        toast.fire({ icon: 'info', title: `📈 Status Updated: ${orderInfo.order_id || 'ID N/A'}` });
+                    }
                 }
             });
 
@@ -98,7 +107,7 @@ function App({ children }: PropsWithChildren) {
                 socketInitialized.current = false;
             };
         }
-    }, []);
+    }, []); // Run on mount only (Stable connection)
 
     useEffect(() => {
         dispatch(toggleTheme(localStorage.getItem('theme') || themeConfig.theme));

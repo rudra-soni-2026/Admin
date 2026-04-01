@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = 'https://testingdomain.store/';
+// const SOCKET_URL = 'https://testingdomain.store/';
+const SOCKET_URL = 'http://localhost:4000/';
 const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
 

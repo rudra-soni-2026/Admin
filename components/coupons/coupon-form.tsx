@@ -18,6 +18,8 @@ interface CouponFormProps {
 const CouponForm = (props: CouponFormProps) => {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => { setIsMounted(true); }, []);
     const [formData, setFormData] = useState({
         code: '',
         discountType: 'percentage', 
@@ -52,7 +54,7 @@ const CouponForm = (props: CouponFormProps) => {
 
     const loadUserOptions = async (inputValue: string) => {
         try {
-            const response = await callApi(`/management/admin/users?role=user&search=${inputValue || ''}&limit=50`, 'GET');
+            const response = await callApi(`/management/admin/users?role=user&search=${inputValue || ''}&limit=50&isBanned=false`, 'GET');
             if (response && response.data) {
                 return response.data.map((u: any) => ({
                     value: u.id || u._id,
@@ -65,7 +67,7 @@ const CouponForm = (props: CouponFormProps) => {
 
     const loadProductOptions = async (inputValue: string) => {
         try {
-            const response = await callApi(`/management/admin/products?search=${inputValue || ''}&limit=50`, 'GET');
+            const response = await callApi(`/management/admin/products?search=${inputValue || ''}&limit=50&isActive=true`, 'GET');
             if (response && response.data) {
                 return response.data.map((p: any) => ({
                     value: p.id || p._id,
@@ -78,7 +80,7 @@ const CouponForm = (props: CouponFormProps) => {
 
     const loadCategoryOptions = async (inputValue: string) => {
         try {
-            const response = await callApi(`/products/parent-categories?level=0&limit=1000`, 'GET');
+            const response = await callApi(`/products/parent-categories?level=0&limit=1000&isActive=true`, 'GET');
             if (response && response.data) {
                 return response.data.map((c: any) => ({
                     value: c.id || c._id,
@@ -181,6 +183,8 @@ const CouponForm = (props: CouponFormProps) => {
                                     defaultOptions={true}
                                     placeholder="Click to see list or Type to search..."
                                     className="text-xs font-bold"
+                                    menuPortalTarget={isMounted ? document.body : null}
+                                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                                     value={formData.targetIds.length > 0 ? (Array.isArray(formData.targetIds) && typeof formData.targetIds[0] === 'object' ? formData.targetIds : null) : null}
                                     onChange={(opt: any) => setFormData({...formData, targetIds: Array.isArray(opt) ? opt : (opt ? [opt] : [])})}
                                 />
@@ -208,6 +212,8 @@ const CouponForm = (props: CouponFormProps) => {
                                             defaultOptions={true}
                                             placeholder="Search products by name..."
                                             className="text-xs font-black"
+                                            menuPortalTarget={isMounted ? document.body : null}
+                                            styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                                             value={formData.productIds.length > 0 ? (Array.isArray(formData.productIds) && typeof formData.productIds[0] === 'object' ? formData.productIds : null) : null}
                                             onChange={(opt: any) => setFormData({...formData, productIds: Array.isArray(opt) ? opt : (opt ? [opt] : [])})}
                                         />
@@ -224,6 +230,8 @@ const CouponForm = (props: CouponFormProps) => {
                                             defaultOptions={true}
                                             placeholder="Search categories..."
                                             className="text-xs font-black"
+                                            menuPortalTarget={isMounted ? document.body : null}
+                                            styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                                             value={formData.categoryIds.length > 0 ? (Array.isArray(formData.categoryIds) && typeof formData.categoryIds[0] === 'object' ? formData.categoryIds : null) : null}
                                             onChange={(opt: any) => setFormData({...formData, categoryIds: Array.isArray(opt) ? opt : (opt ? [opt] : [])})}
                                         />

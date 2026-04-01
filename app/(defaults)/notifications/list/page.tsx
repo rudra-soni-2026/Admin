@@ -214,9 +214,66 @@ const NotificationSend = () => {
                                         defaultOptions
                                         placeholder="Type name or phone number..."
                                         className="text-[11px] font-black"
+                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                         styles={{
-                                            control: (provided) => ({ ...provided, border: 'none', borderRadius: '14px', padding: '2px 8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }),
-                                            placeholder: (p) => ({ ...p, color: '#94a3b8' })
+                                            control: (provided) => ({
+                                                ...provided,
+                                                border: 'none',
+                                                borderRadius: '14px',
+                                                padding: '2px 8px',
+                                                boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                                backgroundColor: 'white',
+                                                cursor: 'pointer'
+                                            }),
+                                            placeholder: (p) => ({ ...p, color: '#94a3b8' }),
+                                            menu: (provided) => ({
+                                                ...provided,
+                                                borderRadius: '18px',
+                                                overflow: 'hidden',
+                                                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+                                                border: '1px solid #f1f5f9',
+                                                padding: '8px',
+                                                zIndex: 9999,
+                                                backgroundColor: 'white'
+                                            }),
+                                            option: (provided, state) => ({
+                                                ...provided,
+                                                borderRadius: '10px',
+                                                margin: '2px 0',
+                                                padding: '10px 14px',
+                                                backgroundColor: state.isSelected ? '#4361ee' : state.isFocused ? '#f8fafc' : 'white',
+                                                color: state.isSelected ? 'white' : '#1e293b',
+                                                cursor: 'pointer',
+                                                fontWeight: '800',
+                                                fontSize: '11px',
+                                                '&:active': {
+                                                    backgroundColor: '#4361ee20'
+                                                }
+                                            }),
+                                            menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                            singleValue: (provided) => ({ ...provided, color: '#1e293b' }),
+                                            multiValue: (provided) => ({
+                                                ...provided,
+                                                backgroundColor: '#4361ee10',
+                                                borderRadius: '8px',
+                                                padding: '2px'
+                                            }),
+                                            multiValueLabel: (provided) => ({
+                                                ...provided,
+                                                color: '#4361ee',
+                                                fontWeight: '800',
+                                                fontSize: '10px',
+                                                padding: '2px 6px'
+                                            }),
+                                            multiValueRemove: (provided) => ({
+                                                ...provided,
+                                                color: '#4361ee',
+                                                '&:hover': {
+                                                    backgroundColor: '#4361ee',
+                                                    color: 'white',
+                                                    borderRadius: '6px'
+                                                }
+                                            })
                                         }}
                                         onChange={(opt: any) => setTargetIds(Array.isArray(opt) ? opt : (opt ? [opt] : []))}
                                     />
@@ -232,20 +289,17 @@ const NotificationSend = () => {
                                     <div className="relative group">
                                         <input 
                                             type="datetime-local" 
-                                            className="form-input bg-white dark:bg-[#0e1726] border-none shadow-md text-xs font-black py-4 pl-4 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" 
+                                            className="form-input bg-white dark:bg-[#0e1726] border-none shadow-md text-xs font-black py-4 px-4 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" 
                                             value={scheduledAt} 
                                             onChange={(e) => setScheduledAt(e.target.value)}
                                             min={new Date().toISOString().slice(0, 16)}
                                         />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-primary/30 pointer-events-none group-hover:text-primary transition-colors">
-                                            <IconCalendar className="w-5 h-5" />
-                                        </div>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        {/* Image Upload Row */}
+                        {/* Image Attachment Row */}
                         <div className="pt-4 border-t border-gray-50 dark:border-gray-800">
                              <div className="flex items-center gap-4 bg-gray-50/50 dark:bg-gray-800/20 p-3 rounded-3xl border border-gray-100 dark:border-gray-800/50">
                                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Attachment</span>

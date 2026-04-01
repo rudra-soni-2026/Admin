@@ -268,45 +268,45 @@ const ProductList = () => {
                 </li>
             </ul>
 
-            {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
-                </div>
-            ) : (
-                <UserManagerTable
-                    title="Product"
-                    data={productData}
-                    columns={columns}
-                    userType="Product"
-                    totalRecords={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    totalUsers={totalProducts}
-                    todayUsers={todayProducts}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    onStatusChange={setStatus}
-                    dateRange={dateRange}
-                    onDateRangeChange={setDateRange}
-                    onAddClick={handleAddProduct}
-                    addButtonLabel="Add New Product"
-                    onEditClick={handleEditProduct}
-                    onViewClick={handleViewProduct}
-                    onPrint={handlePrintBarcode}
-                    onStatusToggle={handleStatusToggle}
-                    categoryId={categoryId}
-                    onCategoryIdChange={setCategoryId}
-                    brand={brand}
-                    onBrandChange={setBrand}
-                    minPrice={minPrice}
-                    onMinPriceChange={setMinPrice}
-                    maxPrice={maxPrice}
-                    onMaxPriceChange={setMaxPrice}
-                    hideDelete={true}
-                />
-            )}
+            <div className={`fixed top-0 left-0 right-0 h-1 z-[1000] overflow-hidden bg-primary/20 transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className="h-full bg-primary animate-progress w-full"></div>
+            </div>
+
+            <UserManagerTable
+                key="product-manager-list"
+                title="Product"
+                data={productData}
+                columns={columns}
+                userType="Product"
+                loading={loading}
+                totalRecords={totalRecords}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                totalUsers={totalProducts}
+                todayUsers={todayProducts}
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                onStatusChange={setStatus}
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                onAddClick={handleAddProduct}
+                addButtonLabel="Add New Product"
+                onEditClick={handleEditProduct}
+                onViewClick={handleViewProduct}
+                onPrint={handlePrintBarcode}
+                onStatusToggle={handleStatusToggle}
+                categoryId={categoryId}
+                onCategoryIdChange={setCategoryId}
+                brand={brand}
+                onBrandChange={setBrand}
+                minPrice={minPrice}
+                onMinPriceChange={setMinPrice}
+                maxPrice={maxPrice}
+                onMaxPriceChange={setMaxPrice}
+                hideDelete={true}
+            />
         </div>
     );
 };

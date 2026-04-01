@@ -130,34 +130,34 @@ const RiderList = () => {
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Rider List</span></li>
             </ul>
 
-            {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-primary border-l-transparent w-10 h-10 align-middle m-auto"></span>
-                </div>
-            ) : (
-                <UserManagerTable 
-                    title="Riders" 
-                    data={riderData} 
-                    columns={columns} 
-                    userType="Rider" 
-                    totalRecords={totalRecords}
-                    totalUsers={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    onStatusChange={setStatus}
-                    onAddClick={handleAddRider}
-                    onEditClick={handleEditRider}
-                    onDeleteClick={handleDeleteRider}
-                    onStatusToggle={handleStatusToggle}
-                    addButtonLabel="Add New Rider"
-                    hideView={true}
-                    hideDelete={false}
-                />
-            )}
+            <div className={`fixed top-0 left-0 right-0 h-1 z-[1000] overflow-hidden bg-primary/20 transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className="h-full bg-primary animate-progress w-full"></div>
+            </div>
+
+            <UserManagerTable 
+                key="rider-manager-list"
+                title="Riders" 
+                data={riderData} 
+                columns={columns} 
+                userType="Rider" 
+                loading={loading}
+                totalRecords={totalRecords}
+                totalUsers={totalRecords}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                onStatusChange={setStatus}
+                onAddClick={handleAddRider}
+                onEditClick={handleEditRider}
+                onDeleteClick={handleDeleteRider}
+                onStatusToggle={handleStatusToggle}
+                addButtonLabel="Add New Rider"
+                hideView={true}
+                hideDelete={false}
+            />
         </div>
     );
 };

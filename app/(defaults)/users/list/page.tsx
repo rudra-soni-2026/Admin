@@ -63,7 +63,7 @@ const CustomerList = () => {
                     joinedDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
                     cartItemsCount: user.cartProductCount || 0,
                     orders: `${Number(user.todayOrder || 0)} | ${Number(user.totalOrder || 0)}`,
-                    status: user.isBanned ? 'Inactive' : 'Active',
+                    status: user.isBanned ? 'Banned' : 'Active',
                 }));
                 setCustomerData(mappedData);
                 setTotalRecords(response.totalCount || 0);
@@ -147,7 +147,7 @@ const CustomerList = () => {
                 setCustomerData((prevData) => 
                     prevData.map((user) => 
                         user.originalId === userId 
-                            ? { ...user, status: isBanned === 'true' ? 'Inactive' : 'Active' } 
+                            ? { ...user, status: isBanned === 'true' ? 'Banned' : 'Active' } 
                             : user
                     )
                 );
@@ -173,14 +173,69 @@ const CustomerList = () => {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('AdminToken');
+            let query = `/api/v1/management/admin/users?role=user&export=excel`;
+            
+            if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
+            if (status === 'active') query += `&isBanned=false`;
+            else if (status === 'inactive') query += `&isBanned=true`;
+            
+            if (dateRange && dateRange.length === 2) {
+                const start = new Date(dateRange[0]);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(dateRange[1]);
+                end.setHours(23, 59, 59, 999);
+                query += `&startDate=${start.toISOString().split('T')[0]}&endDate=${end.toISOString().split('T')[0]}`;
+            }
+
+            const response = await fetch(query, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Export failed. Please check your permissions.');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `customer_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Export Successful',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        } catch (error: any) {
+            console.error('Export error:', error);
+            Swal.fire('Error', error.message || 'Failed to generate export', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'User' },
         { key: 'phone', label: 'Phone' },
         { key: 'cartItemsCount', label: 'Cart' },
         { key: 'orders', label: 'Today | Total' },
+        { key: 'status', label: 'Ban Status' },
         { key: 'joinedDate', label: 'Joined' },
-        { key: 'status', label: 'Status' },
     ];
 
     return (
@@ -199,35 +254,36 @@ const CustomerList = () => {
                 </li>
             </ul>
 
-            {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
-                </div>
-            ) : (
-                <UserManagerTable 
-                    title="Customer" 
-                    data={customerData} 
-                    columns={columns} 
-                    totalRecords={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    totalUsers={totalUsers}
-                    todayUsers={todayUsers}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    onStatusChange={setStatus}
-                    dateRange={dateRange}
-                    onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    userType="Customer"
-                    hideDelete={true}
-                    hideView={true}
-                    hideAction={true}
-                    disableNameClick={true}
-                />
-            )}
+            <div className={`fixed top-0 left-0 right-0 h-1 z-[1000] overflow-hidden bg-primary/20 transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className="h-full bg-primary animate-progress w-full"></div>
+            </div>
+
+            <UserManagerTable 
+                key="customer-manager-list"
+                title="Customer" 
+                data={customerData} 
+                columns={columns} 
+                loading={loading}
+                totalRecords={totalRecords}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                totalUsers={totalUsers}
+                todayUsers={todayUsers}
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                onStatusChange={setStatus}
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                onStatusToggle={handleStatusToggle}
+                onExportClick={handleExport}
+                userType="Customer"
+                hideDelete={true}
+                hideView={true}
+                hideAction={true}
+                disableNameClick={true}
+            />
         </div>
     );
 };

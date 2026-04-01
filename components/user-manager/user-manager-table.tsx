@@ -53,6 +53,8 @@ interface UserManagerTableProps {
     riders?: any[];
     onPrint?: (item: any) => void;
     onDeleteClick?: (item: any) => void;
+    loading?: boolean;
+    onExportClick?: () => void;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -69,9 +71,9 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             <div className="mt-6">
                 <div className="mb-6 flex items-center justify-between">
                     <h5 className="text-lg font-bold dark:text-white-light">{props.userType || 'User'} Profile</h5>
-                    <button 
-                        type="button" 
-                        className="btn btn-primary" 
+                    <button
+                        type="button"
+                        className="btn btn-primary"
                         onClick={() => setViewMode('list')}
                     >
                         Back to List
@@ -87,23 +89,24 @@ const UserManagerTable = (props: UserManagerTableProps) => {
     return props.userType === 'Order' ? (
         <OrderListTable {...props} riders={props.riders} onPrint={props.onPrint} onStatusUpdate={props.onStatusUpdate} onViewClick={finalViewClick} />
     ) : (
-        <UserListTable 
-            {...props} 
-            onViewClick={finalViewClick} 
+        <UserListTable
+            {...props}
+            onViewClick={finalViewClick}
             onStatusToggle={props.onStatusToggle}
             onStatusClick={props.onStatusClick}
-            onEditClick={props.onEditClick} 
+            onEditClick={props.onEditClick}
             onPermissionEdit={props.onPermissionEdit}
             onDownloadClick={props.onDownloadClick}
             onStockClick={props.onStockClick}
-            hideAction={props.hideAction} 
-            hideDelete={props.hideDelete} 
-            hideView={props.hideView} 
-            hideFilter={props.hideFilter} 
-            disableNameClick={props.disableNameClick} 
+            hideAction={props.hideAction}
+            hideDelete={props.hideDelete}
+            hideView={props.hideView}
+            hideFilter={props.hideFilter}
+            disableNameClick={props.disableNameClick}
             hideTotal={props.hideTotal}
             onDeleteClick={props.onDeleteClick}
             onPrint={props.onPrint}
+            onExportClick={props.onExportClick}
         />
     );
 };

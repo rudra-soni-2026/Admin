@@ -140,7 +140,7 @@ const FilterDrawer = ({
 
                         {/* Status Filter */}
                         <div className="space-y-3">
-                            <label className="mb-1 block text-[12px] font-bold text-gray-700 dark:text-white-light uppercase tracking-tight">{type} Status</label>
+                            <label className="mb-1 block text-[12px] font-bold text-gray-700 dark:text-white-light uppercase tracking-tight">{type === 'Customer' ? 'Ban' : type} Status</label>
                             <div className="flex flex-col gap-1.5">
                                 <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localStatus === 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
                                     <div className="flex items-center">
@@ -168,7 +168,7 @@ const FilterDrawer = ({
                                             {localStatus === 'inactive' && <div className="h-1.5 w-1.5 rounded-full bg-white"></div>}
                                         </div>
                                         <span className={`ltr:ml-2 rtl:mr-2 text-[13px] font-bold ${localStatus === 'inactive' ? 'text-danger' : 'dark:text-white-light'}`}>
-                                            {type === 'Product' ? 'Inactive / Draft' : 'Inactive'}
+                                            {type === 'Product' ? 'Inactive / Draft' : type === 'Customer' ? 'Banned' : 'Inactive'}
                                         </span>
                                     </div>
                                     <input type="radio" name="status" className="hidden" value="inactive" checked={localStatus === 'inactive'} onChange={(e) => setLocalStatus(e.target.value)} />

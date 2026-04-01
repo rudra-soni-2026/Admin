@@ -20,6 +20,8 @@ const OfferForm = ({ id, title }: OfferFormProps) => {
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState<any[]>([]);
     const [fetchingProducts, setFetchingProducts] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => { setIsMounted(true); }, []);
 
     const [formData, setFormData] = useState({
         productId: '',
@@ -73,7 +75,7 @@ const OfferForm = ({ id, title }: OfferFormProps) => {
     const fetchInitialProducts = async (search = '') => {
         try {
             setFetchingProducts(true);
-            const response = await callApi(`/management/admin/products?limit=20&search=${search}`, 'GET');
+            const response = await callApi(`/management/admin/products?limit=20&search=${search}&isActive=true`, 'GET');
             if (response && response.status === 'success') {
                 const options = response.data.map((p: any) => ({
                     value: p._id,
@@ -183,7 +185,8 @@ const OfferForm = ({ id, title }: OfferFormProps) => {
                                     setSelectedProduct(opt);
                                     setFormData({ ...formData, productId: opt?.value });
                                 }}
-                                styles={customStyles}
+                                styles={{ ...customStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
+                                menuPortalTarget={isMounted ? document.body : null}
                                 isClearable
                             />
                         </div>

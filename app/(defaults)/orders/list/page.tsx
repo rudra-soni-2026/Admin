@@ -11,6 +11,7 @@ import { useRef } from 'react';
 
 const OrderList = () => {
     const router = useRouter();
+    const [storedRole, setStoredRole] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem('role') : null);
     const [orderData, setOrderData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
@@ -40,6 +41,10 @@ const OrderList = () => {
         pageRef.current = page;
     }, [page]);
 
+    useEffect(() => {
+        setStoredRole(localStorage.getItem('role'));
+    }, []);
+
 
     // Debounce Search
     useEffect(() => {
@@ -54,8 +59,8 @@ const OrderList = () => {
             let calc = {};
             try {
                 calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
-            } catch (e) {}
-            
+            } catch (e) { }
+
             const total = (calc as any).total || order.totalAmount || 0;
 
             return {
@@ -81,16 +86,17 @@ const OrderList = () => {
     const fetchOrders = (currentPage: number) => {
         try {
             setLoading(true);
-            
+
             // Determine storeId based on role
             const storedRole = localStorage.getItem('role');
             const userDataString = localStorage.getItem('userData');
             let storeId = 'all';
-            
-            if (storedRole === 'store_manager' && userDataString) {
+
+            // Managers (Store or Warehouse) only see their assigned store
+            if ((storedRole === 'store_manager' || storedRole === 'warehouse_manager') && userDataString) {
                 try {
                     const userData = JSON.parse(userDataString);
-                    storeId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || 'all';
+                    storeId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id || 'all';
                 } catch (e) {
                     console.error('Error parsing userData:', e);
                 }
@@ -105,8 +111,13 @@ const OrderList = () => {
 
             if (status !== 'all') params.status = status;
 
-            if (dateRange && dateRange.length === 2) {
-                // Formatting dates to YYYY-MM-DD as requested
+            // Managers are RESTRICTED to TODAY's orders only, with NO overrides possible
+            if (storedRole === 'store_manager' || storedRole === 'warehouse_manager') {
+                const localToday = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD in local time
+                params.startDate = localToday;
+                params.endDate = localToday;
+            } else if (dateRange && dateRange.length === 2) {
+                // Admins/Super-admins can still use date filters
                 const start = new Date(dateRange[0]);
                 const end = new Date(dateRange[1]);
                 params.startDate = start.toISOString().split('T')[0];
@@ -127,6 +138,18 @@ const OrderList = () => {
 
     // Socket Listener
     useEffect(() => {
+        const storedRole = localStorage.getItem('role');
+        const role = localStorage.getItem('role');
+        const userDString = localStorage.getItem('userData');
+        let cStoreId = 'all';
+
+        if ((role === 'store_manager' || role === 'warehouse_manager') && userDString) {
+            try {
+                const userData = JSON.parse(userDString);
+                cStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id || 'all';
+            } catch (e) { }
+        }
+
         // 1️⃣ First attach the listener for data updates only
         subscribeToOrders((err, data) => {
             if (err) {
@@ -134,10 +157,16 @@ const OrderList = () => {
                 return;
             }
 
+            const orderInfo = data.order || data;
+            const orderStoreId = orderInfo.storeId || orderInfo.store_id || orderInfo.warehouseId || orderInfo.warehouse_id;
+
+            // Check if the update is for this store
+            const isRelevant = cStoreId === 'all' || (orderStoreId && String(orderStoreId) === String(cStoreId));
+
             if (data.type === 'NEW_ORDER') {
-                fetchOrders(pageRef.current); // Refresh table for new order
+                if (isRelevant) fetchOrders(pageRef.current); // Refresh table for new order
             } else if (data.type === 'STATUS_CHANGE' || data.type === 'ORDER_STATUS_CHANGED' || data.type === 'ORDER_CANCELLED') {
-                fetchOrders(pageRef.current); // Refresh table for status change
+                if (isRelevant) fetchOrders(pageRef.current); // Refresh table for status change
             } else if (data.eventType === 'INITIAL_BATCH' || data.type === 'INITIAL_BATCH') {
                 const orders = data.orders || data.data || [];
                 const mappedData = mapOrderData(orders);
@@ -157,31 +186,19 @@ const OrderList = () => {
         });
 
         // 2️⃣ Then join/fetch initial data
-        const storedRole = localStorage.getItem('role');
-        const userDataString = localStorage.getItem('userData');
-        let joinId = 'all';
-        if (storedRole === 'store_manager' && userDataString) {
-            try {
-                const userData = JSON.parse(userDataString);
-                joinId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || 'all';
-            } catch(e) {}
-        }
-        joinStore(joinId);
+        joinStore(cStoreId);
         fetchOrders(pageRef.current);
 
-        // Fetch Riders with store_id filtering
-        let currentStoreId = '';
-        if (storedRole === 'store_manager' && userDataString) {
-            try {
-                const userData = JSON.parse(userDataString);
-                currentStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || '';
-            } catch (e) {}
-        }
-
-        const ridersUrl = currentStoreId ? `/management/admin/riders?store_id=${currentStoreId}` : '/management/admin/riders';
-        callApi(ridersUrl, 'GET').then((res: any) => {
-            if (res && res.data) setRiders(res.data);
-        });
+        // Fetch active Riders with store_id filtering if supported by active endpoint
+        const ridersUrl = cStoreId !== 'all' ? `/management/admin/riders/active?store_id=${cStoreId}` : '/management/admin/riders/active';
+        callApi(ridersUrl, 'GET')
+            .then((res: any) => {
+                if (res && res.data) setRiders(res.data);
+            })
+            .catch((err) => {
+                console.error('Failed to fetch riders:', err);
+                setRiders([]);
+            });
 
         return () => {
             // Only unsubscribe locally if we want, but App.tsx also has a sub
@@ -418,6 +435,7 @@ const OrderList = () => {
                     onViewClick={handleViewOrder}
                     riders={riders}
                     addButtonLabel="Create New Order"
+                    hideFilter={storedRole === 'store_manager' || storedRole === 'warehouse_manager'}
                 />
             )}
         </div>

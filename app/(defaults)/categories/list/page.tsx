@@ -193,36 +193,36 @@ const CategoryList = () => {
                 </li>
             </ul>
 
-            {loading ? (
-                <div className="flex items-center justify-center p-20">
-                    <span className="animate-spin rounded-full border-4 border-primary border-l-transparent w-10 h-10"></span>
-                </div>
-            ) : (
-                <UserManagerTable 
-                    title="Category" 
-                    data={categoryData} 
-                    columns={columns} 
-                    userType="Category" 
-                    totalRecords={totalCategories}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    totalUsers={totalCategories}
-                    todayUsers={todayCategories}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    onStatusChange={setStatus}
-                    dateRange={dateRange}
-                    onDateRangeChange={setDateRange}
-                    onAddClick={handleAddCategory}
-                    addButtonLabel="Add New Category"
-                    onViewClick={handleToggleExpand}
-                    onEditClick={handleEditCategory}
-                    onStatusToggle={handleStatusToggle}
-                    hideDelete={true}
-                />
-            )}
+            <div className={`fixed top-0 left-0 right-0 h-1 z-[1000] overflow-hidden bg-primary/20 transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className="h-full bg-primary animate-progress w-full"></div>
+            </div>
+
+            <UserManagerTable 
+                key="category-manager-list"
+                title="Category" 
+                data={categoryData} 
+                columns={columns} 
+                userType="Category" 
+                loading={loading}
+                totalRecords={totalCategories}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                totalUsers={totalCategories}
+                todayUsers={todayCategories}
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                onStatusChange={setStatus}
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                onAddClick={handleAddCategory}
+                addButtonLabel="Add New Category"
+                onViewClick={handleToggleExpand}
+                onEditClick={handleEditCategory}
+                onStatusToggle={handleStatusToggle}
+                hideDelete={true}
+            />
         </div>
     );
 };
