@@ -7,14 +7,14 @@ const NOTIFICATION_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/2869
 
 let socket: Socket | null = null;
 
-export const initiateSocket = (storeId: string = 'all') => {
+export const initiateSocket = (storeId: string = 'all', role: string = 'admin') => {
     if (!socket) {
         socket = io(SOCKET_URL, {
             transports: ['websocket', 'polling'],
             forceNew: true,
-            query: { storeId }
+            query: { storeId, role }
         });
-        console.log(`Connecting to socket with storeId: ${storeId}...`);
+        console.log(`Connecting to socket with storeId: ${storeId} and role: ${role}...`);
     }
 
     if (socket) {

@@ -24,7 +24,6 @@ interface UserManagerTableProps {
     onStatusChange?: (val: string) => void;
     dateRange?: any;
     onDateRangeChange?: (val: any) => void;
-    onStatusUpdate?: (userId: any, newStatus: string) => void;
     onStatusToggle?: (userId: any, currentStatus: string) => void;
     onStatusClick?: (item: any) => void;
     onRiderAssign?: (orderId: any, riderId: string | null, status: string | null) => void;
@@ -52,6 +51,8 @@ interface UserManagerTableProps {
     hideTotal?: boolean;
     riders?: any[];
     onPrint?: (item: any) => void;
+    onStatusUpdate?: (orderId: any, newStatus: string) => void;
+    onPaymentUpdate?: (orderId: any, paymentMethod: string, breakdown?: any) => void;
     onDeleteClick?: (item: any) => void;
     loading?: boolean;
     onExportClick?: () => void;
@@ -90,7 +91,14 @@ const UserManagerTable = (props: UserManagerTableProps) => {
     const finalViewClick = props.onViewClick || (props.hideView ? undefined : (props.userType === 'Category' ? undefined : handleViewUser));
 
     return props.userType === 'Order' ? (
-        <OrderListTable {...props} riders={props.riders} onPrint={props.onPrint} onStatusUpdate={props.onStatusUpdate} onViewClick={finalViewClick} />
+        <OrderListTable 
+            {...props} 
+            riders={props.riders} 
+            onPrint={props.onPrint} 
+            onStatusUpdate={props.onStatusUpdate} 
+            onPaymentUpdate={props.onPaymentUpdate}
+            onViewClick={finalViewClick} 
+        />
     ) : (
         <UserListTable
             {...props}

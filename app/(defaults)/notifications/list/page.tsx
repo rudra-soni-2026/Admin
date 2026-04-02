@@ -58,13 +58,31 @@ const NotificationSend = () => {
         });
     };
 
+    const [excelFile, setExcelFile] = useState<File | null>(null);
+    const downloadSampleExcel = () => {
+        const csvContent = "phone_number\n+919876543210\n+911234567890";
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "notification_bulk_format.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleSendNotification = async () => {
         if (!title || !message) {
             showMessage('Title and Message are required', 'danger');
             return;
         }
 
-        if (targetType !== 'all' && targetIds.length === 0) {
+        if (targetType === 'excel' && !excelFile) {
+            showMessage('Please upload an excel/csv file for bulk audience', 'danger');
+            return;
+        }
+
+        if (targetType !== 'all' && targetType !== 'excel' && targetIds.length === 0) {
             showMessage('Please select at least one customer', 'danger');
             return;
         }
@@ -89,23 +107,27 @@ const NotificationSend = () => {
                 }
             }
 
-            const payload = {
-                title,
-                message,
-                image: finalImageUrl,
-                targetType,
-                targetIds: targetType === 'single'
-                    ? (targetIds[0]?.value || targetIds[0] || null)
-                    : targetIds.map(u => typeof u === 'object' ? u.value : u),
-                type,
-                metadata: metadata ? JSON.parse(metadata) : {},
-                scheduledAt: isScheduled ? scheduledAt : null,
-                status: isScheduled ? 'PENDING' : 'SENT'
-            };
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('message', message);
+            formData.append('image', finalImageUrl);
+            formData.append('targetType', targetType);
+            formData.append('type', type);
+            formData.append('metadata', metadata ? (typeof metadata === 'string' ? metadata : JSON.stringify(metadata)) : '{}');
+            formData.append('scheduledAt', isScheduled ? scheduledAt : '');
+            formData.append('status', isScheduled ? 'PENDING' : 'SENT');
 
-            const response = await callApi('/management/admin/send-notification', 'POST', payload);
-            console.log(response, "response")
-            if (response) {
+            if (targetType === 'excel' && excelFile) {
+                formData.append('excelFile', excelFile);
+            } else {
+                formData.append('targetIds', targetType === 'single'
+                    ? JSON.stringify(targetIds[0]?.value || targetIds[0] || null)
+                    : JSON.stringify(targetIds.map(u => typeof u === 'object' ? u.value : u)));
+            }
+
+            const result = await callApi('/management/admin/send-notification', 'POST', formData);
+            
+            if (result && result.success) {
                 showMessage(isScheduled ? 'Notification Scheduled Successfully!' : 'Broadcast Sent Successfully!', 'success');
                 // Reset form
                 setTitle('');
@@ -116,6 +138,9 @@ const NotificationSend = () => {
                 setMetadata('');
                 setIsScheduled(false);
                 setScheduledAt('');
+                setExcelFile(null);
+            } else {
+                throw new Error(result?.message || 'Broadcast failed');
             }
         } catch (error: any) {
             showMessage(error.message || 'Something went wrong', 'danger');
@@ -194,14 +219,58 @@ const NotificationSend = () => {
                                 <div className="relative">
                                     <select className="form-select text-xs font-black py-3 rounded-2xl border-gray-100 dark:border-gray-800 transition-all hover:border-primary/30" value={targetType} onChange={(e) => {
                                         setTargetType(e.target.value);
-                                        setTargetIds([]);
+                                        if (e.target.value !== 'excel') {
+                                            setTargetIds([]);
+                                            setExcelFile(null);
+                                        }
                                     }}>
                                         <option value="all">Everyone (Broadcast)</option>
                                         <option value="single">Specific Customer</option>
                                         <option value="multiple">Selected User Segment</option>
+                                        <option value="excel">Excel Upload (Bulk)</option>
                                     </select>
                                 </div>
                             </div>
+
+                            {targetType === 'excel' && (
+                                <div className="md:col-span-2 animate__animated animate__fadeIn animate__faster bg-primary/5 p-4 rounded-[24px] border border-primary/10 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black uppercase text-primary tracking-widest">Excel Audience Upload</span>
+                                            <span className="text-[9px] font-bold text-gray-500">Provide CSV with phone_number column</span>
+                                        </div>
+                                        <button type="button" onClick={downloadSampleExcel} className="text-[10px] font-black text-primary hover:underline uppercase tracking-tighter">
+                                            Get Sample Layout
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="relative group">
+                                        <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            id="excel-bulk-upload" 
+                                            accept=".csv"
+                                            onChange={(e) => {
+                                                if (e.target.files?.[0]) setExcelFile(e.target.files[0]);
+                                            }}
+                                        />
+                                        <label 
+                                            htmlFor="excel-bulk-upload"
+                                            className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-primary dark:hover:border-primary rounded-2xl cursor-pointer transition-all bg-white dark:bg-gray-800 shadow-sm"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-all">
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 group-hover:text-primary transition-colors">
+                                                    <path d="M12 16V8M12 8L15 11M12 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M7 16H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                            </div>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-tight">
+                                                {excelFile ? excelFile.name : 'Click to Select CSV'}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className={`transition-all duration-500 rounded-2xl p-0.5 ${isScheduled ? 'bg-gradient-to-r from-primary to-blue-600 shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800'}`}>
                                 <div className={`h-full w-full rounded-[14px] flex items-center justify-between px-4 py-2 transition-all ${isScheduled ? 'bg-white/95 dark:bg-black/90' : 'bg-transparent'}`}>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import UserManagerTable from '@/components/user-manager/user-manager-table';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
-import { subscribeToOrders, joinStore, unsubscribeFromOrders, getOrders } from '@/utils/socket';
+import { subscribeToOrders, joinStore, unsubscribeFromOrders, getOrders, getSocket } from '@/utils/socket';
 import { useRef } from 'react';
 
 
@@ -84,6 +84,15 @@ const OrderList = () => {
     };
 
     const fetchOrders = (currentPage: number) => {
+        const socketObj = getSocket();
+        
+        // 🔥 If socket not ready, retry in 500ms or just log it
+        if (!socketObj || !socketObj.connected) {
+            console.log("⏳ Socket not ready, will retry fetch...");
+            setTimeout(() => fetchOrders(currentPage), 500);
+            return;
+        }
+
         try {
             setLoading(true);
 
@@ -111,20 +120,18 @@ const OrderList = () => {
 
             if (status !== 'all') params.status = status;
 
-            // Managers are RESTRICTED to TODAY's orders only, with NO overrides possible
+            // 📍 STRICT FILTER: Managers see ONLY TODAY's orders
             if (storedRole === 'store_manager' || storedRole === 'warehouse_manager') {
-                const localToday = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD in local time
+                const localToday = new Date().toLocaleDateString('en-CA'); 
                 params.startDate = localToday;
                 params.endDate = localToday;
             } else if (dateRange && dateRange.length === 2) {
-                // Admins/Super-admins can still use date filters
                 const start = new Date(dateRange[0]);
                 const end = new Date(dateRange[1]);
                 params.startDate = start.toISOString().split('T')[0];
                 params.endDate = end.toISOString().split('T')[0];
             }
 
-            // Emit the get_orders event via socket
             getOrders(params);
         } catch (error) {
             console.error('Error initiating socket fetch:', error);
@@ -210,6 +217,38 @@ const OrderList = () => {
     }, []);
 
 
+    const handlePaymentUpdate = async (orderId: any, paymentMethod: string, breakdown?: any) => {
+        try {
+            const response = await callApi('/management/store-manager/order-payment', 'PATCH', {
+                orderId,
+                paymentMethod,
+                breakdown
+            });
+
+            if (response.status === 'success') {
+                const toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    showCloseButton: true,
+                    customClass: {
+                        popup: 'color-success',
+                    },
+                });
+                toast.fire({
+                    icon: 'success',
+                    title: 'Payment method updated',
+                    padding: '10px 20px',
+                });
+                fetchOrders(page);
+            }
+        } catch (error: any) {
+            Swal.fire('Error', error.message || 'Failed to update payment', 'error');
+        }
+    };
+
     const handleStatusUpdate = async (orderId: any, newStatus: string) => {
         try {
             const response = await callApi(`/management/store-manager/order-status`, 'PATCH', {
@@ -259,36 +298,51 @@ const OrderList = () => {
 
         // Parse JSON strings if they are strings
         let calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
-        let addr = typeof order.order_address === 'string' ? JSON.parse(order.order_address) : (order.order_address || order.address || {});
-
+        
         const finalDateTime = order.orderTime && order.orderTime !== 'N/A' ? order.orderTime : 'N/A';
 
         let itemsHtml = '';
         const itemsList = order.items || order.products || order.orderItems || [];
         if (itemsList.length > 0) {
-            itemsHtml = itemsList.map((item: any) => {
-                const name = item.product_name || item.Product_name || item.item_name || item.productName || item.name || item.product?.name || item.item?.name || 'Product';
-                const price = Number(item.unit_amount || item.price || item.unit_price || item.product_price || item.product?.price || item.amount || item.selling_price || 0);
-                const quantity = Number(item.quantity || 1);
-                const total = Number(item.total_item_amount || item.total || item.product_total || (price * quantity) || 0);
+            // 🏷️ Group items by Category
+            const groups: { [key: string]: any[] } = itemsList.reduce((acc: any, item: any) => {
+                const cat = item.categoryName || 'General';
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push(item);
+                return acc;
+            }, {});
+
+            itemsHtml = Object.entries(groups).map(([catName, groupItems]) => {
+                const groupHtml = groupItems.map((item: any) => {
+                    const name = item.product_name || item.Product_name || item.item_name || item.productName || item.name || item.product?.name || item.item?.name || 'Product';
+                    const price = Number(item.unit_amount || item.price || item.unit_price || item.product_price || item.product?.price || item.amount || item.selling_price || 0);
+                    const quantity = Number(item.quantity || 1);
+                    const total = Number(item.total_item_amount || item.total || item.product_total || (price * quantity) || 0);
+
+                    return `
+                        <div class="item" style="padding-left: 8px;">
+                            <div class="item-left">
+                                ${name} (${price.toFixed(2)} x ${quantity})
+                            </div>
+                            <div class="item-right">
+                                ${total.toFixed(2)}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
 
                 return `
-                    <div class="item">
-                        <div class="item-left">
-                            ${name} (${price.toFixed(2)} x ${quantity})
-                        </div>
-                        <div class="item-right">
-                            ${total.toFixed(2)}
-                        </div>
+                    <div style="margin-top: 8px; margin-bottom: 4px;">
+                        <div class="bold" style="text-decoration: underline; font-size: 11px;">${catName.toUpperCase()}</div>
+                        ${groupHtml}
                     </div>
                 `;
             }).join('');
         }
 
-        const formattedAddress = addr ? `
-            ${addr.house_no || addr.address_line_1 || ''} ${addr.street || addr.address_line_2 || ''}<br/>
-            ${addr.landmark ? 'Landmark: ' + addr.landmark : ''}
-        ` : 'Address Not Provided';
+        const formattedAddress = order.formatted_address ? `
+            <div class="bold small">${order.formatted_address}</div>
+        ` : (order.order_address ? `<div class="bold small">${typeof order.order_address === 'string' ? order.order_address : JSON.stringify(order.order_address)}</div>` : '<div class="center">Address Not Provided</div>');
 
         const html = `
             <!DOCTYPE html>
@@ -451,6 +505,8 @@ const OrderList = () => {
                     onStatusUpdate={hasPerm('orders', 'update') ? handleStatusUpdate : undefined}
                     onRiderAssign={hasPerm('orders', 'update') ? handleRiderAssign : undefined}
                     onViewClick={hasPerm('orders', 'read') ? handleViewOrder : undefined}
+                    onPrint={hasPerm('orders', 'read') ? handlePrint : undefined}
+                    onPaymentUpdate={handlePaymentUpdate}
                     riders={riders}
                     addButtonLabel="Create New Order"
                     hideFilter={storedRole === 'store_manager' || storedRole === 'warehouse_manager'}

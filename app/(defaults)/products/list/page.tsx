@@ -315,6 +315,7 @@ const ProductList = () => {
                 onEditClick={hasPerm('products', 'update') ? handleEditProduct : undefined}
                 onStatusToggle={hasPerm('products', 'update') ? handleStatusToggle : undefined}
                 onViewClick={hasPerm('products', 'view') ? handleViewProduct : undefined}
+                onPrint={hasPerm('products', 'read') ? handlePrintBarcode : undefined}
                 hideView={true}
                 categoryId={categoryId}
                 onCategoryIdChange={setCategoryId}

@@ -46,6 +46,19 @@ const OrderDetail = () => {
     const addr = typeof order.order_address === 'string' ? JSON.parse(order.order_address) : (order.order_address || order.address || {});
     const items = order.items || order.products || order.orderItems || [];
 
+    // 🏷️ Group items by Category
+    const groupedItems: { [key: string]: any[] } = items.reduce((acc: any, item: any) => {
+        const cat = item.categoryName || 'General';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(item);
+        return acc;
+    }, {});
+
+    const addressLine1 = [order.house_no || order.address_line_1 || addr.house_no || addr.address_line_1 || addr.streetNumber].filter(Boolean).join(' ');
+    const addressLine2 = [order.street || order.address_line_2 || addr.street || addr.address_line_2 || addr.streetName || addr.subLocality].filter(Boolean).join(' ');
+    const cityArea = [addr.city || addr.locality, addr.state || addr.adminArea, addr.pincode || addr.postalCode].filter(Boolean).join(', ');
+    const fullAddress = [addressLine1, addressLine2, cityArea].filter(Boolean).join(', ');
+
     return (
         <div className="max-w-4xl mx-auto my-10 p-8 bg-white border border-gray-100 shadow-sm text-black font-sans rounded-none">
             {/* 1. Header with Status & ID */}
@@ -76,8 +89,8 @@ const OrderDetail = () => {
                 <div>
                     <h4 className="text-[11px] font-black text-gray-400 uppercase mb-3 tracking-widest">Delivery Address</h4>
                     <p className="text-[13px] font-bold leading-relaxed">
-                        {addr.house_no || addr.address_line_1 || ''} {addr.street || addr.address_line_2 || ''}, {addr.city || ''} {addr.pincode || ''}<br/>
-                        {addr.landmark && <span className="text-primary font-black uppercase text-[11px]">Landmark: {addr.landmark}</span>}
+                        {order.formatted_address || addr.formattedAddress || fullAddress || 'Address Not Provided'}
+                        {addr.landmark && <><br /><span className="text-primary font-black uppercase text-[11px]">Landmark: {addr.landmark}</span></>}
                     </p>
                 </div>
                 <div>
@@ -104,21 +117,30 @@ const OrderDetail = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {items.map((item: any, idx: number) => {
-                            const name = item.product_name || item.Product_name || item.item_name || item.productName || item.name || item.product?.name || item.item?.name || 'Product';
-                            const price = Number(item.unit_amount || item.price || 0);
-                            const qty = Number(item.quantity || 1);
-                            return (
-                                <tr key={idx} className="group">
-                                    <td className="py-5">
-                                        <p className="text-[14px] font-black uppercase tracking-tight">{name}</p>
+                        {Object.entries(groupedItems).map(([catName, groupItems]) => (
+                            <React.Fragment key={catName}>
+                                <tr className="bg-gray-50/50">
+                                    <td colSpan={4} className="py-2 px-4 text-[11px] font-black uppercase text-primary tracking-widest border-l-4 border-primary">
+                                        {catName}
                                     </td>
-                                    <td className="py-5 text-center text-[14px] font-bold">x{qty}</td>
-                                    <td className="py-5 text-right text-[14px] font-bold text-gray-500">₹{price}</td>
-                                    <td className="py-5 text-right text-[15px] font-black tracking-tighter">₹{(price * qty)}</td>
                                 </tr>
-                            );
-                        })}
+                                {groupItems.map((item: any, idx: number) => {
+                                    const name = item.product_name || item.Product_name || item.item_name || item.productName || item.name || item.product?.name || item.item?.name || 'Product';
+                                    const price = Number(item.unit_amount || item.price || 0);
+                                    const qty = Number(item.quantity || 1);
+                                    return (
+                                        <tr key={idx} className="group">
+                                            <td className="py-5 pl-4">
+                                                <p className="text-[14px] font-black uppercase tracking-tight">{name}</p>
+                                            </td>
+                                            <td className="py-5 text-center text-[14px] font-bold">x{qty}</td>
+                                            <td className="py-5 text-right text-[14px] font-bold text-gray-500">₹{price}</td>
+                                            <td className="py-5 text-right text-[15px] font-black tracking-tighter pr-4">₹{(price * qty).toFixed(2)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
                     </tbody>
                 </table>
             </div>

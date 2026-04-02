@@ -19,6 +19,7 @@ const CouponForm = (props: CouponFormProps) => {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const [excelFile, setExcelFile] = useState<File | null>(null);
     useEffect(() => { setIsMounted(true); }, []);
     const [formData, setFormData] = useState({
         code: '',
@@ -100,17 +101,53 @@ const CouponForm = (props: CouponFormProps) => {
         }
     };
 
+    const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setExcelFile(e.target.files[0]);
+        }
+    };
+
+    const downloadSampleExcel = () => {
+        const csvContent = "data:text/csv;charset=utf-8,phone_number\n+919876543210\n+911234567890";
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "coupon_users_format.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             setLoading(true);
-            const payload = { 
-                ...formData, 
-                targetIds: formData.targetIds.map(u => typeof u === 'object' ? u.value : u),
-                productIds: formData.productIds.map(p => typeof p === 'object' ? p.value : p),
-                categoryIds: formData.categoryIds.map(c => typeof c === 'object' ? c.value : c)
-            };
-            const response = await callApi(isEdit ? `/management/admin/coupons/${props.id}` : '/management/admin/coupons', isEdit ? 'PATCH' : 'POST', payload);
+
+            if (formData.targetType === 'EXCEL' && !excelFile) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Please upload an excel file first.' });
+                setLoading(false);
+                return;
+            }
+
+            let response;
+            if (formData.targetType === 'EXCEL') {
+                const fd = new FormData();
+                Object.entries(formData).forEach(([key, val]) => {
+                    if (key === 'expiryDate') fd.append(key, (val as Date).toISOString());
+                    else if (Array.isArray(val)) fd.append(key, JSON.stringify(val.map(v => typeof v === 'object' ? v.value : v)));
+                    else fd.append(key, String(val));
+                });
+                if (excelFile) fd.append('excelFile', excelFile);
+                response = await callApi(isEdit ? `/management/admin/coupons/${props.id}` : '/management/admin/coupons', isEdit ? 'PATCH' : 'POST', fd);
+            } else {
+                const payload = { 
+                    ...formData, 
+                    targetIds: formData.targetIds.map(u => typeof u === 'object' ? u.value : u),
+                    productIds: formData.productIds.map(p => typeof p === 'object' ? p.value : p),
+                    categoryIds: formData.categoryIds.map(c => typeof c === 'object' ? c.value : c)
+                };
+                response = await callApi(isEdit ? `/management/admin/coupons/${props.id}` : '/management/admin/coupons', isEdit ? 'PATCH' : 'POST', payload);
+            }
             if (response) {
                 if (isEdit) localStorage.removeItem(`edit_coupon_${props.id}`);
                 Swal.fire({ icon: 'success', title: `Coupon ${isEdit ? 'Updated' : 'Created'}`, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
@@ -169,8 +206,54 @@ const CouponForm = (props: CouponFormProps) => {
                                 <option value="NEW_USER">NEW USERS ONLY</option>
                                 <option value="SINGLE">SINGLE USER</option>
                                 <option value="MULTIPLE">SELECTED GROUP</option>
+                                <option value="EXCEL">EXCEL UPLOAD (BULK)</option>
                             </select>
                         </div>
+
+                        {/* Excel Upload Section */}
+                        {formData.targetType === 'EXCEL' && (
+                            <div className="md:col-span-2 p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 animate-slide-down space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] font-black uppercase text-primary">Bulk User Upload</span>
+                                        <span className="text-[9px] font-bold text-gray-500">Upload CSV/Excel with Phone Numbers</span>
+                                    </div>
+                                    <button 
+                                        type="button" 
+                                        onClick={downloadSampleExcel}
+                                        className="text-[10px] font-black text-primary hover:underline uppercase tracking-tighter"
+                                    >
+                                        Download Format
+                                    </button>
+                                </div>
+                                
+                                <div className="relative">
+                                    <input 
+                                        type="file" 
+                                        onChange={handleExcelUpload}
+                                        className="hidden" 
+                                        id="excel-upload"
+                                        accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                    />
+                                    <label 
+                                        htmlFor="excel-upload"
+                                        className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-primary dark:hover:border-primary rounded-xl cursor-pointer transition-all bg-white dark:bg-black group"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-900 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-all">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 group-hover:text-primary transition-colors">
+                                                <path d="M12 16V8M12 8L15 11M12 8L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <path d="M7 16H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        {excelFile ? (
+                                            <span className="text-[11px] font-black text-success uppercase">{excelFile.name} (Ready)</span>
+                                        ) : (
+                                            <span className="text-[11px] font-black text-gray-400 uppercase">Click to upload users</span>
+                                        )}
+                                    </label>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Async User Selection */}
                         {(formData.targetType === 'SINGLE' || formData.targetType === 'MULTIPLE') && (

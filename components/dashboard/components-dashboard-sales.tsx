@@ -696,14 +696,16 @@ const ComponentsDashboardSales = () => {
 
                         <div className="panel bg-gradient-to-r from-emerald-500 to-emerald-400">
                             <div className="flex justify-between">
-                                <div className="text-md font-semibold uppercase opacity-90">Today's Orders</div>
+                                <div className="text-md font-semibold uppercase opacity-90">Total Orders</div>
                                 <IconShoppingCart className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
                                 <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
-                                    {stats?.kpi?.todayOrders?.count ?? '0'}
+                                    {stats?.kpi?.allTimeOrder?.count ?? '0'}
                                 </div>
-                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Live Tracking</div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">
+                                    Today: {stats?.kpi?.todayOrders?.count ?? '0'}
+                                </div>
                             </div>
                         </div>
 
@@ -716,8 +718,8 @@ const ComponentsDashboardSales = () => {
                                 <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
                                     {stats?.kpi?.deliveredOrders?.count ?? '0'}
                                 </div>
-                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">
-                                    Success Rate: {stats?.kpi?.deliveredOrders?.successRate ?? '0'}%
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">
+                                    Today: {stats?.kpi?.deliveredOrders?.todayCount ?? '0'}
                                 </div>
                             </div>
                         </div>
@@ -731,7 +733,9 @@ const ComponentsDashboardSales = () => {
                                 <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
                                     {stats?.kpi?.cancelledOrders?.count ?? '0'}
                                 </div>
-                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Immediate Review</div>
+                                <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">
+                                    Today: {stats?.kpi?.cancelledOrders?.todayCount ?? '0'}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -742,7 +746,7 @@ const ComponentsDashboardSales = () => {
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Active Stores</div>
                                 <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
-                                    {stats?.kpi?.infrastructure?.activeStores ?? '0'} Stores
+                                    {stats?.kpi?.activeStores?.totalStores ?? '0'} Total Stores
                                 </div>
                             </div>
                         </div>
@@ -750,7 +754,7 @@ const ComponentsDashboardSales = () => {
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Catalogs</div>
                                 <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
-                                    {stats?.kpi?.infrastructure?.totalCategories ?? '0'} Categories | {stats?.kpi?.infrastructure?.totalProducts ?? '0'} Products
+                                    {stats?.kpi?.catalogs?.categories ?? '0'} Category | {stats?.kpi?.catalogs?.products ?? '0'} Product
                                 </div>
                             </div>
                         </div>
@@ -894,30 +898,35 @@ const ComponentsDashboardSales = () => {
                                 </div>
                                 <h5 className="text-2xl font-semibold ltr:text-right rtl:text-left dark:text-white-light">
                                     {stats?.kpi?.todayOrders?.count ?? '0'}
-                                    <span className="block text-sm font-normal">Today's Orders</span>
+                                    <span className="block text-sm font-normal">Order Trend (Hourly)</span>
                                 </h5>
                             </div>
-                            <div className="rounded-lg bg-transparent">
+                            <div className="rounded-lg bg-transparent mt-10">
                                 {/* loader */}
                                 {isMounted ? (
                                     <ReactApexChart
                                         key={stats?.timestamp || 'orders-trend'}
-                                        series={
-                                            stats?.charts?.ordersTrend?.income
-                                                ? [
-                                                    { name: 'Income', data: stats.charts.ordersTrend.income.map((v: any) => v || 0) },
-                                                    { name: 'Expenses', data: (stats.charts.ordersTrend.expenses || []).map((v: any) => v || 0) }
-                                                ]
-                                                : stats?.charts?.ordersTrend?.series || totalOrders.series
-                                        }
+                                        series={stats?.charts?.ordersTrend?.series || totalOrders.series}
                                         options={{
                                             ...totalOrders.options,
-                                            labels: stats?.charts?.ordersTrend?.labels || totalOrders.options.labels
+                                            chart: {
+                                                ...totalOrders.options.chart,
+                                                sparkline: { enabled: false },
+                                                toolbar: { show: false }
+                                            },
+                                            xaxis: {
+                                                labels: { show: true, style: { fontSize: '10px' } },
+                                                categories: stats?.charts?.ordersTrend?.labels || Array.from({ length: 24 }, (_, i) => `${i}:00`)
+                                            },
+                                            grid: {
+                                                padding: { top: 10, right: 0, bottom: 0, left: 10 }
+                                            }
                                         }}
                                         type="area"
-                                        height={290}
+                                        height={280}
                                         width={'100%'}
                                     />
+                                
                                 ) : (
                                     <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
                                         <span className="inline-flex h-5 w-5 animate-spin rounded-full  border-2 border-black !border-l-transparent dark:border-white"></span>

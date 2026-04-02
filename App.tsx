@@ -29,7 +29,6 @@ function App({ children }: PropsWithChildren) {
         }
     }, [pathname, router]);
 
-    // 📡 Socket Lifecycle (Runs on mount/token)
     useEffect(() => {
         const token = localStorage.getItem('AdminToken');
         const role = localStorage.getItem('role');
@@ -44,7 +43,7 @@ function App({ children }: PropsWithChildren) {
         }
 
         if (token && !socketInitialized.current) {
-            initiateSocket(storeId);
+            initiateSocket(storeId, role || 'admin');
             joinStore(storeId);
 
             // Pre-load audio
@@ -77,8 +76,6 @@ function App({ children }: PropsWithChildren) {
                 const orderInfo = data.order || data;
                 const orderStoreId = orderInfo.storeId || orderInfo.store_id || orderInfo.warehouseId || orderInfo.warehouse_id;
 
-                // Safety Check: Only play sound if order is for this store
-                // We also check for 'all' or being a super admin
                 const isRelevant = storeId === 'all' || (orderStoreId && String(orderStoreId) === String(storeId));
 
                 if (data.type === 'NEW_ORDER' || data.eventType === 'NEW_ORDER') {
@@ -100,14 +97,8 @@ function App({ children }: PropsWithChildren) {
             });
 
             socketInitialized.current = true;
-
-            return () => {
-                disconnectSocket();
-                unsubscribeFromOrders();
-                socketInitialized.current = false;
-            };
         }
-    }, []); // Run on mount only (Stable connection)
+    }, [pathname]); 
 
     useEffect(() => {
         dispatch(toggleTheme(localStorage.getItem('theme') || themeConfig.theme));

@@ -57,6 +57,7 @@ interface UserListTableProps {
     riders?: any[];
     onPrint?: (item: any) => void;
     onStatusUpdate?: (orderId: any, newStatus: string) => void;
+    onPaymentUpdate?: (orderId: any, paymentMethod: string, breakdown?: any) => void;
     hideFilter?: boolean;
     loading?: boolean;
 }
@@ -90,6 +91,7 @@ const OrderListTable = ({
     riders = [],
     onPrint,
     onStatusUpdate,
+    onPaymentUpdate,
     hideFilter = false,
     loading = false
 }: UserListTableProps) => {
@@ -277,8 +279,8 @@ const OrderListTable = ({
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        {/* {!paymentSubTypes[item.originalId] && (
-                                                            <div className="flex items-center gap-1 min-h-[22px]">
+                                                        {(item.status?.toLowerCase() === 'delivered') && ((item.paymentMethod || item.pay || '').toUpperCase() === 'CASH' || (item.paymentMethod || item.pay || '').toUpperCase() === 'COD') && !paymentSubTypes[item.originalId] && (
+                                                            <div className="relative flex items-center gap-1 min-h-[22px]">
                                                                 <button
                                                                     onClick={() => {
                                                                         setStagedType({ ...stagedType, [item.originalId]: 'CASH' });
@@ -288,23 +290,24 @@ const OrderListTable = ({
                                                                 >CASH</button>
                                                                 <button
                                                                     onClick={() => {
-                                                                        setStagedType({ ...stagedType, [item.originalId]: 'BANK' });
+                                                                        setStagedType({ ...stagedType, [item.originalId]: 'QR' });
                                                                         setActiveMultiOrderId(null);
                                                                     }}
-                                                                    className={`px-1.5 py-0.5 rounded border text-[7px] font-black transition-all active:scale-95 ${stagedType[item.originalId] === 'BANK' ? 'bg-info border-info text-white' : 'bg-transparent border-info/20 text-info/60 hover:bg-info/5'}`}
-                                                                >BANK</button>
+                                                                    className={`px-1.5 py-0.5 rounded border text-[7px] font-black transition-all active:scale-95 ${stagedType[item.originalId] === 'QR' ? 'bg-info border-info text-white' : 'bg-transparent border-info/20 text-info/60 hover:bg-info/5'}`}
+                                                                >QR</button>
                                                                 <button
                                                                     onClick={() => {
                                                                         setStagedType({ ...stagedType, [item.originalId]: 'MULTI' });
                                                                         setActiveMultiOrderId(item.originalId);
                                                                     }}
-                                                                    className={`px-1.5 py-0.5 rounded border text-[7px] font-black transition-all active:scale-95 ${item.originalId === activeMultiOrderId || stagedType[item.originalId] === 'MULTI' ? 'bg-secondary border-secondary text-white' : 'bg-transparent border-secondary/20 text-secondary/5'}`}
+                                                                    className={`px-1.5 py-0.5 rounded border text-[7px] font-black transition-all active:scale-95 ${item.originalId === activeMultiOrderId || stagedType[item.originalId] === 'MULTI' ? 'bg-secondary border-secondary text-white' : 'bg-transparent border-secondary/20 text-secondary'}`}
                                                                 >MULTI</button>
 
                                                                 {stagedType[item.originalId] && stagedType[item.originalId] !== 'MULTI' && (
                                                                     <button
                                                                         onClick={() => {
                                                                             setPaymentSubTypes({ ...paymentSubTypes, [item.originalId]: stagedType[item.originalId] });
+                                                                            onPaymentUpdate?.(item.originalId, stagedType[item.originalId]);
                                                                             setStagedType({ ...stagedType, [item.originalId]: '' });
                                                                         }}
                                                                         className="w-4 h-4 flex items-center justify-center bg-success rounded-full text-white shadow-sm hover:scale-110 active:scale-90 transition-all ml-0.5"
@@ -334,7 +337,9 @@ const OrderListTable = ({
                                                                         </div>
                                                                         <button
                                                                             onClick={() => {
+                                                                                const breakdown = paymentBreakdowns[item.originalId];
                                                                                 setPaymentSubTypes({ ...paymentSubTypes, [item.originalId]: 'MULTI' });
+                                                                                onPaymentUpdate?.(item.originalId, 'MULTI', { cash: Number(breakdown.cash), online: Number(breakdown.online) });
                                                                                 setActiveMultiOrderId(null);
                                                                                 setStagedType({ ...stagedType, [item.originalId]: '' });
                                                                             }}
@@ -345,7 +350,7 @@ const OrderListTable = ({
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        )} */}
+                                                        )}
                                                     </div>
                                                 ) : col.key === 'order_status' ? (
                                                     <div className="text-center min-w-[80px]">
