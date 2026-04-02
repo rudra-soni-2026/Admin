@@ -168,28 +168,47 @@ const FilterDrawer = ({
                                     </div>
                                     <input type="radio" name="status" className="hidden" value="all" checked={localStatus === 'all'} onChange={(e) => setLocalStatus(e.target.value)} />
                                 </label>
-                                <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localStatus === 'active' ? 'border-success bg-success/10 text-success' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
-                                    <div className="flex items-center">
-                                        <div className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${localStatus === 'active' ? 'border-success bg-success' : 'border-gray-300 dark:border-gray-600'}`}>
-                                            {localStatus === 'active' && <div className="h-1.5 w-1.5 rounded-full bg-white"></div>}
-                                        </div>
-                                        <span className={`ltr:ml-2 rtl:mr-2 text-[13px] font-bold ${localStatus === 'active' ? 'text-success' : 'dark:text-white-light'}`}>
-                                            {type === 'Product' ? 'Active / Published' : 'Active'}
-                                        </span>
-                                    </div>
-                                    <input type="radio" name="status" className="hidden" value="active" checked={localStatus === 'active'} onChange={(e) => setLocalStatus(e.target.value)} />
-                                </label>
-                                <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localStatus === 'inactive' ? 'border-danger bg-danger/10 text-danger' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
-                                    <div className="flex items-center">
-                                        <div className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${localStatus === 'inactive' ? 'border-danger bg-danger' : 'border-gray-300 dark:border-gray-600'}`}>
-                                            {localStatus === 'inactive' && <div className="h-1.5 w-1.5 rounded-full bg-white"></div>}
-                                        </div>
-                                        <span className={`ltr:ml-2 rtl:mr-2 text-[13px] font-bold ${localStatus === 'inactive' ? 'text-danger' : 'dark:text-white-light'}`}>
-                                            {type === 'Product' ? 'Inactive / Draft' : type === 'Customer' ? 'Banned' : 'Inactive'}
-                                        </span>
-                                    </div>
-                                    <input type="radio" name="status" className="hidden" value="inactive" checked={localStatus === 'inactive'} onChange={(e) => setLocalStatus(e.target.value)} />
-                                </label>
+
+                                {type === 'Order' ? (
+                                    <>
+                                        {['pending', 'order_accepted', 'packing', 'delivered', 'cancelled'].map(s => (
+                                            <label key={s} className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localStatus === s ? 'border-primary bg-primary/10 text-primary' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
+                                                <div className="flex items-center">
+                                                    <div className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${localStatus === s ? 'border-primary bg-primary' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                        {localStatus === s && <div className="h-1.5 w-1.5 rounded-full bg-white"></div>}
+                                                    </div>
+                                                    <span className={`ltr:ml-2 rtl:mr-2 text-[13px] font-bold ${localStatus === s ? 'text-primary' : 'dark:text-white-light'} uppercase`}>{s.replace('_', ' ')}</span>
+                                                </div>
+                                                <input type="radio" name="status" className="hidden" value={s} checked={localStatus === s} onChange={(e) => setLocalStatus(e.target.value)} />
+                                            </label>
+                                        ))}
+                                    </>
+                                ) : (
+                                    <>
+                                        <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localStatus === 'active' ? 'border-success bg-success/10 text-success' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
+                                               <div className="flex items-center">
+                                                <div className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${localStatus === 'active' ? 'border-success bg-success' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                    {localStatus === 'active' && <div className="h-1.5 w-1.5 rounded-full bg-white"></div>}
+                                                </div>
+                                                <span className={`ltr:ml-2 rtl:mr-2 text-[13px] font-bold ${localStatus === 'active' ? 'text-success' : 'dark:text-white-light'}`}>
+                                                    {type === 'Product' ? 'Active / Published' : 'Active'}
+                                                </span>
+                                            </div>
+                                            <input type="radio" name="status" className="hidden" value="active" checked={localStatus === 'active'} onChange={(e) => setLocalStatus(e.target.value)} />
+                                        </label>
+                                        <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localStatus === 'inactive' ? 'border-danger bg-danger/10 text-danger' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
+                                            <div className="flex items-center">
+                                                <div className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${localStatus === 'inactive' ? 'border-danger bg-danger' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                    {localStatus === 'inactive' && <div className="h-1.5 w-1.5 rounded-full bg-white"></div>}
+                                                </div>
+                                                <span className={`ltr:ml-2 rtl:mr-2 text-[13px] font-bold ${localStatus === 'inactive' ? 'text-danger' : 'dark:text-white-light'}`}>
+                                                    {type === 'Product' ? 'Inactive / Draft' : type === 'Customer' ? 'Banned' : 'Inactive'}
+                                                </span>
+                                            </div>
+                                            <input type="radio" name="status" className="hidden" value="inactive" checked={localStatus === 'inactive'} onChange={(e) => setLocalStatus(e.target.value)} />
+                                        </label>
+                                    </>
+                                )}
                             </div>
                         </div>
 

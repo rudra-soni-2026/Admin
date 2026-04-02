@@ -7,6 +7,7 @@ import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
 import { subscribeToOrders, joinStore, unsubscribeFromOrders, getOrders, getSocket } from '@/utils/socket';
 import { useRef } from 'react';
+import moment from 'moment';
 
 
 const OrderList = () => {
@@ -120,16 +121,20 @@ const OrderList = () => {
 
             if (status !== 'all') params.status = status;
 
-            // 📍 STRICT FILTER: Managers see ONLY TODAY's orders
+            // 📍 DEFAULT: Today's orders if no date range selected
             if (storedRole === 'store_manager' || storedRole === 'warehouse_manager') {
-                const localToday = new Date().toLocaleDateString('en-CA'); 
+                const localToday = moment().format('YYYY-MM-DD'); 
                 params.startDate = localToday;
                 params.endDate = localToday;
-            } else if (dateRange && dateRange.length === 2) {
-                const start = new Date(dateRange[0]);
-                const end = new Date(dateRange[1]);
-                params.startDate = start.toISOString().split('T')[0];
-                params.endDate = end.toISOString().split('T')[0];
+            } else if (dateRange && dateRange.length > 0) {
+                // If Admin/Role has selection
+                params.startDate = moment(dateRange[0]).format('YYYY-MM-DD');
+                params.endDate = moment(dateRange[dateRange.length - 1]).format('YYYY-MM-DD');
+            } else {
+                // Default to Today for everyone
+                const localToday = moment().format('YYYY-MM-DD');
+                params.startDate = localToday;
+                params.endDate = localToday;
             }
 
             getOrders(params);

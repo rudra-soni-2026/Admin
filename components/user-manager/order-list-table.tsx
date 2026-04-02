@@ -187,6 +187,7 @@ const OrderListTable = ({
                     setDate={onDateRangeChange || (() => { })}
                     status={status}
                     setStatus={onStatusChange || (() => { })}
+                    type={userType}
                 />
 
                 <div className="table-responsive mb-3 overflow-x-auto relative min-h-[200px]">

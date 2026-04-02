@@ -11,6 +11,7 @@ import IconMapPin from '@/components/icon/icon-map-pin';
 
 // Sub-component for a Paginated Order Table
 const OrderHistoryTable = ({ orders }: { orders: any[] }) => {
+    const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
@@ -35,9 +36,13 @@ const OrderHistoryTable = ({ orders }: { orders: any[] }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-gray-900">
                         {currentOrders.length > 0 ? currentOrders.map((order: any, idx: number) => (
-                            <tr key={idx} className="hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors">
+                            <tr 
+                                key={idx} 
+                                className="hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+                                onClick={() => router.push(`/orders/preview/${order.id}`)}
+                            >
                                 <td className="px-6 py-5">
-                                    <p className="font-black uppercase tracking-tight text-[12px]">{order.store?.name}</p>
+                                    <p className="font-black uppercase tracking-tight text-[12px] group-hover:text-primary transition-colors">{order.store?.name}</p>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{order.store?.city}</p>
                                 </td>
                                 <td className="px-6 py-5 font-bold text-gray-500 whitespace-nowrap text-[12px] italic">

@@ -57,6 +57,19 @@ const Sidebar = () => {
     const hasPermission = (permission: string) => {
         // 1. Super Admin Level
         if (role === 'super_admin') return true;
+        
+        // 🚨 Role-based overrides (Ensure essential tabs are always visible for specific roles)
+        if (role === 'store_manager') {
+            // Sir, Store Manager ONLY sees Orders and Store Inventory as requested!
+            const allowed = ['orders', 'store_inventory'];
+            return allowed.includes(permission);
+        }
+        
+        if (role === 'admin') {
+            const allowed = ['orders', 'stores', 'warehouses', 'dashboard', 'users', 'riders', 'products', 'categories', 'inventory_transfer', 'store_inventory', 'warehouse_inventory'];
+            if (allowed.includes(permission)) return true;
+        }
+
         if (!permissions) return false;
 
         // 2. Intelligent Data Detection (Works for ALL roles: Admin, Product Manager, etc.)
@@ -243,8 +256,8 @@ const Sidebar = () => {
                                         <ul>
                                             {hasPermission('suppliers') && (<li className="nav-item"><Link href="/suppliers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span></div></Link></li>)}
                                             {hasPermission('purchase') && (<li className="nav-item"><Link href="/purchase/list" className="group"><div className="flex items-center"><IconListCheck className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span></div></Link></li>)}
-                                            {hasPermission('warehouse_inventory') && (role !== 'super_admin' && role !== 'admin') && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
-                                            {hasPermission('store_inventory') && (role !== 'super_admin' && role !== 'admin') && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
+                                            {hasPermission('warehouse_inventory') && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
+                                            {hasPermission('store_inventory') && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
                                             {hasPermission('inventory_transfer') && (<li className="nav-item"><Link href="/inventory/transfer" className="group"><div className="flex items-center"><IconRefresh className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span></div></Link></li>)}
                                         </ul>
                                     </li>

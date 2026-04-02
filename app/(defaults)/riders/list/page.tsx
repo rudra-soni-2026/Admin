@@ -176,7 +176,7 @@ const RiderList = () => {
                 addButtonLabel="Add New Rider"
                 hideView={true}
                 hideDelete={true}
-                hideAdd={true}
+                hideAdd={false}
             />
         </div>
     );

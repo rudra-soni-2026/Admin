@@ -278,7 +278,8 @@ const AdminForm = (props: AdminFormProps) => {
                     )}
 
                     {/* Optimised Permissions Matrix */}
-                    <div className="mt-8 border-t border-gray-100 pt-8">
+                    {(formData.role === 'admin' || formData.role === 'super_admin') && (
+                        <div className="mt-8 border-t border-gray-100 pt-8">
                         <label className="text-[11px] font-black text-gray-800 uppercase tracking-widest mb-4 block border-l-4 border-black pl-3">Access Privileges</label>
                         <div className="overflow-hidden border border-gray-100 rounded-xl shadow-sm">
                             <table className="w-full text-left bg-white">
@@ -333,12 +334,13 @@ const AdminForm = (props: AdminFormProps) => {
                             </table>
                         </div>
                     </div>
+                    )}
 
                     <div className="mt-10 flex justify-end gap-3 pt-6 border-t border-gray-100">
                         <button type="button" className="px-6 py-2 bg-white text-gray-300 border border-gray-100 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 font-black" onClick={() => router.push(props.redirectPath || '/admins/list')} disabled={loading}>Discard</button>
                         <button type="submit" className="px-8 py-2 bg-black text-white rounded-lg text-[11px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black/90 active:scale-95 transition-all shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] disabled:opacity-50" disabled={loading}>
                             {loading ? <span className="animate-spin rounded-full border-2 border-white border-l-transparent w-3 h-3"></span> : <IconSave className="h-4 w-4" />}
-                            {loading ? 'Processing...' : isEdit ? `Apply Updates` : `Grant Full Access`}
+                            {loading ? 'Processing...' : isEdit ? `Apply Updates` : (formData.role === 'admin' || formData.role === 'super_admin' ? `Grant Full Access` : `Create ${props.title}`)}
                         </button>
                     </div>
                 </form>
