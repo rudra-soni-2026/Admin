@@ -50,6 +50,11 @@ interface UserListTableProps {
     onMaxPriceChange?: (val: string) => void;
     hideAction?: boolean;
     hideDelete?: boolean;
+    hideEdit?: boolean;
+    hideStock?: boolean;
+    hideAdd?: boolean;
+    // hidePermission?: boolean;
+    // hideDownload?: boolean;
     hideView?: boolean;
     hideFilter?: boolean;
     onDownloadClick?: (item: any) => void;
@@ -100,6 +105,11 @@ const UserListTable = ({
     onMaxPriceChange,
     hideAction = false,
     hideDelete = false,
+    hideEdit = false,
+    hideStock = true,
+    hideAdd = false,
+    // hidePermission = false,
+    // hideDownload = false,
     hideView = false,
     hideFilter = false,
     disableNameClick = false,
@@ -164,14 +174,13 @@ const UserListTable = ({
                                 <span className="text-[12px] font-bold uppercase">Filter</span>
                             </button>
                         )}
-                        {onExportClick && (
-                            <button type="button" className="btn btn-success btn-sm px-4 py-2 gap-2 shadow-sm transition-all" onClick={onExportClick}>
-                                <IconDownload className="h-4 w-4" />
-                                <span className="text-[12px] font-bold uppercase">Export</span>
-                            </button>
-                        )}
-                        {onAddClick && (
-                            <button type="button" className="btn btn-primary btn-sm px-4 py-2 gap-2 shadow-sm transition-all" onClick={onAddClick}>
+                        {!hideAdd && (
+                            <button
+                                type="button"
+                                className={`btn btn-primary btn-sm px-4 py-2 gap-2 shadow-sm transition-all ${!onAddClick ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
+                                onClick={() => onAddClick?.()}
+                                disabled={!onAddClick}
+                            >
                                 <IconPlus className="h-4 w-4" />
                                 <span className="text-[12px] font-bold uppercase">{addButtonLabel || 'Add'}</span>
                             </button>
@@ -195,13 +204,14 @@ const UserListTable = ({
                     setMinPrice={onMinPriceChange}
                     maxPrice={maxPrice}
                     setMaxPrice={onMaxPriceChange}
+                    onExport={onExportClick}
                 />
 
                 <div className="table-responsive mb-0 overflow-x-auto border-t border-gray-100 relative min-h-[200px]">
                     {/* Interior Loading Overlay */}
                     {loading && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 dark:bg-black/20 backdrop-blur-[1px]">
-                            <span className="inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-8 h-8 align-middle"></span>
+                            <span className="inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-8 h-8 align-middle m-auto"></span>
                         </div>
                     )}
                     <table className="table-hover w-full min-w-[800px]">
@@ -328,19 +338,19 @@ const UserListTable = ({
                                                 ) : col.key === 'phone' ? (
                                                     <div className="flex flex-col leading-tight text-[12px] font-bold text-gray-700 dark:text-white-light leading-snug">
                                                         <span>{item.phone}</span>
-                                                        {item.email && <span className="text-[10px] text-gray-400 font-medium normal-case">{item.email}</span>}
                                                     </div>
                                                 ) : col.key === 'status' ? (
                                                     <div className="flex flex-col items-center gap-1">
                                                         <span className={`text-[9px] font-black uppercase tracking-wider ${item[col.key] === 'Active' ? 'text-success' : 'text-danger'}`}>
                                                             {item[col.key]}
                                                         </span>
-                                                        <label className="relative mb-0 inline-block h-4 w-8 cursor-pointer">
+                                                        <label className={`relative mb-0 inline-block h-4 w-8 ${onStatusToggle ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
                                                             <input
                                                                 type="checkbox"
-                                                                className="peer absolute z-10 h-full w-full cursor-pointer opacity-0 focus:outline-none focus:ring-0"
+                                                                className={`peer absolute z-10 h-full w-full opacity-0 focus:outline-none focus:ring-0 ${onStatusToggle ? 'cursor-pointer' : 'pointer-events-none'}`}
                                                                 checked={item[col.key] === 'Active'}
                                                                 onChange={() => onStatusToggle?.(item.originalId, item[col.key])}
+                                                                disabled={!onStatusToggle}
                                                             />
                                                             <span className="block h-full rounded-full border border-[#adb5bd] bg-white before:absolute before:bottom-[2px] before:h-3 before:w-3 before:rounded-full before:bg-[#adb5bd] before:transition-all before:duration-300 ltr:before:left-0.5 peer-checked:border-primary peer-checked:bg-primary peer-checked:before:bg-white ltr:peer-checked:before:left-4.5 rtl:before:right-0.5 rtl:peer-checked:before:right-4.5 dark:bg-dark dark:before:bg-white-dark"></span>
                                                         </label>
@@ -373,34 +383,38 @@ const UserListTable = ({
                                         {!hideAction && (
                                             <td className="text-center sm:pr-8">
                                                 <div className="flex items-center justify-center gap-3">
-                                                    {!hideView && userType !== 'Category' && onViewClick && (
-                                                        <Tippy content="View">
+                                                    {!hideView && userType !== 'Category' && (
+                                                        <Tippy content={onViewClick ? "View" : "No Permission"}>
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-primary hover:text-primary-dark transition-colors"
+                                                                className={`p-1 text-primary hover:text-primary-dark transition-colors ${!onViewClick ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={() => onViewClick?.(item)}
+                                                                disabled={!onViewClick}
                                                             >
                                                                 <IconEye className="h-4 w-4" />
                                                             </button>
                                                         </Tippy>
                                                     )}
-                                                    {onEditClick && (
-                                                        <Tippy content="Edit">
+                                                    {!hideEdit && (
+                                                        <Tippy content={onEditClick ? "Edit" : "No Permission"}>
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-success hover:text-success-dark transition-colors"
+                                                                className={`p-1 text-success hover:text-success-dark transition-colors ${!onEditClick ? 'opacity-20 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={() => onEditClick?.(item)}
+                                                                disabled={!onEditClick}
                                                             >
                                                                 <IconPencil className="h-4 w-4" />
                                                             </button>
                                                         </Tippy>
                                                     )}
+
                                                     {onPermissionEdit && (
                                                         <Tippy content="Permissions">
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-warning hover:text-warning-dark transition-colors"
+                                                                className={`p-1 text-warning hover:text-warning-dark transition-colors ${!onPermissionEdit ? 'opacity-20 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={() => onPermissionEdit?.(item)}
+                                                                disabled={!onPermissionEdit}
                                                             >
                                                                 <IconLock className="h-4 w-4" />
                                                             </button>
@@ -410,30 +424,33 @@ const UserListTable = ({
                                                         <Tippy content="Download">
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-info hover:text-info-dark transition-colors"
+                                                                className={`p-1 text-info hover:text-info-dark transition-colors ${!onDownloadClick ? 'opacity-20 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={() => onDownloadClick?.(item)}
+                                                                disabled={!onDownloadClick}
                                                             >
                                                                 <IconDownload className="h-4 w-4" />
                                                             </button>
                                                         </Tippy>
                                                     )}
-                                                    {onStockClick && (
-                                                        <Tippy content="View Stock / Inventory">
+                                                    {!hideStock && (
+                                                        <Tippy content={onStockClick ? "View Stock / Inventory" : "No Permission"}>
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-info hover:text-info-dark transition-colors"
+                                                                className={`p-1 text-info hover:text-info-dark transition-colors ${!onStockClick ? 'opacity-20 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={() => onStockClick?.(item)}
+                                                                disabled={!onStockClick}
                                                             >
                                                                 <IconBox className="h-4 w-4" />
                                                             </button>
                                                         </Tippy>
                                                     )}
-                                                    {userType === 'Product' && onPrint && (
+                                                    {userType === 'Product' && onPrint !== undefined && (
                                                         <Tippy content="Generate & Print Barcode">
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-secondary hover:text-secondary-dark transition-colors"
+                                                                className={`p-1 text-secondary hover:text-secondary-dark transition-colors ${!onPrint ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={() => onPrint?.(item)}
+                                                                disabled={!onPrint}
                                                             >
                                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
                                                                     <path d="M3 5H5V19H3V5ZM20 5H22V19H20V5ZM7 5H9V19H7V5ZM11 5H13V19H11V5ZM15 5H16V19H15V5ZM18 5H19V19H18V5Z" fill="currentColor" />
@@ -442,14 +459,15 @@ const UserListTable = ({
                                                         </Tippy>
                                                     )}
                                                     {!hideDelete && (
-                                                        <Tippy content="Delete">
+                                                        <Tippy content={onDeleteClick ? "Delete" : "No Permission"}>
                                                             <button
                                                                 type="button"
-                                                                className="p-1 text-danger hover:text-danger-dark transition-colors"
+                                                                className={`p-1 text-danger hover:text-danger-dark transition-colors ${!onDeleteClick ? 'opacity-20 cursor-not-allowed grayscale' : ''}`}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     onDeleteClick?.(item);
                                                                 }}
+                                                                disabled={!onDeleteClick}
                                                             >
                                                                 <IconTrashLines className="h-4 w-4" />
                                                             </button>

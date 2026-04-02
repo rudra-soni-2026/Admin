@@ -21,7 +21,7 @@ const NotificationSend = () => {
     const [type, setType] = useState('PROMOTIONAL'); // TRANSACTIONAL, PROMOTIONAL, etc.
     const [metadata, setMetadata] = useState('');
     const [loading, setLoading] = useState(false);
-    
+
     // Scheduling states
     const [isScheduled, setIsScheduled] = useState(false);
     const [scheduledAt, setScheduledAt] = useState('');
@@ -78,7 +78,7 @@ const NotificationSend = () => {
             if (images.length > 0 && images[0].file) {
                 const uploadData = new FormData();
                 uploadData.append('images', images[0].file);
-                
+
                 const uploadRes = await callApi('/upload', 'POST', uploadData);
                 if (uploadRes && uploadRes.status === 'success' && Array.isArray(uploadRes.data) && uploadRes.data.length > 0) {
                     finalImageUrl = uploadRes.data[0].url;
@@ -94,8 +94,8 @@ const NotificationSend = () => {
                 message,
                 image: finalImageUrl,
                 targetType,
-                targetIds: targetType === 'single' 
-                    ? (targetIds[0]?.value || targetIds[0] || null) 
+                targetIds: targetType === 'single'
+                    ? (targetIds[0]?.value || targetIds[0] || null)
                     : targetIds.map(u => typeof u === 'object' ? u.value : u),
                 type,
                 metadata: metadata ? JSON.parse(metadata) : {},
@@ -104,7 +104,7 @@ const NotificationSend = () => {
             };
 
             const response = await callApi('/management/admin/send-notification', 'POST', payload);
-            console.log(response,"response")
+            console.log(response, "response")
             if (response) {
                 showMessage(isScheduled ? 'Notification Scheduled Successfully!' : 'Broadcast Sent Successfully!', 'success');
                 // Reset form
@@ -124,10 +124,29 @@ const NotificationSend = () => {
         }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     return (
         <div className="animate__animated animate__fadeIn">
             <ul className="mb-4 flex space-x-2 rtl:space-x-reverse text-sm">
-                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
+                <li><Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Promotion & Ranking</span></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Send Notification</span></li>
             </ul>
@@ -279,7 +298,7 @@ const NotificationSend = () => {
                                     />
                                 </div>
                             )}
-                            
+
                             {/* Schedule Time Expansion */}
                             {isScheduled && (
                                 <div className="md:col-span-2 animate__animated animate__fadeIn animate__faster bg-gradient-to-br from-primary/10 to-blue-500/5 p-4 rounded-[24px] border border-primary/20">
@@ -287,10 +306,10 @@ const NotificationSend = () => {
                                         <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div> Dispatch Time Configuration
                                     </label>
                                     <div className="relative group">
-                                        <input 
-                                            type="datetime-local" 
-                                            className="form-input bg-white dark:bg-[#0e1726] border-none shadow-md text-xs font-black py-4 px-4 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" 
-                                            value={scheduledAt} 
+                                        <input
+                                            type="datetime-local"
+                                            className="form-input bg-white dark:bg-[#0e1726] border-none shadow-md text-xs font-black py-4 px-4 rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                                            value={scheduledAt}
                                             onChange={(e) => setScheduledAt(e.target.value)}
                                             min={new Date().toISOString().slice(0, 16)}
                                         />
@@ -301,15 +320,14 @@ const NotificationSend = () => {
 
                         {/* Image Attachment Row */}
                         <div className="pt-4 border-t border-gray-50 dark:border-gray-800">
-                             <div className="flex items-center gap-4 bg-gray-50/50 dark:bg-gray-800/20 p-3 rounded-3xl border border-gray-100 dark:border-gray-800/50">
+                            <div className="flex items-center gap-4 bg-gray-50/50 dark:bg-gray-800/20 p-3 rounded-3xl border border-gray-100 dark:border-gray-800/50">
                                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Attachment</span>
                                 <ImageUploading value={images} onChange={(list) => setImages(list)} maxNumber={1}>
                                     {({ imageList, onImageUpload, onImageRemove, isDragging, dragProps }) => (
                                         <div className="flex-1 flex items-center gap-4">
                                             <div
-                                                className={`flex-1 h-12 border-2 border-dashed rounded-2xl flex items-center justify-center cursor-pointer transition-all ${
-                                                    isDragging ? 'border-primary bg-primary/10' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300'
-                                                }`}
+                                                className={`flex-1 h-12 border-2 border-dashed rounded-2xl flex items-center justify-center cursor-pointer transition-all ${isDragging ? 'border-primary bg-primary/10' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300'
+                                                    }`}
                                                 onClick={onImageUpload}
                                                 {...dragProps}
                                             >
@@ -331,12 +349,17 @@ const NotificationSend = () => {
                                         </div>
                                     )}
                                 </ImageUploading>
-                             </div>
+                            </div>
                         </div>
 
                         {/* Action Row */}
                         <div className="pt-6">
-                            <button type="button" className="btn btn-primary w-full py-4 rounded-[20px] shadow-xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all overflow-hidden relative group" onClick={handleSendNotification} disabled={loading}>
+                            <button
+                                type="button"
+                                className={`btn btn-primary w-full py-4 rounded-[20px] shadow-xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all overflow-hidden relative group ${!hasPerm('notifications', 'create') ? 'cursor-not-allowed opacity-50 grayscale' : ''}`}
+                                onClick={hasPerm('notifications', 'create') ? handleSendNotification : () => showMessage('Access Denied: You do not have permission to send notifications.', 'danger')}
+                                disabled={loading}
+                            >
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
                                 {loading ? (
                                     <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-5 h-5"></span>
@@ -348,7 +371,6 @@ const NotificationSend = () => {
                         </div>
                     </div>
                 </div>
-
 
                 {/* Preview Section */}
                 <div className="lg:col-span-5 p-6 bg-gray-50 dark:bg-black/20 rounded-[40px] border-2 border-gray-100 dark:border-gray-800">

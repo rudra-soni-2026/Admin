@@ -108,10 +108,10 @@ const SupplierList = () => {
                     padding: '10px 20px',
                 });
 
-                setSupplierData((prev) => 
-                    prev.map((item) => 
-                        item.originalId === userId 
-                            ? { ...item, status: willBeBanned ? 'Inactive' : 'Active' } 
+                setSupplierData((prev) =>
+                    prev.map((item) =>
+                        item.originalId === userId
+                            ? { ...item, status: willBeBanned ? 'Inactive' : 'Active' }
                             : item
                     )
                 );
@@ -131,6 +131,25 @@ const SupplierList = () => {
         // Save the supplier data to localStorage since GET by ID API is not available
         localStorage.setItem(`edit_supplier_${supplier.originalId}`, JSON.stringify(supplier));
         router.push(`/suppliers/edit/${supplier.originalId}`);
+    };
+
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) {}
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch(e){}
+        return currentPerms?.[mod]?.[action] === true;
     };
 
     const columns = [
@@ -162,11 +181,11 @@ const SupplierList = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Supplier" 
-                    data={supplierData} 
-                    columns={columns} 
-                    userType="Supplier" 
+                <UserManagerTable
+                    title="Supplier"
+                    data={supplierData}
+                    columns={columns}
+                    userType="Supplier"
                     totalRecords={totalRecords}
                     page={page}
                     pageSize={pageSize}
@@ -179,9 +198,9 @@ const SupplierList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddSupplier}
-                    onEditClick={handleEditSupplier}
+                    onStatusToggle={hasPerm('suppliers', 'update') ? handleStatusToggle : undefined}
+                    onAddClick={hasPerm('suppliers', 'create') ? handleAddSupplier : undefined}
+                    onEditClick={hasPerm('suppliers', 'update') ? handleEditSupplier : undefined}
                     addButtonLabel="Create New Supplier"
                     hideView={true}
                     disableNameClick={true}

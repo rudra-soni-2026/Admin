@@ -50,6 +50,7 @@ const OfferList = () => {
                     conditions: `Max Qty: ${offer.minQuantity} | Min Val: ₹${offer.minOrderValue}`,
                     validity: `${new Date(offer.startDate).toLocaleDateString()} - ${offer.expiryDate ? new Date(offer.expiryDate).toLocaleDateString() : 'No Limit'}`,
                     status: offer.status === 'active' || offer.isActive ? 'Active' : 'Inactive',
+                    raw: offer
                 }));
                 setData(mappedData);
                 setTotalRecords(response.pagination?.total_items || offers.length);
@@ -79,10 +80,10 @@ const OfferList = () => {
                     timer: 3000
                 });
 
-                setData((prev) => 
-                    prev.map((item) => 
-                        item.originalId === id 
-                            ? { ...item, status: currentStatus === 'Active' ? 'Inactive' : 'Active' } 
+                setData((prev) =>
+                    prev.map((item) =>
+                        item.originalId === id
+                            ? { ...item, status: currentStatus === 'Active' ? 'Inactive' : 'Active' }
                             : item
                     )
                 );
@@ -96,8 +97,30 @@ const OfferList = () => {
         router.push('/offers/add');
     };
 
-    const handleEditOffer = (id: any) => {
-        router.push(`/offers/edit/${id}`);
+    const handleEditOffer = (item: any) => {
+        if (item.raw) {
+            localStorage.setItem(`edit_offer_${item.originalId}`, JSON.stringify(item.raw));
+        }
+        router.push(`/offers/edit/${item.originalId}`);
+    };
+
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
     };
 
     const columns = [
@@ -128,11 +151,11 @@ const OfferList = () => {
                     <span className="animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Product Offers" 
-                    data={data} 
-                    columns={columns} 
-                    userType="Offer" 
+                <UserManagerTable
+                    title="Product Offers"
+                    data={data}
+                    columns={columns}
+                    userType="Offer"
                     totalRecords={totalRecords}
                     page={page}
                     pageSize={pageSize}
@@ -141,9 +164,9 @@ const OfferList = () => {
                     onSearchChange={setSearch}
                     status={status}
                     onStatusChange={setStatus}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddOffer}
-                    onEditClick={handleEditOffer}
+                    onStatusToggle={hasPerm('offers', 'update') ? handleStatusToggle : undefined}
+                    onAddClick={hasPerm('offers', 'create') ? handleAddOffer : undefined}
+                    onEditClick={hasPerm('offers', 'update') ? handleEditOffer : undefined}
                     addButtonLabel="Add Offer"
                     hideDelete={true}
                     hideView={true}

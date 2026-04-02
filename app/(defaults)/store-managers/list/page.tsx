@@ -62,7 +62,7 @@ const StoreManagerList = () => {
                 }));
                 setData(mappedData);
                 setTotalRecords(response.totalCount || 0);
-                
+
                 if (response.stats) {
                     setTotalUsers(response.stats.total || response.totalCount || 0);
                     setTodayUsers(response.stats.today || 0);
@@ -101,10 +101,10 @@ const StoreManagerList = () => {
                     timer: 3000
                 });
 
-                setData((prev) => 
-                    prev.map((item) => 
-                        item.originalId === userId 
-                            ? { ...item, status: isBanned === 'true' ? 'Inactive' : 'Active' } 
+                setData((prev) =>
+                    prev.map((item) =>
+                        item.originalId === userId
+                            ? { ...item, status: isBanned === 'true' ? 'Inactive' : 'Active' }
                             : item
                     )
                 );
@@ -118,6 +118,25 @@ const StoreManagerList = () => {
 
     const handleAddStoreManager = () => {
         router.push('/store-managers/add');
+    };
+
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) {}
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch(e){}
+        return currentPerms?.[mod]?.[action] === true;
     };
 
     const columns = [
@@ -147,11 +166,11 @@ const StoreManagerList = () => {
                     <span className="animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Store Manager" 
-                    data={data} 
-                    columns={columns} 
-                    userType="Store Manager" 
+                <UserManagerTable
+                    title="Store Manager"
+                    data={data}
+                    columns={columns}
+                    userType="Store Manager"
                     totalRecords={totalRecords}
                     page={page}
                     pageSize={pageSize}
@@ -164,12 +183,12 @@ const StoreManagerList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddStoreManager}
-                    onEditClick={(item: any) => {
+                    onStatusToggle={hasPerm('store_managers', 'update') ? handleStatusToggle : undefined}
+                    onAddClick={hasPerm('store_managers', 'create') ? handleAddStoreManager : undefined}
+                    onEditClick={hasPerm('store_managers', 'update') ? (item: any) => {
                         localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
                         router.push(`/store-managers/edit/${item.originalId}`);
-                    }}
+                    } : undefined}
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Add New Store Manager"

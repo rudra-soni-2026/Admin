@@ -23,7 +23,7 @@ const InventoryTransfer = () => {
     const fetchTransferHistory = async () => {
         try {
             setHistoryLoading(true);
-            
+
             const storedRole = localStorage.getItem('role');
             const userDataString = localStorage.getItem('userData');
             let query = `/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}`;
@@ -32,7 +32,7 @@ const InventoryTransfer = () => {
                 try {
                     const userData = JSON.parse(userDataString);
                     const assignedId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id;
-                    
+
                     if (assignedId) {
                         if (storedRole === 'store_manager') {
                             query += `&storeId=${assignedId}`;
@@ -50,10 +50,10 @@ const InventoryTransfer = () => {
                 const mapped = response.data.map((item: any) => {
                     let itemsArray = [];
                     try {
-                        itemsArray = Array.isArray(item.items) ? item.items : 
-                                     (typeof item.items === 'string' ? JSON.parse(item.items) : []);
+                        itemsArray = Array.isArray(item.items) ? item.items :
+                            (typeof item.items === 'string' ? JSON.parse(item.items) : []);
                     } catch (e) { itemsArray = []; }
-                    
+
                     const totalUnits = itemsArray.reduce((acc: number, i: any) => acc + (Number(i.quantity) || 0), 0);
                     const firstItem = itemsArray[0] || {};
 
@@ -116,7 +116,7 @@ const InventoryTransfer = () => {
                 let items = [];
                 try {
                     items = typeof record.items === 'string' ? JSON.parse(record.items) : (record.items || []);
-                } catch(e) { items = []; }
+                } catch (e) { items = []; }
 
                 const payload = {
                     source_warehouse_id: record.source_warehouse_id,
@@ -139,6 +139,25 @@ const InventoryTransfer = () => {
         }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, [historyPage]);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'id', label: 'Reference' },
         { key: 'image', label: 'Item' },
@@ -153,7 +172,7 @@ const InventoryTransfer = () => {
         <div className="space-y-6">
             <ul className="flex space-x-2 rtl:space-x-reverse mb-6">
                 <li>
-                    <Link href="/" className="text-primary hover:underline">Dashboard</Link>
+                    <Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link>
                 </li>
                 <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
                     <span>Inventory</span>
@@ -168,24 +187,25 @@ const InventoryTransfer = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Inventory History" 
-                    data={historyData} 
-                    columns={columns} 
-                    userType="Inventory" 
+                <UserManagerTable
+                    title="Inventory History"
+                    data={historyData}
+                    columns={columns}
+                    userType="Inventory"
                     totalRecords={historyTotal}
                     totalUsers={historyTotal}
                     page={historyPage}
                     pageSize={historyPageSize}
                     onPageChange={(p) => setHistoryPage(p)}
-                    onStatusClick={(record) => handleApproveTransfer(record)}
+                    onStatusClick={hasPerm('inventory', 'update') ? (record) => handleApproveTransfer(record) : undefined}
                     onViewClick={(record) => {
-                         // Pass data via params to avoid extra API call as requested
+                        // Pass data via params to avoid extra API call as requested
                         const encodedData = encodeURIComponent(JSON.stringify(record));
                         router.push(`/inventory/transfer/view/${record.originalId}?data=${encodedData}`);
                     }}
+                    hideAdd={true}
                     hideDelete={true}
-                    hideAction={true}
+                    hideView={true}
                 />
             )}
         </div>

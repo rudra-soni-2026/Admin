@@ -120,6 +120,25 @@ const WarehouseManagerList = () => {
         router.push('/warehouse-managers/add');
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) {}
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch(e){}
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'Info' },
@@ -138,7 +157,7 @@ const WarehouseManagerList = () => {
                     <span>User Manager</span>
                 </li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span> List</span>
+                    <span>Warehouse Manager List</span>
                 </li>
             </ul>
 
@@ -164,12 +183,12 @@ const WarehouseManagerList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddWarehouseManager}
-                    onEditClick={(item: any) => {
+                    onStatusToggle={hasPerm('warehouse_managers', 'update') ? handleStatusToggle : undefined}
+                    onAddClick={hasPerm('warehouse_managers', 'create') ? handleAddWarehouseManager : undefined}
+                    onEditClick={hasPerm('warehouse_managers', 'update') ? (item: any) => {
                         localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
                         router.push(`/warehouse-managers/edit/${item.originalId}`);
-                    }}
+                    } : undefined}
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Add New Warehouse Manager"

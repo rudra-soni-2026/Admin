@@ -12,7 +12,7 @@ const ProductRanking = () => {
     const [products, setProducts] = useState<any[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
     const [search, setSearch] = useState('');
-    
+
     const [loading, setLoading] = useState(false);
     const [loadingCats, setLoadingCats] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -66,31 +66,41 @@ const ProductRanking = () => {
         } finally { setSaving(false); }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     return (
         <div className="animate__animated animate__fadeIn">
             <ul className="mb-4 flex space-x-2 rtl:space-x-reverse text-xs font-black uppercase tracking-widest">
-                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
+                <li><Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link></li>
                 <li className="text-gray-400 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Product Ranking</span></li>
             </ul>
 
-            {/* <div className="panel border-none shadow-sm mb-6 bg-gradient-to-r from-primary/5 to-transparent rounded-xl">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h5 className="text-xl font-black uppercase tracking-tight italic">Product Ranking</h5>
-                        <p className="text-[10px] font-bold uppercase text-gray-400 mt-1 tracking-widest leading-none">Search and reorder products within leaf categories</p>
-                    </div>
-                </div>
-            </div> */}
-
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-200px)] min-h-[600px]">
-                
+
                 {/* 1. DIRECT SEARCHABLE CATEGORY LIST */}
                 <div className="lg:col-span-4 xl:col-span-3 panel shadow-sm border-none p-0 overflow-hidden flex flex-col rounded-xl">
                     <div className="p-3 border-b bg-gray-50/50 dark:bg-black/20">
                         <div className="relative">
-                            <input 
-                                type="text" 
-                                placeholder="Search Categories..." 
+                            <input
+                                type="text"
+                                placeholder="Search Categories..."
                                 className="form-input rounded-lg text-[11px] pl-10 font-black uppercase py-2.5 border-none bg-white dark:bg-gray-800 shadow-inner"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -110,8 +120,8 @@ const ProductRanking = () => {
                             </div>
                         ) : (
                             categories.map(cat => (
-                                <div 
-                                    key={cat._id} 
+                                <div
+                                    key={cat._id}
                                     onClick={() => handleSelectCategory(cat._id)}
                                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 ${selectedCategoryId === cat._id ? 'bg-primary border-primary shadow-lg shadow-primary/20 text-white z-10' : 'hover:bg-gray-100 hover:border-gray-200 border-transparent text-gray-700'}`}
                                 >
@@ -136,7 +146,11 @@ const ProductRanking = () => {
                             {selectedCategoryId && <span className="text-[9px] font-black uppercase text-primary mt-1">{categories.find(c => c._id === selectedCategoryId)?.name}</span>}
                         </div>
                         {selectedCategoryId && products.length > 0 && (
-                            <button onClick={handleSaveOrder} disabled={saving} className="btn btn-primary btn-sm py-2 px-6 shadow-lg shadow-primary/20 rounded-lg text-[10px] font-black uppercase gap-2 transition-transform active:scale-95">
+                            <button
+                                onClick={handleSaveOrder}
+                                disabled={saving || !hasPerm('products', 'update')}
+                                className={`btn btn-primary btn-sm py-2 px-6 shadow-lg shadow-primary/20 rounded-lg text-[10px] font-black uppercase gap-2 transition-transform active:scale-95 ${!hasPerm('products', 'update') ? 'cursor-not-allowed opacity-50 grayscale' : ''}`}
+                            >
                                 {saving ? <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-3.5 h-3.5"></span> : <IconSave className="w-3.5 h-3.5" />}
                                 {saving ? 'Saving...' : 'Save Ranking'}
                             </button>

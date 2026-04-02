@@ -13,7 +13,7 @@ const PurchaseList = () => {
     const [pageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [productsMap, setProductsMap] = useState<Record<string, string>>({});
-    
+
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [status, setStatus] = useState('all');
@@ -33,7 +33,7 @@ const PurchaseList = () => {
             setLoading(true);
             let query = `/management/admin/purchases?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
-            
+
             const response = await callApi(query, 'GET');
             if (response && response.data) {
                 const mappedData = response.data.map((item: any) => {
@@ -52,8 +52,8 @@ const PurchaseList = () => {
                         location: item.warehouse?.name || 'N/A',
                         total: `₹${Number(item.grand_total || 0).toLocaleString('en-IN')}`,
                         invoice_url: item.invoice_url,
-                        products: parsedItems.length > 0 
-                            ? parsedItems.map((pi: any) => productsMap[pi.product_id] || pi.product_name || pi.name || `Item (${pi.product_id?.slice(-6)})`).join(', ') 
+                        products: parsedItems.length > 0
+                            ? parsedItems.map((pi: any) => productsMap[pi.product_id] || pi.product_name || pi.name || `Item (${pi.product_id?.slice(-6)})`).join(', ')
                             : 'N/A'
                     };
                 });
@@ -114,6 +114,25 @@ const PurchaseList = () => {
         }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'date', label: 'Date' },
         { key: 'reference', label: 'Reference No' },
@@ -136,11 +155,11 @@ const PurchaseList = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-primary border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Purchase Order" 
-                    data={purchaseData} 
-                    columns={columns} 
-                    userType="Purchase" 
+                <UserManagerTable
+                    title="Purchase Order"
+                    data={purchaseData}
+                    columns={columns}
+                    userType="Purchase"
                     totalRecords={totalRecords}
                     totalUsers={totalRecords}
                     page={page}
@@ -152,9 +171,9 @@ const PurchaseList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onAddClick={handleAddPurchase}
+                    onAddClick={hasPerm('purchase', 'create') ? handleAddPurchase : undefined}
+                    onEditClick={hasPerm('purchase', 'update') ? (item: any) => router.push(`/purchase/edit/${item.id}`) : undefined}
                     addButtonLabel="Add New Purchase"
-                    onDownloadClick={handleDownloadInvoice}
                     hideView={true}
                     hideDelete={true}
                 />

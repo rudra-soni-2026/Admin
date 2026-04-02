@@ -14,25 +14,22 @@ const EditRider = () => {
         if (id) fetchRider();
     }, [id]);
 
-    const fetchRider = async () => {
-        try {
-            setLoading(true);
-            
-            // Try to get data from localStorage first
-            const savedData = localStorage.getItem(`edit_rider_${id}`);
-            if (savedData) {
+    const fetchRider = () => {
+        setLoading(true);
+        // Rely ONLY on localStorage as requested
+        const savedData = localStorage.getItem(`edit_rider_${id}`);
+        if (savedData) {
+            try {
                 setRiderData(JSON.parse(savedData));
-                setLoading(false);
-                return;
+            } catch (e) {
+                console.error("Error parsing rider data from storage", e);
+                window.location.href = '/riders/list';
             }
-
-            const response = await callApi(`/management/admin/riders/${id}`, 'GET');
-            if (response && response.data) setRiderData(response.data);
-        } catch (error) {
-            console.error('Error fetching rider:', error);
-        } finally {
-            setLoading(false);
+        } else {
+            // If data is missing (e.g. direct URL entry), go back to list
+            window.location.href = '/riders/list';
         }
+        setLoading(false);
     };
 
     if (loading) return <div className="panel flex items-center justify-center min-h-[400px]">Loading...</div>;

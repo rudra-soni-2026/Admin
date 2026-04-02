@@ -12,6 +12,24 @@ const WarehouseList = () => {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(50);
     const [totalRecords, setTotalRecords] = useState(0);
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
     const [totalWarehouses, setTotalWarehouses] = useState(0);
     const [todayWarehouses, setTodayWarehouses] = useState(0);
 
@@ -49,27 +67,46 @@ const WarehouseList = () => {
             const response = await callApi(query, 'GET');
 
             if (response && response.data) {
-                const mappedData = response.data.map((warehouse: any) => ({
-                    id: warehouse.id ? `#${String(warehouse.id).substring(0, 8).toUpperCase()}` : '#UNKNOWN',
-                    originalId: warehouse.id,
-                    name: warehouse.name || 'Unknown Warehouse',
-                    image: warehouse.image || '/assets/images/profile-1.jpeg',
-                    phone: warehouse.contact_number || 'N/A',
-                    city: warehouse.city || 'N/A',
-                    capacity: warehouse.capacity ? `${warehouse.capacity} Units` : 'N/A',
-                    status: warehouse.isActive ? 'Active' : 'Inactive',
-                    joinedDate: warehouse.created_at ? new Date(warehouse.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
-                    // Original fields for Edit fallback
-                    contact_number: warehouse.contact_number || '',
-                    email: warehouse.email || '',
-                    address: warehouse.address || '',
-                    capacity_num: warehouse.capacity || '',
-                    warehouse_manager_id: warehouse.warehouse_manager_id || '',
-                    product_manager_id: warehouse.product_manager_id || '',
-                    account_manager_id: warehouse.account_manager_id || '',
-                    latitude: warehouse.latitude || '',
-                    longitude: warehouse.longitude || '',
-                }));
+                const userDataString = localStorage.getItem('userData');
+                let allowedWarehouseIds: string[] = [];
+                if (userDataString) {
+                    try {
+                        const userData = JSON.parse(userDataString);
+                        if (typeof userData.warehouseIds === 'string') {
+                            allowedWarehouseIds = JSON.parse(userData.warehouseIds);
+                        } else if (Array.isArray(userData.warehouseIds)) {
+                            allowedWarehouseIds = userData.warehouseIds;
+                        }
+                    } catch (e) { }
+                }
+
+                const mappedData = response.data
+                    .filter((warehouse: any) => {
+                        if (uRole === 'super_admin') return true;
+                        if (allowedWarehouseIds.includes('ALL_WAREHOUSES') || allowedWarehouseIds.includes('all')) return true;
+                        return allowedWarehouseIds.includes(warehouse.id);
+                    })
+                    .map((warehouse: any) => ({
+                        id: warehouse.id ? `#${String(warehouse.id).substring(0, 8).toUpperCase()}` : '#UNKNOWN',
+                        originalId: warehouse.id,
+                        name: warehouse.name || 'Unknown Warehouse',
+                        image: warehouse.image || '/assets/images/profile-1.jpeg',
+                        phone: warehouse.contact_number || 'N/A',
+                        city: warehouse.city || 'N/A',
+                        capacity: warehouse.capacity ? `${warehouse.capacity} Units` : 'N/A',
+                        status: warehouse.isActive ? 'Active' : 'Inactive',
+                        joinedDate: warehouse.created_at ? new Date(warehouse.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A',
+                        // Original fields for Edit fallback
+                        contact_number: warehouse.contact_number || '',
+                        email: warehouse.email || '',
+                        address: warehouse.address || '',
+                        capacity_num: warehouse.capacity || '',
+                        warehouse_manager_id: warehouse.warehouse_manager_id || '',
+                        product_manager_id: warehouse.product_manager_id || '',
+                        account_manager_id: warehouse.account_manager_id || '',
+                        latitude: warehouse.latitude || '',
+                        longitude: warehouse.longitude || '',
+                    }));
                 setWarehouseData(mappedData);
                 const count = response.totalCount !== undefined ? response.totalCount : (response.stats?.totalWarehouse || 0);
                 setTotalRecords(count);
@@ -135,6 +172,7 @@ const WarehouseList = () => {
         router.push('/warehouses/add');
     };
 
+
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'name', label: 'Warehouse Name' },
@@ -160,11 +198,11 @@ const WarehouseList = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Warehouse" 
-                    data={warehouseData} 
-                    columns={columns} 
-                    userType="Warehouse" 
+                <UserManagerTable
+                    title="Warehouse"
+                    data={warehouseData}
+                    columns={columns}
+                    userType="Warehouse"
                     totalRecords={totalRecords}
                     page={page}
                     pageSize={pageSize}
@@ -177,16 +215,17 @@ const WarehouseList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddWarehouse}
-                    onEditClick={(item: any) => {
+                    onAddClick={hasPerm('warehouses', 'create') ? handleAddWarehouse : undefined}
+                    onEditClick={hasPerm('warehouses', 'update') ? (item: any) => {
                         localStorage.setItem(`edit_warehouse_${item.originalId}`, JSON.stringify(item));
                         router.push(`/warehouses/edit/${item.originalId}`)
-                    }}
-                    onStockClick={(item: any) => router.push(`/inventory/warehouse?warehouse_id=${item.originalId}`)}
+                    } : undefined}
+                    onStatusToggle={hasPerm('warehouses', 'update') ? handleStatusToggle : undefined}
+                    onStockClick={hasPerm('warehouse_inventory', 'read') ? (item: any) => router.push(`/inventory/warehouse?warehouse_id=${item.originalId}`) : undefined}
                     addButtonLabel="Create New Warehouse"
                     hideDelete={true}
                     hideView={true}
+                    hideStock={false}
                 />
             )}
         </div>

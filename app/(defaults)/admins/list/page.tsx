@@ -48,17 +48,36 @@ const AdminList = () => {
             const response = await callApi(query, 'GET');
 
             if (response && response.data) {
-                const mappedData = response.data.map((admin: any) => ({
-                    id: admin.id ? `#${String(admin.id).substring(0, 8).toUpperCase()}` : '#UNKNOWN',
-                    originalId: admin.id,
-                    name: admin.name || 'Unknown Admin',
-                    image: admin.image || '/assets/images/profile-1.jpeg',
-                    email: admin.email || 'N/A',
-                    phone: admin.phone || 'N/A',
-                    role: admin.role?.toUpperCase() || 'ADMIN',
-                    status: admin.isBanned ? 'Inactive' : 'Active',
-                    joinedDate: admin.created_at ? new Date(admin.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
-                }));
+                const currentUserString = localStorage.getItem('userData');
+                let currentUserId = '';
+                if (currentUserString) {
+                    try {
+                        currentUserId = JSON.parse(currentUserString).id;
+                    } catch (e) {}
+                }
+                const userRole = localStorage.getItem('role');
+
+                const mappedData = response.data
+                    .filter((admin: any) => {
+                        // If the logged in user is a regular admin, hide their own record from the list
+                        if (userRole === 'admin' && admin.id === currentUserId) return false;
+                        return true;
+                    })
+                    .map((admin: any) => ({
+                        id: admin.id ? `#${String(admin.id).substring(0, 8).toUpperCase()}` : '#UNKNOWN',
+                        originalId: admin.id,
+                        name: admin.name || 'Unknown Admin',
+                        image: admin.image || '/assets/images/profile-1.jpeg',
+                        email: admin.email || 'N/A',
+                        phone: admin.phone || 'N/A',
+                        role: admin.role?.toUpperCase() || 'ADMIN',
+                        status: admin.isBanned ? 'Inactive' : 'Active',
+                        joinedDate: admin.created_at ? new Date(admin.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                        // Include raw fields for the Edit Form (Create/Edit Similarity)
+                        permissions: admin.permissions || {},
+                        storeIds: admin.storeIds || ['ALL_STORES'],
+                        warehouseIds: admin.warehouseIds || ['ALL_WAREHOUSES'],
+                    }));
                 setAdminData(mappedData);
                 const count = response.totalCount !== undefined ? response.totalCount : (response.stats?.totalAdmin || 0);
                 setTotalRecords(count);
@@ -128,6 +147,25 @@ const AdminList = () => {
         router.push('/admins/add');
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) {}
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch(e){}
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'image', label: 'Image' },
@@ -173,12 +211,12 @@ const AdminList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusToggle={handleStatusToggle}
-                    onAddClick={handleAddAdmin}
-                    onEditClick={(item: any) => {
+                    onStatusToggle={hasPerm('admins', 'update') ? handleStatusToggle : undefined}
+                    onAddClick={hasPerm('admins', 'create') ? handleAddAdmin : undefined}
+                    onEditClick={hasPerm('admins', 'update') ? (item: any) => {
                         localStorage.setItem(`edit_user_${item.originalId}`, JSON.stringify(item));
                         router.push(`/admins/edit/${item.originalId}`);
-                    }}
+                    } : undefined}
                     hideDelete={true}
                     hideView={true}
                     addButtonLabel="Create New Admin"

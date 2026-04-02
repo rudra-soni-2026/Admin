@@ -109,7 +109,7 @@ const ProductList = () => {
                             </div>
                         ),
                         brand: product.brand || mainVariant.brand_name || 'N/A',
-                        barcode:  mainVariant.utc_id || 'N/A',
+                        barcode: mainVariant.utc_id || 'N/A',
                         image: product.image || mainVariant.image || '/assets/images/profile-1.jpeg',
                         category: product.subcategory_id?.name
                             || product.category_id?.name
@@ -196,7 +196,7 @@ const ProductList = () => {
         try {
             const bwipjs: any = await import('bwip-js');
             const canvas = document.createElement('canvas');
-            
+
             // Standard approach to get toCanvas from bwip-js in various module environments
             const toCanvas = bwipjs.toCanvas || bwipjs.default?.toCanvas;
 
@@ -214,7 +214,7 @@ const ProductList = () => {
             });
 
             const dataUrl = canvas.toDataURL('image/png');
-            
+
             // Create a print window
             const printWindow = window.open('', '_blank');
             if (printWindow) {
@@ -242,6 +242,25 @@ const ProductList = () => {
         } catch (err) {
             console.error('Barcode Generation Error:', err);
         }
+    };
+
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
     };
 
     const columns = [
@@ -291,12 +310,12 @@ const ProductList = () => {
                 onStatusChange={setStatus}
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
-                onAddClick={handleAddProduct}
+                onAddClick={hasPerm('products', 'create') ? handleAddProduct : undefined}
                 addButtonLabel="Add New Product"
-                onEditClick={handleEditProduct}
-                onViewClick={handleViewProduct}
-                onPrint={handlePrintBarcode}
-                onStatusToggle={handleStatusToggle}
+                onEditClick={hasPerm('products', 'update') ? handleEditProduct : undefined}
+                onStatusToggle={hasPerm('products', 'update') ? handleStatusToggle : undefined}
+                onViewClick={hasPerm('products', 'view') ? handleViewProduct : undefined}
+                hideView={true}
                 categoryId={categoryId}
                 onCategoryIdChange={setCategoryId}
                 brand={brand}

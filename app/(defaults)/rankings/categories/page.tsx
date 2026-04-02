@@ -11,10 +11,10 @@ const CategoryRanking = () => {
     const [roots, setRoots] = useState<any[]>([]);
     const [subs, setSubs] = useState<any[]>([]);
     const [items, setItems] = useState<any[]>([]);
-    
+
     const [selectedRoot, setSelectedRoot] = useState<any>(null);
     const [selectedSub, setSelectedSub] = useState<any>(null);
-    
+
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -72,11 +72,11 @@ const CategoryRanking = () => {
             }));
 
             // Using the new bulk update endpoint
-            const response = await callApi('/management/admin/categoriess/bulk-order', 'PATCH', { 
+            const response = await callApi('/management/admin/categoriess/bulk-order', 'PATCH', {
                 orders,
                 level
             });
-            
+
             if (response) {
                 Swal.fire({ icon: 'success', title: `${type} Ranking Saved`, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             }
@@ -85,10 +85,29 @@ const CategoryRanking = () => {
         } finally { setSaving(false); }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     return (
         <div className="animate__animated animate__fadeIn">
             <ul className="mb-4 flex space-x-2 rtl:space-x-reverse text-sm">
-                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
+                <li><Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Rankings</span></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Category Ranking</span></li>
             </ul>
@@ -99,12 +118,16 @@ const CategoryRanking = () => {
             </div> */}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* ROOT CATEGORIES */}
                 <div className="panel shadow-sm border-none flex flex-col h-[600px] p-0 overflow-hidden">
                     <div className="p-4 border-b flex items-center justify-between bg-gray-50 dark:bg-black/20">
                         <span className="text-xs font-black uppercase tracking-widest">1. Roots</span>
-                        <button onClick={() => handleSaveRanking(roots, 0, 'Root')} className="btn btn-primary btn-sm py-1 px-3 text-[10px] font-bold uppercase gap-1">
+                        <button
+                            onClick={() => handleSaveRanking(roots, 0, 'Root')}
+                            disabled={saving || !hasPerm('categories', 'update')}
+                            className={`btn btn-primary btn-sm py-1 px-3 text-[10px] font-bold uppercase gap-1 ${!hasPerm('categories', 'update') ? 'cursor-not-allowed opacity-50 grayscale' : ''}`}
+                        >
                             <IconSave className="w-3 h-3" /> Save Roots
                         </button>
                     </div>
@@ -112,8 +135,8 @@ const CategoryRanking = () => {
                         {loading && roots.length === 0 ? <div className="p-4 text-center text-xs animate-pulse">Loading Roots...</div> : (
                             <ReactSortable list={roots} setList={setRoots} animation={200} className="space-y-2">
                                 {roots.map((item) => (
-                                    <div 
-                                        key={item.id} 
+                                    <div
+                                        key={item.id}
                                         onClick={() => handleSelectRoot(item)}
                                         className={`flex items-center gap-3 p-2.5 rounded-xl border-2 transition-all cursor-pointer group ${selectedRoot?._id === item._id ? 'border-primary bg-primary/5' : 'border-transparent hover:border-gray-100 hover:bg-gray-50'}`}
                                     >
@@ -135,7 +158,11 @@ const CategoryRanking = () => {
                     <div className="p-4 border-b flex items-center justify-between bg-gray-50 dark:bg-black/20">
                         <span className="text-xs font-black uppercase tracking-widest">2. Sub Categories</span>
                         {selectedRoot && subs.length > 0 && (
-                            <button onClick={() => handleSaveRanking(subs, 1, 'Sub')} className="btn btn-info btn-sm py-1 px-3 text-[10px] font-bold uppercase gap-1">
+                            <button
+                                onClick={() => handleSaveRanking(subs, 1, 'Sub')}
+                                disabled={saving || !hasPerm('categories', 'update')}
+                                className={`btn btn-info btn-sm py-1 px-3 text-[10px] font-bold uppercase gap-1 ${!hasPerm('categories', 'update') ? 'cursor-not-allowed opacity-50 grayscale' : ''}`}
+                            >
                                 <IconSave className="w-3 h-3" /> Save Subs
                             </button>
                         )}
@@ -151,8 +178,8 @@ const CategoryRanking = () => {
                         ) : (
                             <ReactSortable list={subs} setList={setSubs} animation={200} className="space-y-2">
                                 {subs.map((item) => (
-                                    <div 
-                                        key={item.id} 
+                                    <div
+                                        key={item.id}
                                         onClick={() => handleSelectSub(item)}
                                         className={`flex items-center gap-3 p-2 rounded-xl border-2 transition-all cursor-pointer group ${selectedSub?._id === item._id ? 'border-info bg-info/5' : 'border-transparent hover:border-gray-100 hover:bg-gray-50'}`}
                                     >
@@ -177,7 +204,11 @@ const CategoryRanking = () => {
                     <div className="p-4 border-b flex items-center justify-between bg-gray-50 dark:bg-black/20">
                         <span className="text-xs font-black uppercase tracking-widest">3. Product Items</span>
                         {selectedSub && items.length > 0 && (
-                            <button onClick={() => handleSaveRanking(items, 2, 'Item')} className="btn btn-warning btn-sm py-1 px-3 text-[10px] font-bold uppercase gap-1">
+                            <button
+                                onClick={() => handleSaveRanking(items, 2, 'Item')}
+                                disabled={saving || !hasPerm('categories', 'update')}
+                                className={`btn btn-warning btn-sm py-1 px-3 text-[10px] font-bold uppercase gap-1 ${!hasPerm('categories', 'update') ? 'cursor-not-allowed opacity-50 grayscale' : ''}`}
+                            >
                                 <IconSave className="w-3 h-3" /> Save Items
                             </button>
                         )}
@@ -193,8 +224,8 @@ const CategoryRanking = () => {
                         ) : (
                             <ReactSortable list={items} setList={setItems} animation={200} className="space-y-2">
                                 {items.map((item) => (
-                                    <div 
-                                        key={item.id} 
+                                    <div
+                                        key={item.id}
                                         className="flex items-center gap-3 p-2 rounded-xl border-2 border-transparent hover:border-gray-100 hover:bg-gray-50 transition-all cursor-grab group"
                                     >
                                         <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 shadow-sm border border-gray-100">

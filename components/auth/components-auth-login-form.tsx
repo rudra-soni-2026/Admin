@@ -27,7 +27,7 @@ const ComponentsAuthLoginForm = () => {
                     localStorage.setItem('role', response.data.role);
                 }
                 localStorage.setItem('userData', JSON.stringify(response.data));
-                
+
                 const role = response.data.role;
                 if (role === 'super_admin' || role === 'admin') {
                     router.push('/');
@@ -56,7 +56,7 @@ const ComponentsAuthLoginForm = () => {
                         localStorage.setItem('role', role);
                     }
                     localStorage.setItem('userData', JSON.stringify(response.data || response));
-                    
+
                     // Redirect based on role
                     if (role === 'super_admin' || role === 'admin') {
                         router.push('/');

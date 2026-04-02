@@ -20,13 +20,13 @@ const StockRequestPage = () => {
     const [selectedStore, setSelectedStore] = useState<any>(null);
     const [storedRole, setStoredRole] = useState<string | null>(null);
     const [userData, setUserData] = useState<any>(null);
-    
+
     // Inventory States
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [inventoryData, setInventoryData] = useState<any[]>([]);
     const [search, setSearch] = useState('');
     const [selectedRecords, setSelectedRecords] = useState<any[]>([]);
-    
+
     // Request States
     const [requestLoading, setRequestLoading] = useState(false);
     const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
@@ -38,14 +38,14 @@ const StockRequestPage = () => {
         const userString = localStorage.getItem('userData');
         if (role) setStoredRole(role);
         if (userString) {
-            try { setUserData(JSON.parse(userString)); } catch (e) {}
+            try { setUserData(JSON.parse(userString)); } catch (e) { }
         }
     }, []);
 
     useEffect(() => {
         if (storedRole && userData && (warehouses.length > 0 || stores.length > 0)) {
             const assignedId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id;
-            
+
             if (storedRole === 'store_manager' && stores.length > 0) {
                 const myStore = stores.find(s => String(s.value) === String(assignedId));
                 if (myStore) setSelectedStore(myStore);
@@ -64,15 +64,15 @@ const StockRequestPage = () => {
             ]);
 
             if (whResponse?.data) {
-                setWarehouses(whResponse.data.map((w: any) => ({ 
-                    value: w.id, 
+                setWarehouses(whResponse.data.map((w: any) => ({
+                    value: w.id,
                     label: w.name,
                 })));
             }
 
             if (storeResponse?.data) {
-                setStores(storeResponse.data.map((s: any) => ({ 
-                    value: s.id, 
+                setStores(storeResponse.data.map((s: any) => ({
+                    value: s.id,
                     label: s.name,
                 })));
             }
@@ -155,7 +155,7 @@ const StockRequestPage = () => {
             };
 
             const response = await callApi('/management/admin/stock-request', 'POST', payload);
-            
+
             if (response?.success) {
                 showMessage('Stock request successfully bhej di gayi hai.', 'success');
                 setTimeout(() => {
@@ -171,7 +171,26 @@ const StockRequestPage = () => {
         }
     };
 
-    const filteredInventory = inventoryData.filter(item => 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) {}
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch(e){}
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
+    const filteredInventory = inventoryData.filter(item =>
         item.product?.name?.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -273,19 +292,19 @@ const StockRequestPage = () => {
                                                 const qty = quantities[record.product_id] || 1;
                                                 return (
                                                     <div className="flex items-center justify-center gap-1 border rounded-lg p-0.5 bg-gray-50 min-w-[100px] scale-90 mx-auto">
-                                                        <button 
+                                                        <button
                                                             className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white transition-all shadow-sm"
                                                             onClick={() => handleQuantityChange(record.product_id, qty - 1)}
                                                         >
                                                             <IconMinus className="w-3 h-3 text-danger" />
                                                         </button>
-                                                        <input 
+                                                        <input
                                                             type="number"
                                                             className="w-10 text-center font-black text-xs bg-transparent border-none p-0 focus:ring-0"
                                                             value={qty}
                                                             onChange={(e) => handleQuantityChange(record.product_id, parseInt(e.target.value) || 0)}
                                                         />
-                                                        <button 
+                                                        <button
                                                             className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white transition-all shadow-sm"
                                                             onClick={() => handleQuantityChange(record.product_id, qty + 1)}
                                                         >
@@ -319,7 +338,7 @@ const StockRequestPage = () => {
                             <IconBox className="w-6 h-6 text-primary" />
                             Request Card
                         </h3>
-                        
+
                         <div className="space-y-6">
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center border-b border-white/5 pb-2">
@@ -339,8 +358,8 @@ const StockRequestPage = () => {
 
                             <button
                                 onClick={handleRequest}
-                                disabled={requestLoading || selectedRecords.length === 0}
-                                className="btn btn-primary w-full py-4 font-black uppercase tracking-widest shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all"
+                                disabled={requestLoading || selectedRecords.length === 0 || !hasPerm('inventory', 'create')}
+                                className={`btn btn-primary w-full py-4 font-black uppercase tracking-widest shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all ${(!hasPerm('inventory', 'create') || requestLoading || selectedRecords.length === 0) ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
                             >
                                 {requestLoading ? 'Sending...' : 'Raise Request Now'}
                             </button>

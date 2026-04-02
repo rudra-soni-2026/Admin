@@ -31,7 +31,7 @@ const WarehouseInventory = () => {
             let query = `/management/admin/warehouse-inventory?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
             if (warehouseIdParam) query += `&warehouse_id=${warehouseIdParam}`;
-            
+
             const response = await callApi(query, 'GET');
             if (response?.data) {
                 const mappedData = response.data.map((item: any) => ({
@@ -55,6 +55,25 @@ const WarehouseInventory = () => {
         fetchData(page);
     }, [page, debouncedSearch, pageSize]);
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, [page]);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'image', label: 'Image' },
         { key: 'product', label: 'Product Name' },
@@ -64,9 +83,9 @@ const WarehouseInventory = () => {
 
     return (
         <div className="space-y-6">
-            <ul className="flex space-x-2 rtl:space-x-reverse mb-6">
+            <ul className="flex space-x-2 rtl:space-x-reverse mb-6 text-sm">
                 <li>
-                    <Link href="/" className="text-primary hover:underline">
+                    <Link href="/" className="text-primary hover:underline font-bold">
                         Dashboard
                     </Link>
                 </li>
@@ -83,11 +102,11 @@ const WarehouseInventory = () => {
                     <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
                 </div>
             ) : (
-                <UserManagerTable 
-                    title="Warehouse Stock" 
-                    data={inventoryData} 
-                    columns={columns} 
-                    userType="Inventory" 
+                <UserManagerTable
+                    title="Warehouse Stock"
+                    data={inventoryData}
+                    columns={columns}
+                    userType="Inventory"
                     totalRecords={totalRecords}
                     totalUsers={totalRecords}
                     page={page}
@@ -95,11 +114,11 @@ const WarehouseInventory = () => {
                     onPageChange={(p) => setPage(p)}
                     search={search}
                     onSearchChange={setSearch}
-                    onAddClick={() => window.location.href = '/inventory/request'}
+                    onAddClick={hasPerm('inventory', 'create') ? () => window.location.href = '/inventory/request' : undefined}
                     addButtonLabel="Transfer Stock"
                     hideView={true}
                     hideDelete={true}
-                    hideAction={true}
+                    hideAction={!hasPerm('inventory', 'update')}
                 />
             )}
         </div>

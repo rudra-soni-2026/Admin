@@ -4,6 +4,7 @@ import UserManagerTable from '@/components/user-manager/user-manager-table';
 import Link from 'next/link';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
+import IconEye from '@/components/icon/icon-eye';
 
 const CustomerList = () => {
     const [customerData, setCustomerData] = useState<any[]>([]);
@@ -32,13 +33,13 @@ const CustomerList = () => {
     const fetchCustomers = async (currentPage: number) => {
         try {
             setLoading(true);
-            
+
             // Build Query Params
             let query = `/management/admin/users?page=${currentPage}&limit=${pageSize}&role=user`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
             if (status === 'active') query += `&isBanned=false`;
             else if (status === 'inactive') query += `&isBanned=true`;
-            
+
             if (dateRange && dateRange.length === 2) {
                 const start = new Date(dateRange[0]);
                 start.setHours(0, 0, 0, 0);
@@ -48,7 +49,7 @@ const CustomerList = () => {
             }
 
             const response = await callApi(query, 'GET');
-            
+
             if (response && response.data) {
                 const mappedData = response.data.map((user: any) => ({
                     id: user.id ? `#${String(user.id).substring(0, 8).toUpperCase()}` : '#UNKNOWN',
@@ -61,13 +62,42 @@ const CustomerList = () => {
                     phone: user.phone || 'N/A',
                     createdAt: user.created_at, // Keep raw date for filtering reference if needed
                     joinedDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
-                    cartItemsCount: user.cartProductCount || 0,
-                    orders: `${Number(user.todayOrder || 0)} | ${Number(user.totalOrder || 0)}`,
+                    lastOrderDate: (() => {
+                        const date = new Date(user.lastOrderDate || user.last_order_at);
+                        return isNaN(date.getTime()) ? (
+                            <span className="text-warning font-black uppercase text-[9px] bg-warning/10 px-2.5 py-1 rounded-md border border-warning/20 tracking-wider inline-block">
+                                Never Ordered
+                            </span>
+                        ) : (
+                            <span className="text-[12px] font-bold text-gray-700 dark:text-white-light">
+                                {date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} at {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        );
+                    })(),
+                    orders: (
+                        <div className="flex flex-col items-center justify-center leading-tight">
+                            <div className="flex items-center gap-1.5 font-black text-[13px]">
+                                <span className="text-black dark:text-white-light">{Number(user.totalOrder || 0)}</span>
+                                <span className="text-gray-300 font-light">|</span>
+                                <span className={Number(user.todayOrder) > 0 ? "text-primary" : "text-gray-400 opacity-60"}>
+                                    {Number(user.todayOrder || 0)}
+                                </span>
+                            </div>
+                            <span className="text-[9px] font-black uppercase text-gray-400 tracking-[0.1em] mt-0.5">Orders</span>
+                        </div>
+                    ),
                     status: user.isBanned ? 'Banned' : 'Active',
+                    actions: (
+                        <div className="flex items-center justify-center">
+                            <Link href={`/users/view/${user.id}`} className="text-primary hover:opacity-70 transition-all p-2 rounded-full hover:bg-primary/5">
+                                <IconEye className="h-5 w-5" />
+                            </Link>
+                        </div>
+                    ),
                 }));
                 setCustomerData(mappedData);
                 setTotalRecords(response.totalCount || 0);
-                
+
                 if (response.stats) {
                     if (response.stats.totalCustomer) setTotalUsers(response.stats.totalCustomer);
                     if (response.stats.todayCustomer) setTodayUsers(response.stats.todayCustomer);
@@ -100,7 +130,7 @@ const CustomerList = () => {
                     const allResponse = await callApi('/management/admin/users?limit=1000&role=user', 'GET');
                     if (allResponse && allResponse.data) {
                         setTotalUsers(allResponse.data.length);
-                        
+
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
                         const countToday = allResponse.data.filter((u: any) => {
@@ -144,10 +174,10 @@ const CustomerList = () => {
                 });
 
                 // Update local state
-                setCustomerData((prevData) => 
-                    prevData.map((user) => 
-                        user.originalId === userId 
-                            ? { ...user, status: isBanned === 'true' ? 'Banned' : 'Active' } 
+                setCustomerData((prevData) =>
+                    prevData.map((user) =>
+                        user.originalId === userId
+                            ? { ...user, status: isBanned === 'true' ? 'Banned' : 'Active' }
                             : user
                     )
                 );
@@ -178,11 +208,11 @@ const CustomerList = () => {
             setLoading(true);
             const token = localStorage.getItem('AdminToken');
             let query = `/api/v1/management/admin/users?role=user&export=excel`;
-            
+
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
             if (status === 'active') query += `&isBanned=false`;
             else if (status === 'inactive') query += `&isBanned=true`;
-            
+
             if (dateRange && dateRange.length === 2) {
                 const start = new Date(dateRange[0]);
                 start.setHours(0, 0, 0, 0);
@@ -228,13 +258,32 @@ const CustomerList = () => {
         }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'user', label: 'User' },
         { key: 'phone', label: 'Phone' },
-        { key: 'cartItemsCount', label: 'Cart' },
-        { key: 'orders', label: 'Today | Total' },
+        { key: 'orders', label: 'Total | Today' },
         { key: 'status', label: 'Ban Status' },
+        { key: 'lastOrderDate', label: 'Last Order' },
         { key: 'joinedDate', label: 'Joined' },
     ];
 
@@ -242,7 +291,7 @@ const CustomerList = () => {
         <div>
             <ul className="mb-6 flex space-x-2 rtl:space-x-reverse">
                 <li>
-                    <Link href="/" className="text-primary hover:underline">
+                    <Link href="/" className="text-primary hover:underline font-bold">
                         Dashboard
                     </Link>
                 </li>
@@ -258,11 +307,11 @@ const CustomerList = () => {
                 <div className="h-full bg-primary animate-progress w-full"></div>
             </div>
 
-            <UserManagerTable 
+            <UserManagerTable
                 key="customer-manager-list"
-                title="Customer" 
-                data={customerData} 
-                columns={columns} 
+                title="Customer"
+                data={customerData}
+                columns={columns}
                 loading={loading}
                 totalRecords={totalRecords}
                 page={page}
@@ -276,12 +325,13 @@ const CustomerList = () => {
                 onStatusChange={setStatus}
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
-                onStatusToggle={handleStatusToggle}
+                onStatusToggle={hasPerm('customers', 'update') ? handleStatusToggle : undefined}
+                onViewClick={(item) => window.location.href = `/users/view/${item.originalId}`}
                 onExportClick={handleExport}
                 userType="Customer"
+                hideEdit={true}
                 hideDelete={true}
-                hideView={true}
-                hideAction={true}
+                hideAdd={true}
                 disableNameClick={true}
             />
         </div>

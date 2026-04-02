@@ -12,7 +12,7 @@ const RiderList = () => {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
-    
+
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [status, setStatus] = useState('all');
@@ -31,10 +31,11 @@ const RiderList = () => {
             setLoading(true);
             let query = `/management/admin/riders?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
-            
+
             const response = await callApi(query, 'GET');
             if (response && response.data) {
                 const mappedData = response.data.map((item: any) => ({
+                    ...item,
                     id: item.id || item._id,
                     originalId: item.id || item._id, // Required for status toggle
                     name: item.user?.name || item.name || 'N/A',
@@ -64,6 +65,7 @@ const RiderList = () => {
     };
 
     const handleEditRider = (item: any) => {
+        localStorage.setItem(`edit_rider_${item.originalId}`, JSON.stringify(item));
         router.push(`/riders/edit/${item.id}`);
     };
 
@@ -115,17 +117,35 @@ const RiderList = () => {
     const columns = [
         { key: 'name', label: 'Name' },
         { key: 'phone', label: 'Phone' },
-        { key: 'email', label: 'Email' },
         { key: 'vehicleType', label: 'Vehicle' },
         { key: 'vehicleModel', label: 'Model' },
         { key: 'vehicleNumber', label: 'Number' },
         { key: 'status', label: 'Status' },
     ];
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, [page]);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     return (
         <div>
             <ul className="mb-6 flex space-x-2 rtl:space-x-reverse">
-                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
+                <li><Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Rider Management</span></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Rider List</span></li>
             </ul>
@@ -134,12 +154,12 @@ const RiderList = () => {
                 <div className="h-full bg-primary animate-progress w-full"></div>
             </div>
 
-            <UserManagerTable 
+            <UserManagerTable
                 key="rider-manager-list"
-                title="Riders" 
-                data={riderData} 
-                columns={columns} 
-                userType="Rider" 
+                title="Riders"
+                data={riderData}
+                columns={columns}
+                userType="Rider"
                 loading={loading}
                 totalRecords={totalRecords}
                 totalUsers={totalRecords}
@@ -150,13 +170,12 @@ const RiderList = () => {
                 onSearchChange={setSearch}
                 status={status}
                 onStatusChange={setStatus}
-                onAddClick={handleAddRider}
-                onEditClick={handleEditRider}
-                onDeleteClick={handleDeleteRider}
-                onStatusToggle={handleStatusToggle}
+                onAddClick={hasPerm('riders', 'create') ? handleAddRider : undefined}
+                onEditClick={hasPerm('riders', 'update') ? handleEditRider : undefined}
+                onStatusToggle={hasPerm('riders', 'update') ? handleStatusToggle : undefined}
                 addButtonLabel="Add New Rider"
                 hideView={true}
-                hideDelete={false}
+                hideDelete={true}
             />
         </div>
     );

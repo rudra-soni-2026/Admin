@@ -377,6 +377,25 @@ const OrderList = () => {
         printWindow.document.close();
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'order_id', label: 'ORDER ID' },
         { key: 'order_timing', label: 'TIMING' },
@@ -429,10 +448,9 @@ const OrderList = () => {
                     onStatusChange={setStatus}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
-                    onStatusUpdate={handleStatusUpdate}
-                    onRiderAssign={handleRiderAssign}
-                    onPrint={handlePrint}
-                    onViewClick={handleViewOrder}
+                    onStatusUpdate={hasPerm('orders', 'update') ? handleStatusUpdate : undefined}
+                    onRiderAssign={hasPerm('orders', 'update') ? handleRiderAssign : undefined}
+                    onViewClick={hasPerm('orders', 'read') ? handleViewOrder : undefined}
                     riders={riders}
                     addButtonLabel="Create New Order"
                     hideFilter={storedRole === 'store_manager' || storedRole === 'warehouse_manager'}

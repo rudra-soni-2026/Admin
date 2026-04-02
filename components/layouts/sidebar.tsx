@@ -10,38 +10,17 @@ import IconCaretsDown from '@/components/icon/icon-carets-down';
 import IconMenuDashboard from '@/components/icon/menu/icon-menu-dashboard';
 import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconMinus from '@/components/icon/icon-minus';
-import IconMenuChat from '@/components/icon/menu/icon-menu-chat';
-import IconMenuMailbox from '@/components/icon/menu/icon-menu-mailbox';
-import IconMenuTodo from '@/components/icon/menu/icon-menu-todo';
-import IconMenuNotes from '@/components/icon/menu/icon-menu-notes';
-import IconMenuScrumboard from '@/components/icon/menu/icon-menu-scrumboard';
-import IconMenuContacts from '@/components/icon/menu/icon-menu-contacts';
-import IconMenuInvoice from '@/components/icon/menu/icon-menu-invoice';
-import IconMenuCalendar from '@/components/icon/menu/icon-menu-calendar';
-import IconMenuComponents from '@/components/icon/menu/icon-menu-components';
-import IconMenuElements from '@/components/icon/menu/icon-menu-elements';
-import IconMenuCharts from '@/components/icon/menu/icon-menu-charts';
-import IconMenuWidgets from '@/components/icon/menu/icon-menu-widgets';
-import IconMenuFontIcons from '@/components/icon/menu/icon-menu-font-icons';
-import IconMenuDragAndDrop from '@/components/icon/menu/icon-menu-drag-and-drop';
-import IconMenuTables from '@/components/icon/menu/icon-menu-tables';
-import IconMenuDatatables from '@/components/icon/menu/icon-menu-datatables';
-import IconMenuForms from '@/components/icon/menu/icon-menu-forms';
 import IconMenuUsers from '@/components/icon/menu/icon-menu-users';
 import IconShoppingBag from '@/components/icon/icon-shopping-bag';
 import IconBox from '@/components/icon/icon-box';
 import IconTag from '@/components/icon/icon-tag';
 import IconListCheck from '@/components/icon/icon-list-check';
-import IconMenuPages from '@/components/icon/menu/icon-menu-pages';
-import IconMenuAuthentication from '@/components/icon/menu/icon-menu-authentication';
-import IconMenuDocumentation from '@/components/icon/menu/icon-menu-documentation';
 import IconTruck from '@/components/icon/icon-truck';
 import IconUsersGroup from '@/components/icon/icon-users-group';
 import IconTrendingUp from '@/components/icon/icon-trending-up';
 import IconSettings from '@/components/icon/icon-settings';
 import { usePathname } from 'next/navigation';
 import { getTranslation } from '@/i18n';
-import IconPlus from '@/components/icon/icon-plus';
 import IconUsers from '@/components/icon/icon-users';
 import IconRefresh from '@/components/icon/icon-refresh';
 import IconBell from '@/components/icon/icon-bell';
@@ -52,10 +31,9 @@ const Sidebar = () => {
     const { t } = getTranslation();
     const pathname = usePathname();
     const [currentMenu, setCurrentMenu] = useState<string>('');
-    const [errorSubMenu, setErrorSubMenu] = useState(false);
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
     const semidark = useSelector((state: IRootState) => state.themeConfig.semidark);
-    const [permissions, setPermissions] = useState<any[] | null>(null);
+    const [permissions, setPermissions] = useState<any | null>(null);
     const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
@@ -77,15 +55,26 @@ const Sidebar = () => {
     }, []);
 
     const hasPermission = (permission: string) => {
+        // 1. Super Admin Level
         if (role === 'super_admin') return true;
-        if (permissions === null) return false; // Still loading
-        return permissions.includes(permission);
+        if (!permissions) return false;
+
+        // 2. Intelligent Data Detection (Works for ALL roles: Admin, Product Manager, etc.)
+        if (typeof permissions === 'object' && !Array.isArray(permissions)) {
+            // Check specifically for 'read' access in our new CRUD matrix
+            return (permissions as any)?.[permission]?.read === true;
+        }
+
+        // 3. Fallback for Legacy Array Data
+        if (Array.isArray(permissions)) {
+            return permissions.includes(permission);
+        }
+
+        return false;
     };
 
     const toggleMenu = (value: string) => {
-        setCurrentMenu((oldValue) => {
-            return oldValue === value ? '' : value;
-        });
+        setCurrentMenu((oldValue) => (oldValue === value ? '' : value));
     };
 
     useEffect(() => {
@@ -97,9 +86,7 @@ const Sidebar = () => {
                 let ele: any = ul.closest('li.menu').querySelectorAll('.nav-link') || [];
                 if (ele.length) {
                     ele = ele[0];
-                    setTimeout(() => {
-                        ele.click();
-                    });
+                    setTimeout(() => ele.click());
                 }
             }
         }
@@ -122,60 +109,55 @@ const Sidebar = () => {
         selector?.classList.add('active');
     };
 
+    const getHomePath = () => {
+        if (role === 'super_admin') return '/';
+        if (hasPermission('dashboard')) return '/';
+        if (hasPermission('users')) return '/users/list';
+        if (hasPermission('admins')) return '/admins/list';
+        if (hasPermission('stores')) return '/store/list';
+        if (hasPermission('warehouses')) return '/warehouses/list';
+        if (hasPermission('orders')) return '/orders/list';
+        if (hasPermission('products')) return '/products/list';
+
+        if (role === 'product_manager') return '/products/list';
+        if (role === 'warehouse_manager') return '/warehouses/list';
+        if (role === 'store_manager') return '/store/list';
+        if (role === 'account_manager') return '/purchase/list';
+        return '/';
+    };
+
+    const anyEmployeeShown = hasPermission('admins') || hasPermission('product_managers') || hasPermission('accountant_managers') || hasPermission('warehouse_managers') || hasPermission('store_managers') || hasPermission('riders');
+    const anyPlaceShown = hasPermission('warehouses') || hasPermission('stores');
+    const anyPromotionShown = hasPermission('notifications') || hasPermission('coupons') || hasPermission('product_ranking') || hasPermission('category_ranking');
+    const anyInventoryShown = hasPermission('suppliers') || hasPermission('purchase') || hasPermission('warehouse_inventory') || hasPermission('store_inventory') || hasPermission('inventory_transfer');
+    const anyCatalogShown = hasPermission('products') || hasPermission('categories') || hasPermission('offers');
+
     return (
         <div className={semidark ? 'dark' : ''}>
-            <nav
-                className={`sidebar fixed bottom-0 top-0 z-50 h-full min-h-screen w-[240px] shadow-[5px_0_25px_0_rgba(94,92,154,0.1)] transition-all duration-300 ${semidark ? 'text-white-dark' : ''}`}
-            >
+            <nav className={`sidebar fixed bottom-0 top-0 z-50 h-full min-h-screen w-[240px] shadow-[5px_0_25px_0_rgba(94,92,154,0.1)] transition-all duration-300 ${semidark ? 'text-white-dark' : ''}`}>
                 <div className="h-full bg-white dark:bg-black">
                     <div className="flex items-center justify-center px-4 py-3 relative">
-                        <Link href={
-                            role === 'super_admin' || role === 'admin' ? '/' : 
-                            role === 'product_manager' ? '/products/list' : 
-                            role === 'warehouse_manager' ? '/warehouses/list' : 
-                            role === 'store_manager' ? '/store/list' : 
-                            role === 'account_manager' ? '/purchase/list' : '/'
-                        } className="main-logo flex shrink-0 items-center">
+                        <Link href={getHomePath()} className="main-logo flex shrink-0 items-center">
                             <img className="inline w-20 flex-none" src="/assets/images/logo.png" alt="logo" />
                         </Link>
-
-                        <button
-                            type="button"
-                            className="collapse-icon absolute right-1 flex h-8 w-8 items-center rounded-full transition duration-300 hover:bg-gray-500/10 rtl:rotate-180 dark:text-white-light dark:hover:bg-dark-light/10"
-                            onClick={() => dispatch(toggleSidebar())}
-                        >
+                        <button type="button" className="collapse-icon absolute right-1 flex h-8 w-8 items-center rounded-full transition duration-300 hover:bg-gray-500/10 rtl:rotate-180 dark:text-white-light dark:hover:bg-dark-light/10" onClick={() => dispatch(toggleSidebar())}>
                             <IconCaretsDown className="m-auto rotate-90" />
                         </button>
                     </div>
                     <PerfectScrollbar className="relative h-[calc(100vh-80px)]">
                         <ul className="relative space-y-0.5 p-4 py-0 font-semibold">
-                            {hasPermission('dashboard') && role !== 'account_manager' && (
+                            {hasPermission('dashboard') && (
                                 <li className="menu nav-item">
                                     <button type="button" className={`${currentMenu === 'dashboard' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('dashboard')}>
                                         <div className="flex items-center">
                                             <IconMenuDashboard className="shrink-0 group-hover:!text-primary" />
                                             <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('dashboard')}</span>
                                         </div>
-
-                                        <div className={currentMenu !== 'dashboard' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                            <IconCaretDown />
-                                        </div>
+                                        <div className={currentMenu !== 'dashboard' ? '-rotate-90 rtl:rotate-90' : ''}><IconCaretDown /></div>
                                     </button>
-
                                     <AnimateHeight duration={300} height={currentMenu === 'dashboard' ? 'auto' : 0}>
                                         <ul className="sub-menu text-gray-500">
-                                            <li>
-                                                <Link href="/">{t('sales')}</Link>
-                                            </li>
-                                            {/* <li>
-                                                <Link href="/analytics">{t('analytics')}</Link>
-                                            </li> */}
-                                            {/* <li>
-                                                <Link href="/finance">{t('finance')}</Link>
-                                            </li> */}
-                                            {/* <li>
-                                                <Link href="/crypto">{t('crypto')}</Link>
-                                            </li> */}
+                                            <li><Link href="/">{t('sales')}</Link></li>
                                         </ul>
                                     </AnimateHeight>
                                 </li>
@@ -183,328 +165,87 @@ const Sidebar = () => {
 
                             {hasPermission('users') && (
                                 <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">{"Customer"}</span>
-                                    </h2>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">{"Customer"}</span></h2>
+                                    <li className="nav-item">
+                                        <Link href="/users/list" className="group">
+                                            <div className="flex items-center"><IconMenuUsers className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Customer</span></div>
+                                        </Link>
+                                    </li>
+                                </>
+                            )}
 
+                            {anyEmployeeShown && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">{"Employee"}</span></h2>
                                     <li className="nav-item">
                                         <ul>
-                                            <li className="nav-item">
-                                                <Link href="/users/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconMenuUsers className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Customer</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
+                                            {hasPermission('admins') && (<li className="nav-item"><Link href="/admins/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Admin</span></div></Link></li>)}
+                                            {hasPermission('product_managers') && (<li className="nav-item"><Link href="/product-managers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Manager</span></div></Link></li>)}
+                                            {hasPermission('accountant_managers') && (<li className="nav-item"><Link href="/accountant-managers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Accountant Manager</span></div></Link></li>)}
+                                            {hasPermission('warehouse_managers') && (<li className="nav-item"><Link href="/warehouse-managers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Manager</span></div></Link></li>)}
+                                            {hasPermission('store_managers') && (<li className="nav-item"><Link href="/store-managers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Manager</span></div></Link></li>)}
+                                            {hasPermission('riders') && (<li className="nav-item"><Link href="/riders/list" className="group"><div className="flex items-center"><IconTruck className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Rider</span></div></Link></li>)}
                                         </ul>
                                     </li>
                                 </>
                             )}
 
-
-
-                            {hasPermission('admins') && (
+                            {anyPlaceShown && (
                                 <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">{"Employee"}</span>
-                                    </h2>
-
-
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">Place</span></h2>
                                     <li className="nav-item">
                                         <ul>
-                                            <li className="nav-item">
-                                                <Link href="/admins/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Admin</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
-                                            <li className="nav-item">
-                                                <Link href="/product-managers/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Manager</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
-                                            <li className="nav-item">
-                                                <Link href="/accountant-managers/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Accountant Manager</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
-                                            <li className="nav-item">
-                                                <Link href="/warehouse-managers/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Manager</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
-
-                                            <li className="nav-item">
-                                                <Link href="/store-managers/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconUsersGroup className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Manager</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
-                                            <li className="nav-item">
-                                                <Link href="/riders/list" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconTruck className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Rider</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
+                                            {hasPermission('warehouses') && (<li className="nav-item"><Link href="/warehouses/list" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse</span></div></Link></li>)}
+                                            {hasPermission('stores') && (<li className="nav-item"><Link href="/store/list" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store</span></div></Link></li>)}
                                         </ul>
                                     </li>
                                 </>
                             )}
 
-                            {(hasPermission('warehouses') || hasPermission('stores')) && (
+                            {hasPermission('orders') && (
                                 <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">Place</span>
-                                    </h2>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">Order Management</span></h2>
+                                    <li className="nav-item"><Link href="/orders/list" className="group"><div className="flex items-center"><IconListCheck className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Orders</span></div></Link></li>
+                                </>
+                            )}
 
+                            {anyPromotionShown && (
+                                <>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">Promotion & Ranking</span></h2>
                                     <li className="nav-item">
                                         <ul>
-                                            {hasPermission('warehouses') && (
-                                                <li className="nav-item">
-                                                    <Link href="/warehouses/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {hasPermission('stores') && (
-                                                <li className="nav-item">
-                                                    <Link href="/store/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-
+                                            {hasPermission('notifications') && (<li className="nav-item"><Link href="/notifications/list" className="group"><div className="flex items-center"><IconBell className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Notification</span></div></Link></li>)}
+                                            {hasPermission('coupons') && (<li className="nav-item"><Link href="/coupons/list" className="group"><div className="flex items-center"><IconTag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Coupon</span></div></Link></li>)}
+                                            {hasPermission('product_ranking') && (<li className="nav-item"><Link href="/rankings/products" className="group"><div className="flex items-center"><IconAward className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Ranking</span></div></Link></li>)}
+                                            {hasPermission('category_ranking') && (<li className="nav-item"><Link href="/rankings/categories" className="group"><div className="flex items-center"><IconTrendingUp className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Category Ranking</span></div></Link></li>)}
                                         </ul>
                                     </li>
                                 </>
                             )}
 
-
-
-                            {(hasPermission('orders') || hasPermission('reports')) && (
+                            {anyCatalogShown && (
                                 <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">Order Management</span>
-                                    </h2>
-
-
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">Catalog</span></h2>
                                     <li className="nav-item">
                                         <ul>
-                                            {hasPermission('orders') && (
-                                                <li className="nav-item">
-                                                    <Link href="/orders/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconListCheck className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('orders')}</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {/* {hasPermission('reports') && (
-                                                <li className="nav-item">
-                                                    <Link href="/analytics" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Report</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )} */}
+                                            {hasPermission('products') && (<li className="nav-item"><Link href="/products/list" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Products</span></div></Link></li>)}
+                                            {hasPermission('categories') && (<li className="nav-item"><Link href="/categories/list" className="group"><div className="flex items-center"><IconTag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Categories</span></div></Link></li>)}
+                                            {hasPermission('offers') && (<li className="nav-item"><Link href="/offers/list" className="group"><div className="flex items-center"><IconTrendingUp className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Offers</span></div></Link></li>)}
                                         </ul>
                                     </li>
                                 </>
                             )}
 
-                            {(hasPermission('notifications') || hasPermission('coupons') || hasPermission('rankings')) && (
+                            {anyInventoryShown && (
                                 <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">Promotion & Ranking</span>
-                                    </h2>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">Inventory & Purchase</span></h2>
                                     <li className="nav-item">
                                         <ul>
-                                            {hasPermission('notifications') && (
-                                                <li className="nav-item">
-                                                    <Link href="/notifications/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconBell className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Notification</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {hasPermission('coupons') && (
-                                                <li className="nav-item">
-                                                    <Link href="/coupons/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconTag className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Coupon</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {hasPermission('rankings') && (
-                                                <>
-                                                    <li className="nav-item">
-                                                        <Link href="/rankings/products" className="group">
-                                                            <div className="flex items-center">
-                                                                <IconAward className="shrink-0 group-hover:!text-primary" />
-                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Product Ranking</span>
-                                                            </div>
-                                                        </Link>
-                                                    </li>
-                                                    <li className="nav-item">
-                                                        <Link href="/rankings/categories" className="group">
-                                                            <div className="flex items-center">
-                                                                <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
-                                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Category Ranking</span>
-                                                            </div>
-                                                        </Link>
-                                                    </li>
-                                                </>
-                                            )}
-                                        </ul>
-                                    </li>
-                                </>
-                            )}
-
-                            {(hasPermission('products') || hasPermission('categories')) && (
-                                <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">Products</span>
-                                    </h2>
-                                    <li className="nav-item">
-                                        <ul>
-                                            {hasPermission('products') && (
-                                                <li className="nav-item">
-                                                    <Link href="/products/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('products')}</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {hasPermission('categories') && (
-                                                <li className="nav-item">
-                                                    <Link href="/categories/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconTag className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('categories')}</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {hasPermission('products') && role !== 'product_manager' && (
-                                                <li className="nav-item">
-                                                    <Link href="/offers/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconTrendingUp className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Offers</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                        </ul>
-                                    </li>
-                                </>
-                            )}
-                            {(hasPermission('suppliers') || hasPermission('purchases') || hasPermission('inventory') || hasPermission('warehouse_inventory') || hasPermission('inventory_transfer') || hasPermission('store_inventory')) && (
-                                <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">Inventory & Purchse</span>
-                                    </h2>
-
-                                    <li className="nav-item">
-                                        <ul>
-                                            {hasPermission('suppliers') && (
-                                                <li className="nav-item">
-                                                    <Link href="/suppliers/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconUsers className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-                                            {hasPermission('purchases') && (
-                                                <li className="nav-item">
-                                                    <Link href="/purchase/list" className="group">
-                                                        <div className="flex items-center">
-                                                            <IconListCheck className="shrink-0 group-hover:!text-primary" />
-                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            )}
-
-                                            {(hasPermission('inventory') || hasPermission('warehouse_inventory') || hasPermission('inventory_transfer') || hasPermission('store_inventory')) && (
-                                                <>
-                                                    {role !== 'super_admin' && role !== 'admin' && (
-                                                        <>
-                                                            {(hasPermission('warehouse_inventory') || hasPermission('inventory')) && (
-                                                                <li className="nav-item">
-                                                                    <Link href="/inventory/warehouse" className="group">
-                                                                        <div className="flex items-center">
-                                                                            <IconBox className="shrink-0 group-hover:!text-primary" />
-                                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span>
-                                                                        </div>
-                                                                    </Link>
-                                                                </li>
-                                                            )}
-                                                            {(hasPermission('store_inventory') || hasPermission('inventory')) && (
-                                                                <li className="nav-item">
-                                                                    <Link href="/inventory/store" className="group">
-                                                                        <div className="flex items-center">
-                                                                            <IconShoppingBag className="shrink-0 group-hover:!text-primary" />
-                                                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span>
-                                                                        </div>
-                                                                    </Link>
-                                                                </li>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    {(hasPermission('inventory_transfer') || hasPermission('inventory') || hasPermission('store_inventory')) && (
-                                                        <li className="nav-item">
-                                                            <Link href="/inventory/transfer" className="group">
-                                                                <div className="flex items-center">
-                                                                    <IconRefresh className="shrink-0 group-hover:!text-primary" />
-                                                                    <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span>
-                                                                </div>
-                                                            </Link>
-                                                        </li>
-                                                    )}
-                                                </>
-                                            )}
-
+                                            {hasPermission('suppliers') && (<li className="nav-item"><Link href="/suppliers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span></div></Link></li>)}
+                                            {hasPermission('purchase') && (<li className="nav-item"><Link href="/purchase/list" className="group"><div className="flex items-center"><IconListCheck className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span></div></Link></li>)}
+                                            {hasPermission('warehouse_inventory') && (role !== 'super_admin' && role !== 'admin') && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
+                                            {hasPermission('store_inventory') && (role !== 'super_admin' && role !== 'admin') && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
+                                            {hasPermission('inventory_transfer') && (<li className="nav-item"><Link href="/inventory/transfer" className="group"><div className="flex items-center"><IconRefresh className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span></div></Link></li>)}
                                         </ul>
                                     </li>
                                 </>
@@ -512,601 +253,10 @@ const Sidebar = () => {
 
                             {hasPermission('settings') && (
                                 <>
-                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                        <IconMinus className="hidden h-5 w-4 flex-none" />
-                                        <span className="text-[11px] opacity-70">Settings</span>
-                                    </h2>
-                                    <li className="nav-item">
-                                        <ul>
-
-                                            <li className="nav-item">
-                                                <Link href="/company/settings" className="group">
-                                                    <div className="flex items-center">
-                                                        <IconSettings className="shrink-0 group-hover:!text-primary" />
-                                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Company</span>
-                                                    </div>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </li>
+                                    <h2 className="-mx-4 mb-0.5 flex items-center bg-white-light/30 px-6 py-2 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]"><span className="text-[11px] opacity-70">Settings</span></h2>
+                                    <li className="nav-item"><Link href="/company/settings" className="group"><div className="flex items-center"><IconSettings className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Company</span></div></Link></li>
                                 </>
                             )}
-
-                            {/* <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item">
-                                        <Link href="/apps/chat" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuChat className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('chat')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/apps/mailbox" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuMailbox className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('mailbox')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/apps/todolist" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuTodo className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('todo_list')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/apps/notes" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuNotes className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('notes')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/apps/scrumboard" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuScrumboard className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('scrumboard')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                    <li className="nav-item">
-                                        <Link href="/apps/contacts" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuContacts className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('contacts')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-
-                                    <li className="menu nav-item">
-                                        <button type="button" className={`${currentMenu === 'invoice' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('invoice')}>
-                                            <div className="flex items-center">
-                                                <IconMenuInvoice className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('invoice')}</span>
-                                            </div>
-
-                                            <div className={currentMenu !== 'invoice' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                                <IconCaretDown />
-                                            </div>
-                                        </button>
-
-                                        <AnimateHeight duration={300} height={currentMenu === 'invoice' ? 'auto' : 0}>
-                                            <ul className="sub-menu text-gray-500">
-                                                <li>
-                                                    <Link href="/apps/invoice/list">{t('list')}</Link>
-                                                </li>
-                                                <li>
-                                                    <Link href="/apps/invoice/preview">{t('preview')}</Link>
-                                                </li>
-                                                <li>
-                                                    <Link href="/apps/invoice/add">{t('add')}</Link>
-                                                </li>
-                                                <li>
-                                                    <Link href="/apps/invoice/edit">{t('edit')}</Link>
-                                                </li>
-                                            </ul>
-                                        </AnimateHeight>
-                                    </li>
-
-                                    <li className="nav-item">
-                                        <Link href="/apps/calendar" className="group">
-                                            <div className="flex items-center">
-                                                <IconMenuCalendar className="shrink-0 group-hover:!text-primary" />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('calendar')}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                </ul>
-                            </li> */}
-
-                            {/* <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span>{t('user_interface')}</span>
-                            </h2>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'component' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('component')}>
-                                    <div className="flex items-center">
-                                        <IconMenuComponents className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('components')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'component' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'component' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/components/tabs">{t('tabs')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/accordions">{t('accordions')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/modals">{t('modals')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/cards">{t('cards')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/carousel">{t('carousel')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/countdown">{t('countdown')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/counter">{t('counter')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/sweetalert">{t('sweet_alerts')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/timeline">{t('timeline')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/notifications">{t('notifications')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/media-object">{t('media_object')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/list-group">{t('list_group')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/pricing-table">{t('pricing_tables')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/components/lightbox">{t('lightbox')}</Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'element' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('element')}>
-                                    <div className="flex items-center">
-                                        <IconMenuElements className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('elements')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'element' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'element' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/elements/alerts">{t('alerts')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/avatar">{t('avatar')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/badges">{t('badges')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/breadcrumbs">{t('breadcrumbs')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/buttons">{t('buttons')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/buttons-group">{t('button_groups')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/color-library">{t('color_library')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/dropdown">{t('dropdown')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/infobox">{t('infobox')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/jumbotron">{t('jumbotron')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/loader">{t('loader')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/pagination">{t('pagination')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/popovers">{t('popovers')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/progress-bar">{t('progress_bar')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/search">{t('search')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/tooltips">{t('tooltips')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/treeview">{t('treeview')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/elements/typography">{t('typography')}</Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <Link href="/charts" className="group">
-                                    <div className="flex items-center">
-                                        <IconMenuCharts className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('charts')}</span>
-                                    </div>
-                                </Link>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <Link href="/widgets" className="group">
-                                    <div className="flex items-center">
-                                        <IconMenuWidgets className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('widgets')}</span>
-                                    </div>
-                                </Link>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <Link href="/font-icons" className="group">
-                                    <div className="flex items-center">
-                                        <IconMenuFontIcons className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('font_icons')}</span>
-                                    </div>
-                                </Link>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <Link href="/dragndrop" className="group">
-                                    <div className="flex items-center">
-                                        <IconMenuDragAndDrop className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('drag_and_drop')}</span>
-                                    </div>
-                                </Link>
-                            </li>
-
-                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span>{t('tables_and_forms')}</span>
-                            </h2>
-
-                            <li className="menu nav-item">
-                                <Link href="/tables" className="group">
-                                    <div className="flex items-center">
-                                        <IconMenuTables className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('tables')}</span>
-                                    </div>
-                                </Link>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'datalabel' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('datalabel')}>
-                                    <div className="flex items-center">
-                                        <IconMenuDatatables className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('datatables')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'datalabel' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'datalabel' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/datatables/basic">{t('basic')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/advanced">{t('advanced')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/skin">{t('skin')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/order-sorting">{t('order_sorting')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/multi-column">{t('multi_column')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/multiple-tables">{t('multiple_tables')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/alt-pagination">{t('alt_pagination')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/checkbox">{t('checkbox')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/range-search">{t('range_search')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/export">{t('export')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/datatables/column-chooser">{t('column_chooser')}</Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'forms' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('forms')}>
-                                    <div className="flex items-center">
-                                        <IconMenuForms className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('forms')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'forms' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'forms' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/forms/basic">{t('basic')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/input-group">{t('input_group')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/layouts">{t('layouts')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/validation">{t('validation')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/input-mask">{t('input_mask')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/select2">{t('select2')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/touchspin">{t('touchspin')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/checkbox-radio">{t('checkbox_and_radio')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/switches">{t('switches')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/wizards">{t('wizards')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/file-upload">{t('file_upload')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/quill-editor">{t('quill_editor')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/markdown-editor">{t('markdown_editor')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/date-picker">{t('date_and_range_picker')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/forms/clipboard">{t('clipboard')}</Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li> */}
-
-                            {/* <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span>{t('user_and_pages')}</span>
-                            </h2>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'users' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('users')}>
-                                    <div className="flex items-center">
-                                        <IconMenuUsers className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('users')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'users' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'users' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/users/profile">{t('profile')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/users/user-account-settings">{t('account_settings')}</Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'page' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('page')}>
-                                    <div className="flex items-center">
-                                        <IconMenuPages className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('pages')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'page' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'page' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/pages/knowledge-base">{t('knowledge_base')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/pages/contact-us-boxed" target="_blank">
-                                                {t('contact_us_boxed')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/pages/contact-us-cover" target="_blank">
-                                                {t('contact_us_cover')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/pages/faq">{t('faq')}</Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/pages/coming-soon-boxed" target="_blank">
-                                                {t('coming_soon_boxed')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/pages/coming-soon-cover" target="_blank">
-                                                {t('coming_soon_cover')}
-                                            </Link>
-                                        </li>
-                                        <li className="menu nav-item">
-                                            <button
-                                                type="button"
-                                                className={`${errorSubMenu ? 'open' : ''
-                                                    } w-full before:h-[5px] before:w-[5px] before:rounded before:bg-gray-300 hover:bg-gray-100 ltr:before:mr-2 rtl:before:ml-2 dark:text-[#888ea8] dark:hover:bg-gray-900`}
-                                                onClick={() => setErrorSubMenu(!errorSubMenu)}
-                                            >
-                                                {t('error')}
-                                                <div className={`${errorSubMenu ? '-rotate-90 rtl:rotate-90' : ''} ltr:ml-auto rtl:mr-auto`}>
-                                                    <IconCaretsDown fill={true} className="h-4 w-4" />
-                                                </div>
-                                            </button>
-                                            <AnimateHeight duration={300} height={errorSubMenu ? 'auto' : 0}>
-                                                <ul className="sub-menu text-gray-500">
-                                                    <li>
-                                                        <a href="/pages/error404" target="_blank">
-                                                            {t('404')}
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a href="/pages/error500" target="_blank">
-                                                            {t('500')}
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a href="/pages/error503" target="_blank">
-                                                            {t('503')}
-                                                        </a>
-                                                    </li>
-                                                </ul>
-                                            </AnimateHeight>
-                                        </li>
-
-                                        <li>
-                                            <Link href="/pages/maintenence" target="_blank">
-                                                {t('maintenence')}
-                                            </Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li>
-
-                            <li className="menu nav-item">
-                                <button type="button" className={`${currentMenu === 'auth' ? 'active' : ''} nav-link group w-full`} onClick={() => toggleMenu('auth')}>
-                                    <div className="flex items-center">
-                                        <IconMenuAuthentication className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('authentication')}</span>
-                                    </div>
-
-                                    <div className={currentMenu !== 'auth' ? '-rotate-90 rtl:rotate-90' : ''}>
-                                        <IconCaretDown />
-                                    </div>
-                                </button>
-
-                                <AnimateHeight duration={300} height={currentMenu === 'auth' ? 'auto' : 0}>
-                                    <ul className="sub-menu text-gray-500">
-                                        <li>
-                                            <Link href="/auth/boxed-signin" target="_blank">
-                                                {t('login_boxed')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/boxed-signup" target="_blank">
-                                                {t('register_boxed')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/boxed-lockscreen" target="_blank">
-                                                {t('unlock_boxed')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/boxed-password-reset" target="_blank">
-                                                {t('recover_id_boxed')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/cover-login" target="_blank">
-                                                {t('login_cover')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/cover-register" target="_blank">
-                                                {t('register_cover')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/cover-lockscreen" target="_blank">
-                                                {t('unlock_cover')}
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/auth/cover-password-reset" target="_blank">
-                                                {t('recover_id_cover')}
-                                            </Link>
-                                        </li>
-                                    </ul>
-                                </AnimateHeight>
-                            </li> */}
-                            {/* 
-                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
-                                <IconMinus className="hidden h-5 w-4 flex-none" />
-                                <span>{t('supports')}</span>
-                            </h2>
-
-                            <li className="menu nav-item">
-                                <Link href="https://vristo.sbthemes.com" target="_blank" className="nav-link group">
-                                    <div className="flex items-center">
-                                        <IconMenuDocumentation className="shrink-0 group-hover:!text-primary" />
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">{t('documentation')}</span>
-                                    </div>
-                                </Link>
-                            </li> */}
                         </ul>
                     </PerfectScrollbar>
                 </div>

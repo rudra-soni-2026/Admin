@@ -29,6 +29,7 @@ const RiderForm = (props: RiderFormProps) => {
         vehicleModel: '',
         homeAddress: '',
         storeId: '',
+        status: 'offline', // online, offline, on_delivery, busy, inactive
         documents: {
             license_url: '',
             aadhar_url: '',
@@ -145,6 +146,9 @@ const RiderForm = (props: RiderFormProps) => {
             }
 
             if (isEdit && !payload.password) delete (payload as any).password;
+            if ((payload as any).displayStatus) delete (payload as any).displayStatus;
+            if ((payload as any).originalId) delete (payload as any).originalId;
+            if ((payload as any).user) delete (payload as any).user;
 
             const response = await callApi(isEdit ? `/management/admin/riders/${props.id}` : '/management/admin/riders', isEdit ? 'PATCH' : 'POST', payload);
 
@@ -209,6 +213,16 @@ const RiderForm = (props: RiderFormProps) => {
                             <select id="storeId" className="form-select" value={formData.storeId} onChange={handleChange}>
                                 <option value="">Select Store</option>
                                 {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Rider Availability Status</label>
+                            <select id="status" className="form-select" value={formData.status} onChange={handleChange}>
+                                <option value="online">Online</option>
+                                <option value="offline">Offline</option>
+                                <option value="busy">Busy</option>
+                                <option value="on_delivery">On Delivery</option>
+                                <option value="inactive">Inactive</option>
                             </select>
                         </div>
                     </div>

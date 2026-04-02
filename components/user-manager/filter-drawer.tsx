@@ -2,6 +2,7 @@
 import React from 'react';
 import IconX from '@/components/icon/icon-x';
 import IconRefresh from '@/components/icon/icon-refresh';
+import IconDownload from '@/components/icon/icon-download';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/flatpickr.css';
 
@@ -21,11 +22,13 @@ interface FilterDrawerProps {
     setMinPrice?: (value: string) => void;
     maxPrice?: string;
     setMaxPrice?: (value: string) => void;
+    onExport?: () => void;
 }
 
 const FilterDrawer = ({ 
     show, setShow, date, setDate, status, setStatus, type = 'User',
-    categoryId, setCategoryId, brand, setBrand, minPrice, setMinPrice, maxPrice, setMaxPrice 
+    categoryId, setCategoryId, brand, setBrand, minPrice, setMinPrice, maxPrice, setMaxPrice,
+    onExport
 }: FilterDrawerProps) => {
     const [localDate, setLocalDate] = React.useState<any>(date);
     const [localStatus, setLocalStatus] = React.useState<string>(status);
@@ -121,6 +124,20 @@ const FilterDrawer = ({
                     </div>
 
                     <div className="flex-1 overflow-y-auto mt-3 space-y-4 pb-20 pr-1 perfect-scrollbar">
+                        {/* Compact Export Button Section */}
+                        {onExport && (
+                            <div className="mb-4">
+                                <button 
+                                    type="button" 
+                                    className="btn btn-success w-full btn-sm gap-2 uppercase font-black tracking-tight" 
+                                    onClick={onExport}
+                                >
+                                    <IconDownload className="h-4 w-4" />
+                                    Export {type} List
+                                </button>
+                            </div>
+                        )}
+
                         {/* Date Filter */}
                         <div>
                             <label className="mb-2 block text-[13px] font-semibold text-gray-800 dark:text-white-light">Filter by Date Range</label>

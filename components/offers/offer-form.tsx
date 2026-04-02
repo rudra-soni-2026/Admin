@@ -45,9 +45,24 @@ const OfferForm = ({ id, title }: OfferFormProps) => {
     const fetchOfferDetail = async () => {
         try {
             setLoading(true);
-            const response = await callApi(`management/admin/offers/${id}`, 'GET');
-            if (response && response.status === 'success') {
-                const offer = response.data;
+            
+            // Try loading from localStorage first to avoid API call
+            const stored = localStorage.getItem(`edit_offer_${id}`);
+            let offer = null;
+            if (stored) {
+                try {
+                    offer = JSON.parse(stored);
+                } catch (e) {}
+            }
+
+            if (!offer) {
+                const response = await callApi(`management/admin/offers/${id}`, 'GET');
+                if (response && response.status === 'success') {
+                    offer = response.data;
+                }
+            }
+
+            if (offer) {
                 setFormData({
                     productId: offer.productId?._id || offer.productId,
                     minQuantity: offer.minQuantity,
@@ -64,9 +79,13 @@ const OfferForm = ({ id, title }: OfferFormProps) => {
                         image: offer.productId.image
                     });
                 }
+            } else if (id) {
+                // Fallback if no data and API fails
+                router.push('/offers/list');
             }
         } catch (error) {
             console.error('Error fetching offer detail:', error);
+            if (id) router.push('/offers/list');
         } finally {
             setLoading(false);
         }

@@ -32,9 +32,11 @@ import IconPrinter from '@/components/icon/icon-printer';
 import IconPrinterLine from '@/components/icon/icon-printer'; // Using printer as placeholder for presentation
 import IconRefresh from '@/components/icon/icon-refresh';
 import { initiateSocket, getDashboardStats, subscribeToDashboardStats, unsubscribeFromOrders } from '@/utils/socket';
+import { useRouter } from 'next/navigation';
 import { callApi } from '@/utils/api';
 
 const ComponentsDashboardSales = () => {
+    const router = useRouter();
     const isDark = useSelector((state: IRootState) => state.themeConfig.theme === 'dark' || state.themeConfig.isDarkMode);
     const isRtl = useSelector((state: IRootState) => state.themeConfig.rtlClass) === 'rtl';
 
@@ -45,6 +47,41 @@ const ComponentsDashboardSales = () => {
     const [stores, setStores] = useState<any[]>([]);
     const [selectedStore, setSelectedStore] = useState('all');
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [loadingPermission, setLoadingPermission] = useState(true);
+
+    // Dynamic Permission Protection
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const role = localStorage.getItem('role');
+        const storedPerms = localStorage.getItem('permissions');
+        let perms: any = null;
+        if (storedPerms) {
+            try { perms = JSON.parse(storedPerms); } catch (e) { }
+        }
+
+        const hasPerm = (p: string) => {
+            if (role === 'super_admin') return true;
+            if (!perms) return false;
+            if (typeof perms === 'object' && !Array.isArray(perms)) return perms?.[p]?.read === true;
+            if (Array.isArray(perms)) return perms.includes(p);
+            return false;
+        };
+
+        if (!hasPerm('dashboard')) {
+            if (hasPerm('users')) router.push('/users/list');
+            else if (hasPerm('admins')) router.push('/admins/list');
+            else if (hasPerm('stores')) router.push('/store/list');
+            else if (hasPerm('warehouses')) router.push('/warehouses/list');
+            else if (hasPerm('orders')) router.push('/orders/list');
+            else if (hasPerm('products')) router.push('/products/list');
+            else if (role === 'product_manager') router.push('/products/list');
+            else if (role === 'warehouse_manager') router.push('/warehouses/list');
+            else if (role === 'store_manager') router.push('/store/list');
+            else router.push('/company/settings'); // Final safety
+        } else {
+            setLoadingPermission(false);
+        }
+    }, [router]);
 
     useEffect(() => {
         setIsMounted(true);
@@ -57,13 +94,43 @@ const ComponentsDashboardSales = () => {
             try {
                 const userData = JSON.parse(userDataString);
                 initialStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id || 'all';
-            } catch (e) {}
+            } catch (e) { }
         }
         setSelectedStore(initialStoreId);
 
-        // Fetch Stores
+        // Fetch Stores with Territory Filtering
         callApi('/management/admin/stores?page=1&limit=100', 'GET').then((res: any) => {
-            if (res && res.data) setStores(res.data);
+            if (res && res.data) {
+                const userDataString = localStorage.getItem('userData');
+                if (userDataString) {
+                    try {
+                        const userData = JSON.parse(userDataString);
+                        let allowedStoreIds: string[] = [];
+
+                        // Parse storeIds if it's a stringified array
+                        if (typeof userData.storeIds === 'string') {
+                            allowedStoreIds = JSON.parse(userData.storeIds);
+                        } else if (Array.isArray(userData.storeIds)) {
+                            allowedStoreIds = userData.storeIds;
+                        }
+
+                        // If NOT "ALL_STORES", filter the data
+                        if (!allowedStoreIds.includes('ALL_STORES')) {
+                            const filtered = res.data.filter((store: any) => allowedStoreIds.includes(store.id));
+                            setStores(filtered);
+                            // Auto-select the first allowed store if current isn't allowed
+                            if (initialStoreId === 'all' && filtered.length > 0) {
+                                setSelectedStore(filtered[0].id);
+                                initiateSocket(filtered[0].id);
+                            }
+                            return;
+                        }
+                    } catch (e) {
+                        console.error("Error parsing territory:", e);
+                    }
+                }
+                setStores(res.data);
+            }
         });
 
         // Socket Setup
@@ -404,7 +471,7 @@ const ComponentsDashboardSales = () => {
                     },
                 },
             ],
-                xaxis: {
+            xaxis: {
                 labels: {
                     show: false,
                 },
@@ -497,6 +564,14 @@ const ComponentsDashboardSales = () => {
         },
     };
 
+    if (loadingPermission) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <span className="animate-spin inline-block w-8 h-8 border-[3px] border-primary border-l-transparent rounded-full align-middle"></span>
+            </div>
+        );
+    }
+
     return (
         <>
             <style>
@@ -529,9 +604,9 @@ const ComponentsDashboardSales = () => {
                     </ul>
                     <div className="flex items-center gap-4 ltr:ml-auto rtl:mr-auto">
                         {(userRole === 'super_admin' || userRole === 'admin') && (
-                            <select 
-                                className="form-select w-40 h-10 no-print" 
-                                value={selectedStore} 
+                            <select
+                                className="form-select w-40 h-10 no-print"
+                                value={selectedStore}
                                 onChange={(e) => setSelectedStore(e.target.value)}
                             >
                                 <option value="all">All Stores</option>
@@ -590,8 +665,8 @@ const ComponentsDashboardSales = () => {
                                 </ul>
                             </Dropdown>
                         </div>
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             className={`btn ${isEditable ? 'btn-danger' : 'btn-outline-primary'} gap-2 no-print`}
                             onClick={() => setIsEditable(!isEditable)}
                         >
@@ -610,8 +685,8 @@ const ComponentsDashboardSales = () => {
                                 <IconUser className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    {stats?.kpi?.totalCustomers?.count ?? '0'} 
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    {stats?.kpi?.totalCustomers?.count ?? '0'}
                                 </div>
                                 <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold ltr:ml-3 rtl:mr-3">
                                     +{stats?.kpi?.totalCustomers?.increaseToday ?? '0'} Today
@@ -625,8 +700,8 @@ const ComponentsDashboardSales = () => {
                                 <IconShoppingCart className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    {stats?.kpi?.todayOrders?.count ?? '0'} 
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    {stats?.kpi?.todayOrders?.count ?? '0'}
                                 </div>
                                 <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Live Tracking</div>
                             </div>
@@ -638,8 +713,8 @@ const ComponentsDashboardSales = () => {
                                 <IconTruck className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    {stats?.kpi?.deliveredOrders?.count ?? '0'} 
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    {stats?.kpi?.deliveredOrders?.count ?? '0'}
                                 </div>
                                 <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">
                                     Success Rate: {stats?.kpi?.deliveredOrders?.successRate ?? '0'}%
@@ -653,8 +728,8 @@ const ComponentsDashboardSales = () => {
                                 <IconHorizontalDots className="w-5 h-5" />
                             </div>
                             <div className="mt-5 flex items-center">
-                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    {stats?.kpi?.cancelledOrders?.count ?? '0'} 
+                                <div className={`text-3xl font-bold ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    {stats?.kpi?.cancelledOrders?.count ?? '0'}
                                 </div>
                                 <div className="badge bg-white/30 rounded-full py-1 text-[10px] font-bold">Immediate Review</div>
                             </div>
@@ -666,32 +741,32 @@ const ComponentsDashboardSales = () => {
                         <div className="panel bg-indigo-600">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Active Stores</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    {stats?.kpi?.infrastructure?.activeStores ?? '0'} Stores 
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    {stats?.kpi?.infrastructure?.activeStores ?? '0'} Stores
                                 </div>
                             </div>
                         </div>
                         <div className="panel bg-amber-500">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Catalogs</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    {stats?.kpi?.infrastructure?.totalCategories ?? '0'} Categories | {stats?.kpi?.infrastructure?.totalProducts ?? '0'} Products 
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    {stats?.kpi?.infrastructure?.totalCategories ?? '0'} Categories | {stats?.kpi?.infrastructure?.totalProducts ?? '0'} Products
                                 </div>
                             </div>
                         </div>
                         <div className="panel bg-sky-600">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Online Payment</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    ₹{stats?.kpi?.payments?.online?.amount?.toLocaleString() ?? '0'} ({stats?.kpi?.payments?.online?.percentage ?? '0'}%) 
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    ₹{stats?.kpi?.payments?.online?.amount?.toLocaleString() ?? '0'} ({stats?.kpi?.payments?.online?.percentage ?? '0'}%)
                                 </div>
                             </div>
                         </div>
                         <div className="panel bg-slate-700">
                             <div className="flex items-center justify-between">
                                 <div className="font-semibold uppercase opacity-90">Cash Payment</div>
-                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}> 
-                                    ₹{stats?.kpi?.payments?.cash?.amount?.toLocaleString() ?? '0'} ({stats?.kpi?.payments?.cash?.percentage ?? '0'}%) 
+                                <div className={`text-xs font-bold bg-white/10 px-2 py-1 rounded ${isEditable ? 'edit-active' : ''}`} contentEditable={isEditable} suppressContentEditableWarning={true}>
+                                    ₹{stats?.kpi?.payments?.cash?.amount?.toLocaleString() ?? '0'} ({stats?.kpi?.payments?.cash?.percentage ?? '0'}%)
                                 </div>
                             </div>
                         </div>
@@ -705,25 +780,25 @@ const ComponentsDashboardSales = () => {
                             <div className="relative">
                                 <div className="rounded-lg bg-white dark:bg-black">
                                     {isMounted ? (
-                                        <ReactApexChart 
+                                        <ReactApexChart
                                             series={
-                                                stats?.charts?.revenuePerformance?.income 
-                                                ? [
-                                                    { name: 'Income', data: stats.charts.revenuePerformance.income },
-                                                    { name: 'Expenses', data: stats.charts.revenuePerformance.expenses || [] }
-                                                  ]
-                                                : revenueChart.series
-                                            } 
+                                                stats?.charts?.revenuePerformance?.income
+                                                    ? [
+                                                        { name: 'Income', data: stats.charts.revenuePerformance.income },
+                                                        { name: 'Expenses', data: stats.charts.revenuePerformance.expenses || [] }
+                                                    ]
+                                                    : revenueChart.series
+                                            }
                                             options={{
                                                 ...revenueChart.options,
                                                 xaxis: {
                                                     ...revenueChart.options.xaxis,
                                                     categories: stats?.charts?.revenuePerformance?.labels || revenueChart.options.labels
                                                 }
-                                            }} 
-                                            type="area" 
-                                            height={325} 
-                                            width={'100%'} 
+                                            }}
+                                            type="area"
+                                            height={325}
+                                            width={'100%'}
                                         />
                                     ) : (
                                         <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">
@@ -825,23 +900,23 @@ const ComponentsDashboardSales = () => {
                             <div className="rounded-lg bg-transparent">
                                 {/* loader */}
                                 {isMounted ? (
-                                    <ReactApexChart 
+                                    <ReactApexChart
                                         key={stats?.timestamp || 'orders-trend'}
                                         series={
-                                            stats?.charts?.ordersTrend?.income 
-                                            ? [
-                                                { name: 'Income', data: stats.charts.ordersTrend.income.map((v: any) => v || 0) },
-                                                { name: 'Expenses', data: (stats.charts.ordersTrend.expenses || []).map((v: any) => v || 0) }
-                                              ]
-                                            : stats?.charts?.ordersTrend?.series || totalOrders.series
-                                        } 
+                                            stats?.charts?.ordersTrend?.income
+                                                ? [
+                                                    { name: 'Income', data: stats.charts.ordersTrend.income.map((v: any) => v || 0) },
+                                                    { name: 'Expenses', data: (stats.charts.ordersTrend.expenses || []).map((v: any) => v || 0) }
+                                                ]
+                                                : stats?.charts?.ordersTrend?.series || totalOrders.series
+                                        }
                                         options={{
                                             ...totalOrders.options,
                                             labels: stats?.charts?.ordersTrend?.labels || totalOrders.options.labels
-                                        }} 
-                                        type="area" 
-                                        height={290} 
-                                        width={'100%'} 
+                                        }}
+                                        type="area"
+                                        height={290}
+                                        width={'100%'}
                                     />
                                 ) : (
                                     <div className="grid min-h-[325px] place-content-center bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] ">

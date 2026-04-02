@@ -97,10 +97,10 @@ const CategoryList = () => {
             setCategoryData(prev => {
                 const index = prev.findIndex(cat => cat.originalId === categoryId);
                 if (index === -1) return prev;
-                
+
                 const result = [...prev];
                 result[index] = { ...result[index], isExpanded: false };
-                
+
                 let countToRemove = 0;
                 for (let i = index + 1; i < result.length; i++) {
                     if (result[i].level > currentLevel) countToRemove++;
@@ -125,8 +125,8 @@ const CategoryList = () => {
                         joinedDate: child.createdAt
                             ? new Date(child.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
                             : child.updatedAt
-                            ? new Date(child.updatedAt).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
-                            : '—',
+                                ? new Date(child.updatedAt).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+                                : '—',
                         level: currentLevel + 1,
                         isExpanded: false,
                         raw: child
@@ -175,6 +175,25 @@ const CategoryList = () => {
         }
     };
 
+    const [perms, setPerms] = useState<any>(null);
+    useEffect(() => {
+        const storedPerms = localStorage.getItem('permissions');
+        if (storedPerms) {
+            try {
+                setPerms(typeof storedPerms === 'string' ? JSON.parse(storedPerms) : storedPerms);
+            } catch (e) { }
+        }
+    }, []);
+
+    const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+    const hasPerm = (mod: string, action: string) => {
+        if (uRole === 'super_admin') return true;
+        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        let currentPerms = perms;
+        if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
+        return currentPerms?.[mod]?.[action] === true;
+    };
+
     const columns = [
         { key: 'id', label: 'ID' },
         { key: 'name', label: 'Category Name' },
@@ -197,12 +216,12 @@ const CategoryList = () => {
                 <div className="h-full bg-primary animate-progress w-full"></div>
             </div>
 
-            <UserManagerTable 
+            <UserManagerTable
                 key="category-manager-list"
-                title="Category" 
-                data={categoryData} 
-                columns={columns} 
-                userType="Category" 
+                title="Category"
+                data={categoryData}
+                columns={columns}
+                userType="Category"
                 loading={loading}
                 totalRecords={totalCategories}
                 page={page}
@@ -216,11 +235,11 @@ const CategoryList = () => {
                 onStatusChange={setStatus}
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
-                onAddClick={handleAddCategory}
+                onAddClick={hasPerm('categories', 'create') ? handleAddCategory : undefined}
                 addButtonLabel="Add New Category"
                 onViewClick={handleToggleExpand}
-                onEditClick={handleEditCategory}
-                onStatusToggle={handleStatusToggle}
+                onEditClick={hasPerm('categories', 'update') ? handleEditCategory : undefined}
+                onStatusToggle={hasPerm('categories', 'update') ? handleStatusToggle : undefined}
                 hideDelete={true}
             />
         </div>
