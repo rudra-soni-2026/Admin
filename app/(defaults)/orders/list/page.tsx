@@ -1,13 +1,16 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import UserManagerTable from '@/components/user-manager/user-manager-table';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
 import { subscribeToOrders, joinStore, unsubscribeFromOrders, getOrders, getSocket } from '@/utils/socket';
 import { useRef } from 'react';
 import moment from 'moment';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 
 const OrderList = () => {
@@ -16,7 +19,7 @@ const OrderList = () => {
     const [orderData, setOrderData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
 
     // Stats
@@ -34,26 +37,75 @@ const OrderList = () => {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [status, setStatus] = useState('all');
     const [dateRange, setDateRange] = useState<any>('');
+    const [allStores, setAllStores] = useState<any[]>([]);
+    const [selectedStoreId, setSelectedStoreId] = useState('all');
+
+    // 🍟 UNIFIED TOAST (SNACKBAR) SYSTEM
+    const showMessage = (msg = '', type = 'success') => {
+        const toast: any = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            customClass: { container: 'toast' },
+        });
+        toast.fire({
+            icon: type,
+            title: msg,
+            padding: '10px 20px',
+        });
+    };
 
     // Refs for stable socket callback values
     const pageRef = useRef(1);
+    const searchRef = useRef('');
+    const statusRef = useRef('all');
+    const dateRangeRef = useRef<any>('');
+
+    const pageSizeRef = useRef(10);
 
     useEffect(() => {
         pageRef.current = page;
     }, [page]);
 
     useEffect(() => {
-        setStoredRole(localStorage.getItem('role'));
+        pageSizeRef.current = pageSize;
+    }, [pageSize]);
+
+    useEffect(() => {
+        searchRef.current = debouncedSearch;
+    }, [debouncedSearch]);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
+
+    useEffect(() => {
+        dateRangeRef.current = dateRange;
+    }, [dateRange]);
+
+    useEffect(() => {
+        const role = localStorage.getItem('role');
+        setStoredRole(role);
+
+        if (role === 'admin' || role === 'super_admin') {
+            callApi('/management/admin/stores?limit=50', 'GET').then(res => {
+                if (res && res.data) setAllStores(res.data);
+            });
+        }
     }, []);
 
 
     // Debounce Search
     useEffect(() => {
         const handler = setTimeout(() => {
-            setDebouncedSearch(search);
+            if (debouncedSearch !== search) {
+                setDebouncedSearch(search);
+                setPage(1);
+            }
         }, 500);
         return () => clearTimeout(handler);
-    }, [search]);
+    }, [search, debouncedSearch]);
 
     const mapOrderData = (orders: any[]) => {
         return orders.map((order: any) => {
@@ -62,7 +114,11 @@ const OrderList = () => {
                 calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
             } catch (e) { }
 
-            const total = (calc as any).total || order.totalAmount || 0;
+            // 👤 CUSTOMER: Prioritize address name/phone from the DB record if it exists
+            const addr = typeof order.order_address === 'string' ? JSON.parse(order.order_address) : (order.order_address || {});
+            const customerName = order.customerName || addr.name || addr.receiverName || addr.receiver_name || (order.user?.name) || 'Guest User';
+            const customerPhone = order.customerPhone || addr.phone || addr.mobile || addr.receiverPhone || (order.user?.phone) || 'N/A';
+            const total = (calc as any).total || order.totalAmount || order.total_amount || 0;
 
             return {
                 ...order,
@@ -72,21 +128,23 @@ const OrderList = () => {
                 orderTime: (order.createdAt || order.created_at) ? new Date(order.createdAt || order.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A',
                 deliveryTime: order.delivery_at ? new Date(order.delivery_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '--:--',
                 duration: order.delivery_duration || '--',
-                customerName: order.user?.name || 'Unknown',
-                customerPhone: order.user?.phone || 'N/A',
-                isNewCustomer: order.isNewCustomer || false,
-                rider: order.rider?.name || '-',
-                pay: order.paymentMethod || 'COD',
+                customerName: customerName,
+                customerPhone: customerPhone,
+                isNewCustomer: order.isFirstOrder || order.isNewCustomer || false,
+                userOrderCount: order.userOrderCount || 0,
+                // 🛵 RIDER: Robust Detection (Matches Backend associations)
+                rider: order.rider?.user?.name || order.rider?.name || order.rider_name || order.Rider?.name || order.riderName || '-',
+                pay: (order.pay || order.payment_method || order.paymentMethod || 'COD').toUpperCase(),
                 amount: `₹${total}`,
                 status: order.status || 'Pending',
-                storeName: order.store?.name || 'N/A'
+                storeName: (order.store?.name || order.Store?.name) || 'N/A'
             };
         });
     };
 
     const fetchOrders = (currentPage: number) => {
         const socketObj = getSocket();
-        
+
         // 🔥 If socket not ready, retry in 500ms or just log it
         if (!socketObj || !socketObj.connected) {
             console.log("⏳ Socket not ready, will retry fetch...");
@@ -112,26 +170,27 @@ const OrderList = () => {
                 }
             }
 
+            const currentSearch = searchRef.current;
+            const currentStatus = statusRef.current;
+            const currentDateRange = dateRangeRef.current;
+            const currentPageSize = pageSizeRef.current;
+
             const params: any = {
-                storeId: storeId,
+                storeId: selectedStoreId || storeId,
                 page: currentPage,
-                limit: pageSize,
-                search: debouncedSearch,
+                limit: currentPageSize,
+                search: currentSearch,
             }
 
-            if (status !== 'all') params.status = status;
+            if (currentStatus !== 'all') params.status = currentStatus;
 
-            // 📍 DEFAULT: Today's orders if no date range selected
-            if (storedRole === 'store_manager' || storedRole === 'warehouse_manager') {
-                const localToday = moment().format('YYYY-MM-DD'); 
-                params.startDate = localToday;
-                params.endDate = localToday;
-            } else if (dateRange && dateRange.length > 0) {
+            // 📍 DEFAULT: Today's orders if no date range selected for ALL ROLES
+            if (currentDateRange && currentDateRange.length > 0) {
                 // If Admin/Role has selection
-                params.startDate = moment(dateRange[0]).format('YYYY-MM-DD');
-                params.endDate = moment(dateRange[dateRange.length - 1]).format('YYYY-MM-DD');
+                params.startDate = moment(currentDateRange[0]).format('YYYY-MM-DD');
+                params.endDate = moment(currentDateRange[currentDateRange.length - 1]).format('YYYY-MM-DD');
             } else {
-                // Default to Today for everyone
+                // Default to Today for EVERYONE (Super Admin, Admin, Manager)
                 const localToday = moment().format('YYYY-MM-DD');
                 params.startDate = localToday;
                 params.endDate = localToday;
@@ -144,9 +203,28 @@ const OrderList = () => {
         }
     };
 
+    const searchParams = useSearchParams();
+
     useEffect(() => {
+        // 🎯 RESTORE LOGIC FROM HISTORY PAGE
+        const resDate = searchParams.get('restoreDate');
+        const resStore = searchParams.get('restoreStore');
+
+        if (resDate) setDateRange([moment(resDate).toDate()]);
+        if (resStore) setSelectedStoreId(resStore);
+
+        // 👮🏽‍♂️ ROLE-BASED DATE RESTRICTION
+        if (storedRole === 'store_manager' && dateRange) {
+            const selectedDate = moment(dateRange[0]);
+            const diff = moment().diff(selectedDate, 'days');
+            if (diff > 1) {
+                Swal.fire('Restricted', 'Managers can only view reports for today and yesterday.', 'warning');
+                setDateRange('');
+                return;
+            }
+        }
         fetchOrders(page);
-    }, [page, debouncedSearch, status, dateRange]);
+    }, [page, pageSize, debouncedSearch, status, dateRange, selectedStoreId]);
 
     // Socket Listener
     useEffect(() => {
@@ -187,8 +265,8 @@ const OrderList = () => {
 
                 if (data.stats) {
                     setTotalOrders(data.stats.totalOrder || 0);
-                    setTodayOrders(data.stats.todayOrder || 0);
-                    setTodayRevenue(data.stats.todayRevenue || 0);
+                    setTodayOrders(data.stats.periodOrder || 0);
+                    setTodayRevenue(data.stats.periodRevenue || 0);
                     setQrRevenue(data.stats.qrRevenue || 0);
                     setCashRevenue(data.stats.cashRevenue || 0);
                     setPgRevenue(data.stats.pgRevenue || 0);
@@ -198,7 +276,7 @@ const OrderList = () => {
         });
 
         // 2️⃣ Then join/fetch initial data
-        joinStore(cStoreId);
+        joinStore(selectedStoreId || cStoreId);
         fetchOrders(pageRef.current);
 
         // Fetch active Riders with store_id filtering if supported by active endpoint
@@ -269,6 +347,151 @@ const OrderList = () => {
         }
     };
 
+    const handleExport = async (format: 'excel' | 'pdf') => {
+        if (selectedStoreId === 'all') {
+            showMessage('Please select a specific Dark Store to finalize the report', 'warning');
+            return;
+        }
+
+        const reportDate = (dateRange && dateRange.length > 0) 
+            ? moment(dateRange[0]).format('YYYY-MM-DD') 
+            : moment().format('YYYY-MM-DD');
+
+        if (storedRole === 'store_manager' || storedRole === 'warehouse_manager') {
+            const daysDiff = moment().diff(moment(reportDate), 'days');
+            if (daysDiff > 1 || daysDiff < 0) {
+                showMessage('Managers can only finalize reports for Today or Yesterday.', 'error');
+                return;
+            }
+        }
+
+        setLoading(true);
+        try {
+            const checkUrl = `/management/admin/reports/check?reportDate=${reportDate}&storeId=${selectedStoreId}`;
+            const checkRes: any = await callApi(checkUrl, 'GET');
+            if (checkRes && checkRes.data?.exists) {
+                showMessage(`Report for ${reportDate} is already closed and archived.`, 'info');
+                setLoading(false);
+                return;
+            }
+
+            const ordersToReport = orderData.filter((o: any) => {
+                const oDate = moment(o.createdAt).format('YYYY-MM-DD');
+                return oDate === reportDate && o.status?.toLowerCase() === 'delivered';
+            });
+
+            if (!ordersToReport || ordersToReport.length === 0) {
+                showMessage(`No delivered orders found in the current list for ${reportDate}!`, 'error');
+                setLoading(false);
+                return;
+            }
+
+            // 💰 PAYMENT INTEGRITY GUARD: Block if any payments are unconfirmed
+            const unconfirmed = ordersToReport.filter(o => !o.payment_confirmed);
+            if (unconfirmed.length > 0) {
+                showMessage(`Blocked: ${unconfirmed.length} orders have PENDING payments. Confirm them first!`, 'error');
+                setLoading(false);
+                return;
+            }
+
+            let totalCash = 0; let totalUPI = 0; let grandTotal = 0;
+            const tableRows = ordersToReport.map((order: any, index: number) => {
+                let calc: any = {};
+                try { calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {}); } catch (e) { }
+                const rowTotal = parseFloat(calc.total || order.totalAmount || 0);
+                const breakdown = calc.payment_breakdown || {};
+                const pMethod = (order.pay || order.paymentMethod || '').toUpperCase();
+                let cash = 0; let upi = 0;
+                if (pMethod === 'CASH') { cash = rowTotal; }
+                else if (pMethod === 'MULTI') { cash = parseFloat(breakdown.cash || 0); upi = rowTotal - cash; }
+                else { upi = rowTotal; }
+                totalCash += cash; totalUPI += upi; grandTotal += rowTotal;
+
+                const handoverAt = order.rider_assigned_at ? moment(order.rider_assigned_at) : null;
+                const created = moment(order.createdAt);
+                const updated = moment(order.updatedAt || order.finished_at);
+                const handoverMin = handoverAt ? Math.max(0, handoverAt.diff(created, 'minutes')) : 'N/A';
+                const deliveryMin = handoverAt ? Math.max(0, updated.diff(handoverAt, 'minutes')) : 'N/A';
+                
+                // 🛵 ROBUST RIDER NAME RESOLUTION (Sync with screen list & backend)
+                const rName = order.rider?.user?.name || order.rider?.name || order.rider_name || order.Rider?.name || order.riderName || (typeof order.rider === 'string' ? order.rider : 'N/A');
+
+                return [
+                    index + 1, order.order_id || 'N/A', moment(order.createdAt).format('HH:mm'),
+                    rowTotal.toFixed(2), rName, pMethod, cash.toFixed(2), upi.toFixed(2),
+                    order.payment_confirmed ? 'Confirmed' : 'Pending', order.status?.toUpperCase(),
+                    `${handoverMin} Min`, `${deliveryMin} Min`
+                ];
+            });
+
+            if (format === 'pdf') {
+                const doc = new jsPDF('l', 'mm', 'a4');
+                
+                // 📝 HEADER (Image 2 Style)
+                doc.setFont('courier', 'bold');
+                doc.setFontSize(20);
+                doc.text("Daily Transaction Report", 148.5, 20, { align: 'center' });
+                
+                doc.setFont('courier', 'normal');
+                doc.setFontSize(12);
+                doc.text(`Date: ${reportDate} 00:00:00`, 148.5, 28, { align: 'center' });
+                
+                const storeName = allStores.find(s => s.id === selectedStoreId)?.name || selectedStoreId;
+                doc.setFont('courier', 'bold');
+                doc.text(`Store: ${storeName}`, 148.5, 35, { align: 'center' });
+
+                autoTable(doc, {
+                    startY: 45,
+                    head: [['S.No', 'Order ID', 'Order Time', 'Total Amount', 'Delivery Partner Name', 'Payment Mode', 'Cash Amount', 'UPI Amount', 'Payment Status', 'Order Status', 'Handover', 'Delivery']],
+                    body: tableRows,
+                    theme: 'grid',
+                    styles: { 
+                        font: 'courier', 
+                        fontSize: 8, 
+                        lineColor: [0, 0, 0], 
+                        lineWidth: 0.1,
+                        textColor: [0, 0, 0]
+                    },
+                    headStyles: { 
+                        fillColor: [255, 255, 255], 
+                        textColor: [0, 0, 0], 
+                        fontStyle: 'bold',
+                        lineWidth: 0.2
+                    }
+                });
+
+                // 💰 TOTALS SUMMARY (Image 2 Style)
+                const finalY = (doc as any).lastAutoTable.finalY + 15;
+                doc.setFontSize(11);
+                doc.setFont('courier', 'bold');
+                doc.text(`Total Cash Amount ${totalCash.toFixed(2)}`, 14, finalY);
+                doc.text(`Total UPI Amount ${totalUPI.toFixed(2)}`, 14, finalY + 6);
+                
+                doc.setLineWidth(0.5);
+                doc.line(14, finalY + 10, 150, finalY + 10);
+                
+                doc.setFontSize(14);
+                doc.text(`Total Amount ${grandTotal.toFixed(2)}`, 14, finalY + 18);
+
+                doc.save(`Kuiklo_Daily_Report_${storeName}_${reportDate}.pdf`);
+            }
+
+            await callApi('/management/admin/reports', 'POST', {
+                storeId: selectedStoreId, reportDate: reportDate,
+                totalOrders: ordersToReport.length, totalCash: totalCash,
+                totalUpi: totalUPI, grandTotal: grandTotal,
+                metadata: { generated_at: new Date().toISOString() }
+            });
+
+            showMessage(`Report for ${reportDate} Finalized & Saved!`, 'success');
+        } catch (e) {
+            console.error(e);
+            showMessage('Action Failed', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleRiderAssign = async (orderId: any, riderId: string | null, status: string | null = null) => {
         try {
             const payload: { orderId: any; riderId?: string | null; status?: string | null } = {
@@ -303,7 +526,7 @@ const OrderList = () => {
 
         // Parse JSON strings if they are strings
         let calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
-        
+
         const finalDateTime = order.orderTime && order.orderTime !== 'N/A' ? order.orderTime : 'N/A';
 
         let itemsHtml = '';
@@ -459,6 +682,7 @@ const OrderList = () => {
         { key: 'order_id', label: 'ORDER ID' },
         { key: 'order_timing', label: 'TIMING' },
         { key: 'customer_info', label: 'CUSTOMER' },
+        { key: 'address', label: 'ADDRESS' },
         { key: 'amount', label: 'AMOUNT' },
         { key: 'rider', label: 'RIDER' },
         { key: 'pay', label: 'PAY' },
@@ -469,54 +693,89 @@ const OrderList = () => {
 
     return (
         <div>
-            <ul className="mb-6 flex space-x-2 rtl:space-x-reverse">
-                <li>
-                    <Link href="/" className="text-primary hover:underline">Dashboard</Link>
-                </li>
-                <li>
-                    <span className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">Orders</span>
-                </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Order List</span>
-                </li>
-            </ul>
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-3">
+                <ul className="flex space-x-2 rtl:space-x-reverse">
+                    <li>
+                        <Link href="/" className="text-primary hover:underline">Dashboard</Link>
+                    </li>
+                    <li>
+                        <span className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">Orders</span>
+                    </li>
+                    <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                        <span>Order List</span>
+                    </li>
+                </ul>
 
-            {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
+                <div className="flex items-center gap-3 ml-auto">
+                    {(storedRole === 'admin' || storedRole === 'super_admin') && (
+                        <div className="bg-white dark:bg-[#1b2e4b] rounded-lg border border-gray-100 dark:border-none shadow-sm h-[36px] flex items-center px-1">
+                            <select
+                                className="form-select py-1 text-xs font-black border-none focus:ring-0 w-[140px] appearance-none cursor-pointer uppercase tracking-tight text-gray-700 dark:text-gray-200"
+                                value={selectedStoreId}
+                                onChange={(e) => {
+                                    setSelectedStoreId(e.target.value);
+                                    setPage(1);
+                                }}
+                            >
+                                <option value="all">GLOBAL VIEW</option>
+                                {allStores.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <Link
+                        href="/orders/reports"
+                        className="btn btn-outline-dark btn-sm flex items-center gap-2 px-3 py-1.5 font-bold uppercase transition-all shadow-sm h-[36px]"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-primary"><path d="M12 8V12L15 15" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="9"/></svg>
+                        History
+                    </Link>
+
+                    <button
+                        onClick={() => handleExport('pdf')}
+                        className="btn btn-primary btn-sm flex items-center gap-2 px-4 py-1.5 font-bold uppercase shadow-lg transform active:scale-95 transition-all text-[11px] bg-gradient-to-r from-primary to-blue-600 border-none h-[36px]"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20m10-10H2" /></svg>
+                        Finalize Report
+                    </button>
                 </div>
-            ) : (
-                <UserManagerTable
-                    title="Orders"
-                    data={orderData}
-                    columns={columns}
-                    userType="Order"
-                    totalRecords={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p: number) => setPage(p)}
-                    totalUsers={totalOrders}
-                    todayUsers={todayOrders}
-                    todayRevenue={todayRevenue}
-                    qrRevenue={qrRevenue}
-                    cashRevenue={cashRevenue}
-                    pgRevenue={pgRevenue}
-                    search={search}
-                    onSearchChange={setSearch}
-                    status={status}
-                    onStatusChange={setStatus}
-                    dateRange={dateRange}
-                    onDateRangeChange={setDateRange}
-                    onStatusUpdate={hasPerm('orders', 'update') ? handleStatusUpdate : undefined}
-                    onRiderAssign={hasPerm('orders', 'update') ? handleRiderAssign : undefined}
-                    onViewClick={hasPerm('orders', 'read') ? handleViewOrder : undefined}
-                    onPrint={hasPerm('orders', 'read') ? handlePrint : undefined}
-                    onPaymentUpdate={handlePaymentUpdate}
-                    riders={riders}
-                    addButtonLabel="Create New Order"
-                    hideFilter={storedRole === 'store_manager' || storedRole === 'warehouse_manager'}
-                />
-            )}
+            </div>
+
+            <UserManagerTable
+                title="Orders"
+                data={orderData}
+                columns={columns}
+                userType="Order"
+                totalRecords={totalRecords}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={(p: number) => setPage(p)}
+                onPageSizeChange={(val: number) => { setPageSize(val); setPage(1); }}
+                totalUsers={totalOrders}
+                todayUsers={todayOrders}
+                todayRevenue={todayRevenue}
+                qrRevenue={qrRevenue}
+                cashRevenue={cashRevenue}
+                pgRevenue={pgRevenue}
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                onStatusChange={(val) => { setStatus(val); setPage(1); }}
+                dateRange={dateRange}
+                onDateRangeChange={(val) => { setDateRange(val); setPage(1); }}
+                onStatusUpdate={hasPerm('orders', 'update') ? handleStatusUpdate : undefined}
+                onRiderAssign={hasPerm('orders', 'update') ? handleRiderAssign : undefined}
+                onViewClick={hasPerm('orders', 'read') ? handleViewOrder : undefined}
+                onPrint={hasPerm('orders', 'read') ? handlePrint : undefined}
+                onPaymentUpdate={handlePaymentUpdate}
+                riders={riders}
+                addButtonLabel="Create New Order"
+                hideFilter={false}
+                loading={loading}
+                onExportClick={handleExport}
+            />
         </div>
     );
 };

@@ -61,6 +61,10 @@ export interface CompanySettings {
     gst_percentage: number;
     pan_number: string | null;
     gst_number: string | null;
+    cin_number: string | null;
+    fssai_license_number: string | null;
+    gst_terms_conditions: string | null;
+    signature_url: string | null;
     support_email: string | null;
     support_phone: string | null;
     address: string | null;
@@ -105,6 +109,12 @@ export interface CompanySettings {
             image: string;
         }>;
     }>;
+    referral_config?: {
+        referrer_amount: number;
+        referee_amount: number;
+        reward_referee: boolean;
+        reward_referrer: boolean;
+    };
     createdAt: string;
     updatedAt: string;
 }

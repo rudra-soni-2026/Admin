@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { callApi } from '@/utils/api';
 import Swal from 'sweetalert2';
+import Tippy from '@tippyjs/react';
+import 'tippy.js/dist/tippy.css';
 import IconSave from '@/components/icon/icon-save';
 import IconMenuPages from '@/components/icon/menu/icon-menu-pages';
 import IconCamera from '@/components/icon/icon-camera';
@@ -85,6 +87,7 @@ const CompanySettingsForm = () => {
     const [logoImages, setLogoImages] = useState<ImageListType>([]);
     const [faviconImages, setFaviconImages] = useState<ImageListType>([]);
     const [loaderImages, setLoaderImages] = useState<ImageListType>([]);
+    const [signatureImages, setSignatureImages] = useState<ImageListType>([]);
     const [bannerImages, setBannerImages] = useState<ImageListType>([]);
     const [promoBannerImages, setPromoBannerImages] = useState<ImageListType>([]);
     const [festiveBannerImages, setFestiveBannerImages] = useState<ImageListType>([]);
@@ -324,6 +327,7 @@ const CompanySettingsForm = () => {
                 if (preparedData.logo_url) setLogoImages([{ dataURL: preparedData.logo_url }]);
                 if (preparedData.favicon_url) setFaviconImages([{ dataURL: preparedData.favicon_url }]);
                 if (preparedData.loader_logo_url) setLoaderImages([{ dataURL: preparedData.loader_logo_url }]);
+                if (preparedData.signature_url) setSignatureImages([{ dataURL: preparedData.signature_url }]);
                 if (preparedData.banners && Array.isArray(preparedData.banners)) setBannerImages(preparedData.banners.map((url: string) => ({ dataURL: url })));
                 if (preparedData.promo_banners) setPromoBannerImages([{ dataURL: preparedData.promo_banners }]);
                 if (preparedData.festive_sale?.banner_url) setFestiveBannerImages([{ dataURL: preparedData.festive_sale.banner_url }]);
@@ -568,6 +572,18 @@ const CompanySettingsForm = () => {
                     return;
                 }
             }
+            if (signatureImages.length > 0 && signatureImages[0].file) {
+                const url = await uploadImage(signatureImages[0].file);
+                if (url) {
+                    payload.signature_url = url;
+                } else {
+                    showMessage('Signature upload failed.', 'danger');
+                    setLoading(false);
+                    return;
+                }
+            } else if (signatureImages.length === 0) {
+                payload.signature_url = null;
+            }
 
             // Banners management - Batch Upload (Efficient)
             let finalBannerUrls: string[] = bannerImages
@@ -751,11 +767,12 @@ const CompanySettingsForm = () => {
                         <div className="panel animate__animated animate__fadeIn space-y-10">
                             <div>
                                 <h6 className="text-lg font-bold mb-6 border-b pb-4 border-gray-100 dark:border-gray-800">Visual Identity</h6>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                                     {[
                                         { id: 'logo', label: 'Master Logo', state: logoImages, setState: setLogoImages },
                                         { id: 'favicon', label: 'Favicon', state: faviconImages, setState: setFaviconImages },
                                         { id: 'loader', label: 'App Loader', state: loaderImages, setState: setLoaderImages },
+                                        { id: 'signature', label: 'Digital Sign', state: signatureImages, setState: setSignatureImages },
                                     ].map((img) => (
                                         <div key={img.id} className="space-y-3">
                                             <label className="text-[10px] font-extrabold uppercase tracking-widest text-primary">{img.label}</label>
@@ -1671,12 +1688,126 @@ const CompanySettingsForm = () => {
                                         <input id="pan_number" type="text" className="form-input" value={settings.pan_number || ''} onChange={handleChange} />
                                     </div>
                                     <div>
+                                        <label className="text-xs font-bold uppercase text-white-dark mb-2 block">Company CIN No.</label>
+                                        <input id="cin_number" type="text" className="form-input" value={settings.cin_number || ''} onChange={handleChange} />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold uppercase text-white-dark mb-2 block">FSSAI License No.</label>
+                                        <input id="fssai_license_number" type="text" className="form-input" value={settings.fssai_license_number || ''} onChange={handleChange} />
+                                    </div>
+                                    <div>
                                         <label className="text-xs font-bold uppercase text-white-dark mb-2 block">Min Order Threshold</label>
                                         <input id="min_order_amount" type="number" className="form-input" value={settings.min_order_amount || 0} onChange={handleChange} />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs font-bold uppercase text-white-dark mb-2 block">GST Terms & Conditions</label>
+                                        <textarea id="gst_terms_conditions" rows={4} className="form-textarea font-medium" placeholder="Rules and conditions for the bill..." value={settings.gst_terms_conditions || ''} onChange={handleChange}></textarea>
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold uppercase text-white-dark mb-2 block">Delivery Buffer (Mins)</label>
                                         <input id="delivery_buffer_time" type="number" className="form-input" value={settings.delivery_buffer_time || 0} onChange={handleChange} />
+                                    </div>
+                                </div>
+                                
+                                {/* Referral Configuration Section */}
+                                <div className="p-8 rounded-3xl bg-white dark:bg-black/20 border border-gray-100 dark:border-gray-800 md:col-span-2 shadow-sm space-y-6">
+                                    <div className="flex items-center gap-3 border-b border-gray-50 dark:border-gray-800 pb-4">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
+                                            <IconStar className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <h6 className="font-bold text-base text-gray-800 dark:text-white">Referral System</h6>
+                                            <p className="text-[10px] text-white-dark uppercase font-bold tracking-wider">Configure user invitation rewards</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                                        {/* Referrer Amount */}
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1.5 leading-none">
+                                                Referrer Reward
+                                                <Tippy content="Amount credited to the person who shares their code" placement="top"><IconInfoCircle className="w-3 h-3 text-gray-300" /></Tippy>
+                                            </label>
+                                            <div className="relative group">
+                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold transition-colors group-focus-within:text-primary">₹</span>
+                                                <input
+                                                    type="number"
+                                                    className="form-input pl-8 py-2.5 rounded-xl border-gray-100 font-bold text-gray-700 focus:border-primary/50 transition-all shadow-none"
+                                                    value={settings.referral_config?.referrer_amount || 0}
+                                                    onChange={(e) => setSettings(prev => ({
+                                                        ...prev,
+                                                        referral_config: {
+                                                            ...(prev.referral_config || { referee_amount: 50, reward_referee: true, reward_referrer: true }),
+                                                            referrer_amount: parseFloat(e.target.value)
+                                                        }
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between px-1">
+                                                <span className="text-[10px] font-bold text-white-dark uppercase">Enable Payout</span>
+                                                <Toggle
+                                                    checked={settings.referral_config?.reward_referrer ?? true}
+                                                    onChange={(v) => setSettings(prev => ({
+                                                        ...prev,
+                                                        referral_config: {
+                                                            ...(prev.referral_config || { referrer_amount: 50, referee_amount: 50, reward_referee: true }),
+                                                            reward_referrer: v
+                                                        }
+                                                    }))}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Referee Amount */}
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-1.5 leading-none">
+                                                Referee Reward
+                                                <Tippy content="Amount credited to the new user who signs up" placement="top"><IconInfoCircle className="w-3 h-3 text-gray-300" /></Tippy>
+                                            </label>
+                                            <div className="relative group">
+                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold transition-colors group-focus-within:text-primary">₹</span>
+                                                <input
+                                                    type="number"
+                                                    className="form-input pl-8 py-2.5 rounded-xl border-gray-100 font-bold text-gray-700 focus:border-primary/50 transition-all shadow-none"
+                                                    value={settings.referral_config?.referee_amount || 0}
+                                                    onChange={(e) => setSettings(prev => ({
+                                                        ...prev,
+                                                        referral_config: {
+                                                            ...(prev.referral_config || { referrer_amount: 50, reward_referee: true, reward_referrer: true }),
+                                                            referee_amount: parseFloat(e.target.value)
+                                                        }
+                                                    }))}
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between px-1">
+                                                <span className="text-[10px] font-bold text-white-dark uppercase">Enable Payout</span>
+                                                <Toggle
+                                                    checked={settings.referral_config?.reward_referee ?? true}
+                                                    onChange={(v) => setSettings(prev => ({
+                                                        ...prev,
+                                                        referral_config: {
+                                                            ...(prev.referral_config || { referrer_amount: 50, referee_amount: 50, reward_referrer: true }),
+                                                            reward_referee: v
+                                                        }
+                                                    }))}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* info card */}
+                                        <div className="hidden lg:flex col-span-2 p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 flex-col justify-center">
+                                            <div className="flex items-start gap-4">
+                                                <div className="flex-none p-2 bg-primary/10 rounded-lg text-primary">
+                                                    <IconInfoCircle className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h6 className="font-bold text-xs text-gray-800 dark:text-white mb-1">How it works?</h6>
+                                                    <p className="text-[10px] text-white-dark leading-relaxed">
+                                                        When a new user joins, both the referrer and the referee can receive cash rewards in their wallets. You can control the amount and toggle rewards for each side independently.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

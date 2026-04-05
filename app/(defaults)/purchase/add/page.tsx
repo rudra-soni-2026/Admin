@@ -28,7 +28,6 @@ const AddPurchase = () => {
         warehouse_id: '',
         reference_no: '',
         status: 'received',
-        order_tax: 0,
         discount: 0,
         shipping: 0,
         notes: '',
@@ -40,7 +39,7 @@ const AddPurchase = () => {
     });
 
     const [orderItems, setOrderItems] = useState<any[]>([
-        { utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }
+        { utc: '', product_id: '', name: '', hsn: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }
     ]);
 
     useEffect(() => {
@@ -53,9 +52,7 @@ const AddPurchase = () => {
                 callApi('/management/admin/suppliers', 'GET'),
                 callApi('/management/admin/warehouses?limit=100', 'GET')
             ]);
-
             if (sRes?.data) setSuppliers(sRes.data);
-
             if (Array.isArray(wRes?.data)) {
                 setWarehouses(wRes.data.map((i: any) => ({
                     id: i.id || i._id,
@@ -68,7 +65,6 @@ const AddPurchase = () => {
         }
     };
 
-    // Auto-select warehouse for Accountant Manager
     useEffect(() => {
         if (warehouses.length > 0) {
             const userDataStr = localStorage.getItem('userData');
@@ -77,11 +73,8 @@ const AddPurchase = () => {
                 const userData = JSON.parse(userDataStr);
                 const userRole = (storedRole || userData.role || '').toLowerCase().replace(' ', '_');
                 const assignedId = userData.assignedId || userData.assigned_id || userData.warehouse_id || userData.assigned_warehouse_id;
-
-                // Flexible check for account_manager role and assignedId presence
                 if ((userRole.includes('account_manager') || userRole.includes('accountant')) && assignedId) {
                     setFormData(prev => {
-                        // Matching state with assignedId from userData
                         if (!prev.warehouse_id) {
                             return { ...prev, warehouse_id: assignedId };
                         }
@@ -103,14 +96,14 @@ const AddPurchase = () => {
     };
 
     const addItem = () => {
-        setOrderItems([{ utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }, ...orderItems]);
+        setOrderItems([{ utc: '', product_id: '', name: '', hsn: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }, ...orderItems]);
     };
 
     const removeItem = (index: number) => {
         let newItems = [...orderItems];
         newItems.splice(index, 1);
         if (newItems.length === 0) {
-            newItems = [{ utc: '', product_id: '', name: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }];
+            newItems = [{ utc: '', product_id: '', name: '', hsn: '', image: '', price: 0, sell_price: 0, quantity: 1, cgst: 0, sgst: 0, igst: 0, cess: 0, subtotal: 0, isSearching: false, searchedUtc: '' }];
         }
         setOrderItems(newItems);
     };
@@ -122,24 +115,24 @@ const AddPurchase = () => {
             newItems[index].isSearching = true;
             newItems[index].searchedUtc = utc;
             setOrderItems(newItems);
-
             const res = await callApi(`/products/utc/${utc}`, 'GET');
             const productData = res?.product || res?.data || res;
             const product = Array.isArray(productData) ? productData[0] : productData;
-
             if (product && (product._id || product.id)) {
                 const variant = product.variants?.find((v: any) => v.barcode === utc || v.utc_id === utc) || product.variants?.[0] || {};
-                
                 const updatedItems = [...orderItems];
-                updatedItems[index] = {
+                const finalItem = {
                     ...updatedItems[index],
                     product_id: product._id || product.id,
                     name: product.name || variant.unit_label || 'Unnamed Item',
+                    hsn: product.hsn || product.hsn_code || variant.hsn || '',
                     image: product.image || variant.image || '/assets/images/profile-1.jpeg',
                     price: variant.original_price || product.original_price || 0,
                     sell_price: variant.price || product.price || 0,
                     isSearching: false
                 };
+                finalItem.subtotal = calculateSubtotal(finalItem);
+                updatedItems[index] = finalItem;
                 setOrderItems(updatedItems);
                 showMessage('Product details fetched!', 'success');
             } else {
@@ -155,32 +148,60 @@ const AddPurchase = () => {
         }
     };
 
+    const calculateSubtotal = (item: any) => {
+        const cost = Number(item.price) || 0;
+        const qty = Number(item.quantity) || 0;
+        const base = cost * qty;
+        const cgst = Number(item.cgst) || 0;
+        const sgst = Number(item.sgst) || 0;
+        const igst = Number(item.igst) || 0;
+        const cess = Number(item.cess) || 0;
+        const taxAmount = base * (cgst + sgst + igst + cess) / 100;
+        return base + taxAmount;
+    };
+
+    const getLandedCost = (item: any) => {
+        const cost = Number(item.price) || 0;
+        const cgst = Number(item.cgst) || 0;
+        const sgst = Number(item.sgst) || 0;
+        const igst = Number(item.igst) || 0;
+        const cess = Number(item.cess) || 0;
+        const taxAmount = cost * (cgst + sgst + igst + cess) / 100;
+        return cost + taxAmount;
+    };
+
     const handleItemChange = (index: number, field: string, value: any) => {
         const newItems = [...orderItems];
         newItems[index][field] = value;
 
+        const landed = getLandedCost(newItems[index]);
+
+        // Auto-calculate Sell Price if Margin changes (Based on Landed Cost)
+        if (field === 'margin' || field === 'price' || field === 'cgst' || field === 'sgst' || field === 'igst' || field === 'cess') {
+            const margin = Number(newItems[index].margin) || 0;
+            if (margin > 0) {
+                newItems[index].sell_price = (landed * (1 + margin / 100)).toFixed(2);
+            }
+        }
+
+        // Auto-calculate Margin if Sell Price is manually changed (Against Landed Cost)
+        if (field === 'sell_price') {
+            const sell = Number(value) || 0;
+            if (landed > 0 && sell > 0) {
+                newItems[index].margin = (((sell - landed) / landed) * 100).toFixed(1);
+            }
+        }
+
         if (field === 'utc' && (value.length >= 8 && value.length <= 16)) {
             fetchProductByUtc(value, index);
         }
-
-        const price = Number(newItems[index].price) || 0;
-        const qty = Number(newItems[index].quantity) || 0;
-        const cgst = Number(newItems[index].cgst) || 0;
-        const sgst = Number(newItems[index].sgst) || 0;
-        const igst = Number(newItems[index].igst) || 0;
-        const cess = Number(newItems[index].cess) || 0;
-
-        const totalTaxPercent = cgst + sgst + igst + cess;
-        const baseAmount = price * qty;
-        const taxAmount = (baseAmount * totalTaxPercent) / 100;
-
-        newItems[index].subtotal = baseAmount + taxAmount;
+        newItems[index].subtotal = calculateSubtotal(newItems[index]);
         setOrderItems(newItems);
     };
 
     const calculateGrandTotal = () => {
         const itemsTotal = orderItems.reduce((acc, item) => acc + item.subtotal, 0);
-        return itemsTotal + Number(formData.order_tax) + Number(formData.shipping) - Number(formData.discount);
+        return itemsTotal + Number(formData.shipping) - Number(formData.discount);
     };
 
     const showMessage = (msg = '', type = 'success') => {
@@ -201,13 +222,9 @@ const AddPurchase = () => {
             showMessage('Please fill in all required fields.', 'danger');
             return;
         }
-
         try {
             setLoading(true);
-
             let supplierId = formData.supplier_id;
-
-            // 1. If new supplier, create them first (using the updated endpoint if needed, but keeping existing logic as requested)
             if (formData.is_new_supplier) {
                 const supplierData = {
                     name: formData.new_supplier_name,
@@ -223,13 +240,10 @@ const AddPurchase = () => {
                     throw new Error('Failed to create new supplier');
                 }
             }
-
-            // 2. Upload Invoice if present
             let invoiceUrl = '';
             if (formData.invoice) {
-                // Check invoice size (limit to 1MB)
                 if (formData.invoice.size > 1024 * 1024) {
-                    showMessage('Invoice file size exceeds 1MB limit. Please upload a smaller file.', 'danger');
+                    showMessage('Invoice file size exceeds 1MB limit.', 'danger');
                     setLoading(false);
                     return;
                 }
@@ -240,21 +254,18 @@ const AddPurchase = () => {
                     invoiceUrl = uploadRes.data[0].url;
                 }
             }
-
-            // 3. Prepare Final Payload
             const statusMap: Record<string, string> = {
                 'received': 'Received',
                 'pending': 'Pending',
                 'ordered': 'Ordered'
             };
-
             const payload = {
                 reference_no: formData.reference_no || `PO-${Date.now().toString().slice(-6)}`,
                 purchase_date: formData.date,
                 warehouse_id: formData.warehouse_id,
                 supplier_id: supplierId,
                 status: statusMap[formData.status] || 'Received',
-                tax_amount: Number(formData.order_tax) || 0,
+                tax_amount: 0,
                 discount_amount: Number(formData.discount) || 0,
                 shipping_amount: Number(formData.shipping) || 0,
                 grand_total: calculateGrandTotal(),
@@ -269,12 +280,12 @@ const AddPurchase = () => {
                     sgst_percent: Number(item.sgst),
                     igst_percent: Number(item.igst),
                     cess_percent: Number(item.cess),
+                    hsn: item.hsn,
+                    margin_percent: Number(item.margin),
                     subtotal: Number(item.subtotal)
                 }))
             };
-
             const response = await callApi('/management/admin/purchases', 'POST', payload);
-
             if (response && (response.status === 'success' || response.id)) {
                 showMessage('Purchase created successfully', 'success');
                 router.push('/purchase/list');
@@ -289,15 +300,11 @@ const AddPurchase = () => {
     return (
         <div>
             <ul className="mb-6 flex space-x-2 rtl:space-x-reverse items-center">
-                <li>
-                    <Link href="/" className="text-primary hover:underline">Dashboard</Link>
-                </li>
+                <li><Link href="/" className="text-primary hover:underline">Dashboard</Link></li>
                 <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
                     <Link href="/purchase/list" className="text-primary hover:underline">Purchase Management</Link>
                 </li>
-                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Create Purchase</span>
-                </li>
+                <li className="text-gray-500 before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Create Purchase</span></li>
             </ul>
 
             <div className="panel flex items-center justify-between mb-6">
@@ -307,238 +314,240 @@ const AddPurchase = () => {
                 </Link>
             </div>
 
-            <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    {/* Left Column: Form Details */}
-                    <div className="xl:col-span-2 space-y-6">
-                        <div className="panel p-4">
-                            <h6 className="text-sm font-bold mb-4 border-b pb-2">Purchase Details</h6>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                    <label htmlFor="date" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Date *</label>
-                                    <input id="date" type="date" className="form-input py-1.5 text-xs" value={formData.date} onChange={handleFormChange} required />
-                                </div>
-                                <div>
-                                    <label htmlFor="reference_no" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Reference No</label>
-                                    <input id="reference_no" type="text" placeholder="PO-00001" className="form-input py-1.5 text-xs" value={formData.reference_no} onChange={handleFormChange} />
-                                </div>
-                                <div>
-                                    <label htmlFor="warehouse_id" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Location *</label>
-                                    {((localStorage.getItem('role') || '').toLowerCase().includes('account_manager') || (localStorage.getItem('role') || '').toLowerCase().includes('accountant')) && formData.warehouse_id ? (
-                                        <div className="form-input py-1.5 bg-gray-50 border-gray-200 font-bold uppercase text-[10px] h-9 flex items-center">
-                                            {warehouses.find(w => w.id === formData.warehouse_id)?.name || 'Fetching...'}
-                                        </div>
-                                    ) : (
-                                        <select id="warehouse_id" className="form-select py-1.5 text-xs font-semibold" value={formData.warehouse_id} onChange={handleFormChange} required>
-                                            <option value="">Select Location</option>
-                                            {warehouses.map(w => (
-                                                <option key={w.id || w._id} value={w.id || w._id}>
-                                                    {w.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </div>
-                                <div>
-                                    <label htmlFor="supplier_id" className="text-[10px] font-bold uppercase mb-1 block text-gray-500 flex justify-between items-center">
-                                        Supplier *
-                                        <button type="button" className="text-primary hover:underline lowercase font-normal text-[9px]" onClick={() => setFormData(prev => ({ ...prev, is_new_supplier: !prev.is_new_supplier }))}>
-                                            {formData.is_new_supplier ? 'Select Existing' : '+ Add New'}
-                                        </button>
-                                    </label>
-                                    {!formData.is_new_supplier ? (
-                                        <select id="supplier_id" className="form-select py-1.5 text-xs font-semibold" value={formData.supplier_id} onChange={handleFormChange} required={!formData.is_new_supplier}>
-                                            <option value="">Select Supplier</option>
-                                            {suppliers.map(s => <option key={s.id || s._id} value={s.id || s._id}>{s.name}</option>)}
-                                        </select>
-                                    ) : (
-                                        <div className="space-y-1.5 p-2 bg-gray-50 dark:bg-dark-light/10 rounded-lg border border-dashed border-gray-200">
-                                            <input id="new_supplier_name" type="text" placeholder="Name" className="form-input py-1 text-[11px]" value={formData.new_supplier_name} onChange={handleFormChange} required />
-                                            <div className="grid grid-cols-2 gap-1.5">
-                                                <input id="new_supplier_email" type="email" placeholder="Email" className="form-input py-1 text-[11px]" value={formData.new_supplier_email} onChange={handleFormChange} required />
-                                                <input id="new_supplier_phone" type="text" placeholder="Phone" className="form-input py-1 text-[11px]" value={formData.new_supplier_phone} onChange={handleFormChange} required />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label htmlFor="notes" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Purchase Notes</label>
-                                    <textarea id="notes" rows={1} className="form-textarea py-1.5 text-xs" placeholder="Add any details..." value={formData.notes} onChange={handleFormChange}></textarea>
-                                </div>
-                            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Metadata Top Panel - Full Width */}
+                <div className="panel p-4 border-none shadow-sm dark:bg-[#0e1726]">
+                    <h6 className="text-[11px] font-extrabold uppercase mb-3 text-primary tracking-wider border-b pb-1.5">Purchase Order Details</h6>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label htmlFor="date" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Date *</label>
+                            <input id="date" type="date" className="form-input h-9 text-xs" value={formData.date} onChange={handleFormChange} required />
                         </div>
-
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between px-2">
-                                <h6 className="text-xs font-bold uppercase tracking-tight text-gray-500">Order Items</h6>
-                                <button type="button" className="btn btn-primary btn-xs rounded-full px-3" onClick={addItem}>
-                                    <IconPlus className="w-3 h-3 mr-1" /> Add Item
+                        <div>
+                            <label htmlFor="reference_no" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Ref No</label>
+                            <input id="reference_no" type="text" placeholder="PO-00001" className="form-input h-9 text-xs" value={formData.reference_no} onChange={handleFormChange} />
+                        </div>
+                        <div>
+                            <label htmlFor="warehouse_id" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Delivery Location *</label>
+                            {((localStorage.getItem('role') || '').toLowerCase().includes('account_manager') || (localStorage.getItem('role') || '').toLowerCase().includes('accountant')) && formData.warehouse_id ? (
+                                <div className="form-input h-9 bg-gray-50 text-[10px] flex items-center text-primary font-bold">{warehouses.find(w => (w.id === formData.warehouse_id || w._id === formData.warehouse_id))?.name || '...'}</div>
+                            ) : (
+                                <select id="warehouse_id" className="form-select h-9 text-xs" value={formData.warehouse_id} onChange={handleFormChange} required>
+                                    <option value="">Select Location</option>
+                                    {warehouses.map(w => <option key={w.id || w._id} value={w.id || w._id}>{w.name}</option>)}
+                                </select>
+                            )}
+                        </div>
+                        <div>
+                            <label htmlFor="supplier_id" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block flex justify-between">
+                                Supplier *
+                                <button type="button" className="text-primary hover:underline lowercase text-[9px]" onClick={() => setFormData(prev => ({ ...prev, is_new_supplier: !prev.is_new_supplier }))}>
+                                    {formData.is_new_supplier ? 'Existing' : '+ Add'}
                                 </button>
-                            </div>
+                            </label>
+                            {!formData.is_new_supplier ? (
+                                <select id="supplier_id" className="form-select h-9 text-xs" value={formData.supplier_id} onChange={handleFormChange} required={!formData.is_new_supplier}>
+                                    <option value="">Select Supplier</option>
+                                    {suppliers.map(s => <option key={s.id || s._id} value={s.id || s._id}>{s.name.toUpperCase()}</option>)}
+                                </select>
+                            ) : (
+                                <div className="space-y-1 p-1 bg-gray-50 dark:bg-black/20 rounded border border-dashed flex gap-1">
+                                    <input id="new_supplier_name" type="text" placeholder="Name" className="form-input h-7 text-[10px] flex-1" value={formData.new_supplier_name} onChange={handleFormChange} required />
+                                    <input id="new_supplier_email" type="email" placeholder="Email" className="form-input h-7 text-[10px] flex-1" value={formData.new_supplier_email} onChange={handleFormChange} required />
+                                    <input id="new_supplier_phone" type="text" placeholder="Phone" className="form-input h-7 text-[10px] flex-1" value={formData.new_supplier_phone} onChange={handleFormChange} required />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
-                            <div className="space-y-2">
-                                {orderItems.map((item, index) => (
-                                    <div key={index} className={`flex items-center gap-3 p-2 bg-white dark:bg-[#0e1726] border rounded-xl transition-all hover:shadow-md ${item.product_id ? 'border-success/30 bg-success/5' : 'border-gray-200 dark:border-gray-800'}`}>
+                {/* Main Items Panel - Horizontal Scroll Support */}
+                <div className="panel p-0 border-none shadow-sm dark:bg-[#0e1726] overflow-x-auto custom-scrollbar">
+                    <div className="flex items-center justify-between p-3 border-b">
+                        <h6 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                            <IconListCheck className="h-4 w-4" />
+                            Inventory Management
+                        </h6>
+                        <button type="button" className="text-[10px] font-black hover:underline uppercase text-primary" onClick={addItem}>
+                            + Add New Row
+                        </button>
+                    </div>
 
-                                        {/* Image & Basic Info */}
-                                        <div className="w-8 h-8 flex-shrink-0 bg-gray-100 dark:bg-black/20 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-800">
-                                            {item.image ? <img src={item.image} alt="" className="w-full h-full object-contain" /> : <IconBox className="w-4 h-4 text-gray-300" />}
-                                        </div>
+                    {/* Professional High-Density Header - 11 Column Unified Layout */}
+                    <div className="grid grid-cols-[40px_100px_1fr_65px_85px_55px_85px_65px_240px_90px_40px] gap-2 px-4 py-2 bg-gray-50 dark:bg-black/20 border-b text-[8px] font-black text-gray-400 uppercase tracking-tighter items-center">
+                        <div className="text-center">IMG</div>
+                        <div className="pl-1">BARCODE</div>
+                        <div className="text-left">PRODUCT NAME</div>
+                        <div className="text-center">HSN</div>
+                        <div className="text-center">COST (UNIT)</div>
+                        <div className="text-center">MARGIN</div>
+                        <div className="text-center">SELL (UNIT)</div>
+                        <div className="text-center">QTY</div>
+                        <div className="text-center">GST RATE & DETAILS (PER UNIT)</div>
+                        <div className="text-right">TOTAL</div>
+                        <div className="text-center"></div>
+                    </div>
 
-                                        {/* Barcode/UTC Search */}
-                                        <div className="w-32 flex-shrink-0">
-                                            <input
-                                                type="text"
-                                                placeholder="UTC / Barcode"
-                                                autoFocus={index === 0}
-                                                readOnly={!!item.product_id}
-                                                className={`form-input h-8 py-1 px-2 text-[10px] font-bold tracking-tight rounded-lg w-full ${item.product_id ? 'bg-transparent border-none text-primary p-0' : 'bg-gray-50 border-gray-100 focus:border-primary'}`}
-                                                value={item.utc || ''}
-                                                onChange={(e) => handleItemChange(index, 'utc', e.target.value)}
-                                            />
-                                        </div>
+                    <div className="p-1">
+                        {orderItems.map((item, index) => (
+                            <div key={index} className="grid grid-cols-[40px_100px_1fr_65px_85px_55px_85px_65px_240px_90px_40px] gap-2 px-3 py-2 bg-white dark:bg-black/10 border-b border-gray-100 last:border-b-0 items-center transition-all hover:bg-gray-50/50">
+                                {/* Img */}
+                                <div className="w-10 h-10 bg-gray-100/50 rounded flex items-center justify-center border border-gray-100 p-1">
+                                    {item.image ? <img src={item.image} alt="" className="w-full h-full object-contain" /> : <IconBox className="w-4 h-4 text-gray-300" />}
+                                </div>
 
-                                        {/* Product Name */}
-                                        <div className="flex-1 min-w-0">
-                                            {item.name ? (
-                                                <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200 uppercase truncate block">
-                                                    {item.name}
-                                                </span>
-                                            ) : item.isSearching ? (
-                                                <div className="flex items-center gap-1">
-                                                    <span className="animate-spin h-2 w-2 border border-primary border-t-transparent rounded-full"></span>
-                                                    <span className="text-[9px] text-primary font-bold animate-pulse">Searching for product...</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-[9px] text-gray-400 italic">Scan to identify item...</span>
-                                            )}
-                                        </div>
+                                {/* Barcode */}
+                                <input type="text" placeholder="Code" readOnly={!!item.product_id}
+                                    className={`form-input h-8 py-0 px-2 text-[10px] font-black rounded-md border-gray-100 ${item.product_id ? 'bg-transparent border-transparent' : 'bg-gray-50 focus:bg-white'}`}
+                                    value={item.utc || ''} onChange={(e) => handleItemChange(index, 'utc', e.target.value)} />
 
-                                        {/* Cost & Sell */}
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative w-20">
-                                                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold">₹</span>
-                                                <input type="number" placeholder="Cost" className="form-input h-8 pl-4 pr-1 text-center text-[10px] font-bold rounded-lg border-gray-100" value={item.price || ''} onChange={(e) => handleItemChange(index, 'price', e.target.value)} />
-                                            </div>
-                                            <div className="relative w-20">
-                                                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold">₹</span>
-                                                <input type="number" placeholder="Sell" className="form-input h-8 pl-4 pr-1 text-center text-[10px] font-bold rounded-lg border-gray-100" value={item.sell_price || ''} onChange={(e) => handleItemChange(index, 'sell_price', e.target.value)} />
-                                            </div>
-                                        </div>
+                                {/* Product Name */}
+                                <div className="flex flex-col min-w-0">
+                                    <input type="text" placeholder="Product..." 
+                                        readOnly={!!item.product_id}
+                                        className={`form-input h-8 py-0 px-2 text-[11px] font-black rounded-md border-gray-100 truncate ${item.product_id ? 'bg-transparent border-transparent' : 'bg-gray-50 focus:bg-white text-primary'}`}
+                                        value={item.name || ''} 
+                                        onChange={(e) => handleItemChange(index, 'name', e.target.value)} 
+                                    />
+                                </div>
 
-                                        {/* Quantity */}
-                                        <div className="flex items-center w-24 h-8 bg-gray-50 dark:bg-black rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-                                            <button type="button" className="w-8 h-full hover:bg-gray-100 dark:hover:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-xs" onClick={() => handleItemChange(index, 'quantity', Math.max(1, (Number(item.quantity) || 0) - 1))}>−</button>
-                                            <input type="number" className="bg-transparent text-[10px] text-center font-bold w-full outline-none p-0 border-none" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} />
-                                            <button type="button" className="w-8 h-full hover:bg-gray-100 dark:hover:bg-gray-900 border-l border-gray-200 dark:border-gray-800 text-xs" onClick={() => handleItemChange(index, 'quantity', (Number(item.quantity) || 0) + 1)}>+</button>
-                                        </div>
+                                {/* HSN */}
+                                <input type="text" placeholder="HSN"
+                                    className="form-input h-8 py-0 px-1 text-center text-[10px] font-bold rounded-md border-gray-100 bg-gray-50 uppercase"
+                                    value={item.hsn || ''} onChange={(e) => handleItemChange(index, 'hsn', e.target.value)} />
 
-                                        {/* Taxes (Compact) */}
-                                        <div className="flex items-center p-1 bg-gray-100/50 dark:bg-black/20 rounded-lg gap-1 border border-gray-200 dark:border-gray-800">
-                                            {['cgst', 'sgst', 'igst', 'cess'].map((tax) => (
-                                                <input
-                                                    key={tax}
-                                                    type="number"
-                                                    placeholder={tax.toUpperCase()}
-                                                    className="form-input h-6 w-9 p-0 text-center text-[9px] font-bold rounded border-transparent bg-transparent hover:bg-white"
-                                                    value={item[tax as keyof typeof item] || ''}
-                                                    onChange={(e) => handleItemChange(index, tax, e.target.value)}
-                                                />
-                                            ))}
-                                        </div>
-
-                                        {/* Subtotal */}
-                                        <div className="w-20 text-right">
-                                            <span className="text-[11px] font-black text-primary">₹{item.subtotal.toFixed(2)}</span>
-                                        </div>
-
-                                        {/* Delete */}
-                                        <button
-                                            type="button"
-                                            className="w-8 h-8 rounded-lg bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all flex items-center justify-center"
-                                            onClick={() => removeItem(index)}
-                                        >
-                                            <IconTrashLines className="w-4 h-4" />
-                                        </button>
+                                {/* Cost (Unit) */}
+                                <div className="flex flex-col relative group/cost pt-0">
+                                    <div className="absolute -top-1.5 left-0 right-0 text-center pointer-events-none">
+                                        <span className="text-[7.5px] font-black text-primary uppercase tracking-tighter bg-primary/5 px-1 rounded-sm border border-primary/10">Net:₹{getLandedCost(item).toFixed(0)}</span>
                                     </div>
-                                ))}
+                                    <input type="text" 
+                                        className="form-input h-8 px-1 text-center text-[11px] font-black rounded-md border-gray-100 bg-white hover:border-primary/40 shadow-sm" 
+                                        value={item.price || ''} 
+                                        onChange={(e) => handleItemChange(index, 'price', e.target.value)} 
+                                    />
+                                </div>
+
+                                {/* Margin */}
+                                <div className="relative text-center">
+                                    <input type="text" placeholder="%" 
+                                        className="form-input h-8 text-center text-[11px] font-black rounded-md border-primary/10 bg-primary/5 shadow-inner"
+                                        value={item.margin || ''} 
+                                        onChange={(e) => handleItemChange(index, 'margin', e.target.value)} 
+                                    />
+                                </div>
+
+                                {/* Sell (Unit) */}
+                                <div className="relative">
+                                    <input type="text" 
+                                        className="form-input h-8 px-1 text-center text-[11px] font-black rounded-md border-gray-100 bg-white hover:border-primary/40 shadow-sm" 
+                                        value={item.sell_price || ''} 
+                                        onChange={(e) => handleItemChange(index, 'sell_price', e.target.value)} 
+                                    />
+                                </div>
+
+                                {/* Qty */}
+                                <div className="flex items-center h-8 bg-gray-100/50 rounded-md border border-gray-100 overflow-hidden">
+                                    <input type="text" className="bg-transparent text-[11px] text-center font-black w-full outline-none" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} />
+                                </div>
+
+                                {/* GST Unified Line Box */}
+                                <div className="flex gap-1.5 p-1.5 bg-gray-50/50 dark:bg-black/40 rounded-xl border border-gray-100 shadow-sm transition-all hover:bg-white hover:border-primary/20">
+                                    {['cgst', 'sgst', 'igst', 'cess'].map((tax) => {
+                                        const unitTax = (Number(item.price) * Number(item[tax as keyof typeof item])) / 100;
+                                        return (
+                                            <div key={tax} className="flex flex-col relative group/tax pt-0 flex-1 min-w-0">
+                                                <div className="absolute -top-3 left-0 right-0 text-center pointer-events-none">
+                                                    <span className="text-[6.5px] font-black text-gray-400 uppercase tracking-tighter bg-white px-0.5 rounded border border-gray-100 leading-none">{tax}</span>
+                                                </div>
+                                                <input type="text"
+                                                    className="form-input h-7 px-0 text-center text-[10px] font-black rounded-lg border-gray-100 bg-white focus:border-primary shadow-xs transition-all"
+                                                    value={item[tax as keyof typeof item] || ''}
+                                                    onChange={(e) => handleItemChange(index, tax, e.target.value)} 
+                                                />
+                                                <span className="absolute -bottom-1.5 left-0 right-0 text-center text-[6px] font-black text-primary/60 opacity-0 group-hover/tax:opacity-100 transition-opacity">₹{unitTax.toFixed(1)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Line Total */}
+                                <div className="text-right flex flex-col items-end pr-1">
+                                    <span className="text-[13px] font-black text-primary tracking-tighter leading-none">₹{item.subtotal.toFixed(0)}</span>
+                                    <span className="text-[5.5px] font-black text-gray-300 uppercase mt-0.5">Subtotal</span>
+                                </div>
+
+                                {/* Delete */}
+                                <div className="flex justify-center">
+                                    <button type="button" className="w-7 h-7 rounded-full hover:bg-danger/10 text-danger flex items-center justify-center transition-all group" onClick={() => removeItem(index)}>
+                                        <IconTrashLines className="w-4 h-4 group-hover:scale-125" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Bottom Section: Summary & Documentation Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Notes & File - Left */}
+                    <div className="space-y-4">
+                        <div className="panel p-3 border-none shadow-sm dark:bg-[#0e1726]">
+                            <label className="text-[10px] font-extrabold text-gray-400 uppercase mb-2 block border-b pb-1">Attachments & Notes</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                <div className="relative group overflow-hidden bg-gray-50 dark:bg-black/20 rounded border border-dashed p-3 h-20 flex flex-col items-center justify-center">
+                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleFileChange} accept=".pdf,image/*" />
+                                    <IconFile className="w-5 h-5 text-primary opacity-50 mb-1" />
+                                    <span className="text-[9px] font-bold text-gray-500 uppercase truncate w-full text-center">
+                                        {formData.invoice ? formData.invoice.name : 'Upload Invoice'}
+                                    </span>
+                                    {formData.invoice && (
+                                        <button type="button" className="text-[8px] text-danger font-bold uppercase mt-1 z-20" onClick={() => setFormData(prev => ({ ...prev, invoice: null }))}>[Remove]</button>
+                                    )}
+                                </div>
+                                <textarea id="notes" rows={4} className="form-textarea py-2 text-xs h-20" placeholder="Internal purchase notes..." value={formData.notes} onChange={handleFormChange}></textarea>
                             </div>
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN (1/3 Width) */}
-                    <div className="space-y-6">
-                        <div className="panel p-4">
-                            <h6 className="text-[11px] font-bold uppercase mb-4 border-b pb-2">Order Summary</h6>
+                    {/* Status & Totals - Right */}
+                    <div className="panel p-4 border-none shadow-sm dark:bg-[#0e1726]">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-3">
                                 <div>
-                                    <label htmlFor="status" className="text-[10px] font-bold uppercase mb-1 block text-gray-500">Status</label>
-                                    <select id="status" className="form-select py-1.5 text-xs font-semibold" value={formData.status} onChange={handleFormChange}>
+                                    <label htmlFor="status" className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Purchase Status</label>
+                                    <select id="status" className="form-select h-8 text-[11px] font-bold uppercase" value={formData.status} onChange={handleFormChange}>
                                         <option value="received">Received</option>
                                         <option value="pending">Pending</option>
                                         <option value="ordered">Ordered</option>
                                     </select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label htmlFor="order_tax" className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Order Tax</label>
-                                        <input id="order_tax" type="number" className="form-input py-1 text-xs font-bold" value={formData.order_tax} onChange={handleFormChange} />
+                                <div className="pt-2">
+                                    <div className="bg-primary/5 rounded border p-3 flex flex-col items-center">
+                                        <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest leading-none mb-1">Grand Total</span>
+                                        <span className="text-2xl font-black text-primary">₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                     </div>
-                                    <div>
-                                        <label htmlFor="discount" className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Discount</label>
-                                        <input id="discount" type="number" className="form-input py-1 text-xs font-bold" value={formData.discount} onChange={handleFormChange} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label htmlFor="shipping" className="text-[10px] font-bold uppercase text-gray-500 mb-1 block">Shipping</label>
-                                    <input id="shipping" type="number" className="form-input py-1 text-xs font-bold" value={formData.shipping} onChange={handleFormChange} />
-                                </div>
-                                <div className="pt-3 border-t mt-3 flex justify-between items-center px-3 bg-primary/5 py-2.5 rounded-lg border border-primary/10">
-                                    <span className="text-[9px] font-bold uppercase text-gray-400">Total</span>
-                                    <span className="text-lg font-black text-primary">₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="panel p-4">
-                            <h6 className="text-[10px] font-bold uppercase text-gray-400 mb-2 tracking-widest border-b pb-1">Attachments</h6>
-                            <div className="flex flex-col gap-2">
-                                <div className="relative group overflow-hidden bg-gray-50 dark:bg-black/20 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/50 transition-all p-3 text-center cursor-pointer">
-                                    <input
-                                        type="file"
-                                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                        onChange={handleFileChange}
-                                        accept=".pdf,image/*"
-                                    />
-                                    <div className="flex flex-col items-center gap-1">
-                                        <IconFile className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
-                                        <span className="text-[10px] font-bold text-gray-500 uppercase">
-                                            {formData.invoice ? formData.invoice.name : 'Upload Invoice'}
-                                        </span>
-                                    </div>
+                            <div className="space-y-2 border-l pl-4 dark:border-gray-800">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase">Discount</span>
+                                    <input id="discount" type="string" className="form-input h-7 w-24 text-xs text-right font-bold" value={formData.discount} onChange={handleFormChange} />
                                 </div>
-                                {formData.invoice && (
-                                    <button
-                                        type="button"
-                                        className="text-[9px] text-danger hover:underline font-bold self-center"
-                                        onClick={() => setFormData(prev => ({ ...prev, invoice: null }))}
-                                    >
-                                        Remove File
-                                    </button>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase">Shipping</span>
+                                    <input id="shipping" type="string" className="form-input h-7 w-24 text-xs text-right font-bold" value={formData.shipping} onChange={handleFormChange} />
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Sticky Footer Actions */}
-                <div className="panel sticky bottom-0 z-10 flex justify-end gap-3 shadow-xl mt-8 border-t border-gray-100 py-4 bg-white/80 backdrop-blur-md dark:bg-black/80 rounded-t-none">
-                    <button type="button" className="btn btn-outline-danger px-8 uppercase font-bold text-xs" onClick={() => router.push('/purchase/list')}>
-                        Discard
-                    </button>
-                    <button type="submit" className="btn btn-primary px-10 h-10 uppercase font-bold tracking-widest flex items-center justify-center gap-2 shadow-primary/20 shadow-md" disabled={loading}>
-                        {loading ? <span className="animate-spin rounded-full border-2 border-white border-l-transparent w-4 h-4" /> : <IconSave className="w-4 h-4" />}
-                        {loading ? 'Saving...' : 'Save Purchase'}
+                <div className="panel sticky bottom-0 z-10 flex justify-end gap-3 shadow-none mt-4 border-t py-3 bg-white/90 dark:bg-black/90">
+                    <button type="button" className="btn btn-outline-danger px-6 uppercase font-bold text-[10px]" onClick={() => router.push('/purchase/list')}>Discard</button>
+                    <button type="submit" className="btn btn-primary px-8 h-9 uppercase font-bold text-[10px] flex items-center gap-2" disabled={loading}>
+                        {loading ? <span className="animate-spin rounded-full border-2 border-white border-l-transparent w-3 h-3" /> : <IconSave className="w-3 h-3" />}
+                        {loading ? 'Processing...' : 'Save Purchase'}
                     </button>
                 </div>
             </form>

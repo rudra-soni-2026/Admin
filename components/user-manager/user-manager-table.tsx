@@ -12,6 +12,7 @@ interface UserManagerTableProps {
     page?: number;
     pageSize?: number;
     onPageChange?: (page: number) => void;
+    onPageSizeChange?: (size: number) => void;
     totalUsers?: number;
     todayUsers?: number;
     todayRevenue?: number;
@@ -55,7 +56,7 @@ interface UserManagerTableProps {
     onPaymentUpdate?: (orderId: any, paymentMethod: string, breakdown?: any) => void;
     onDeleteClick?: (item: any) => void;
     loading?: boolean;
-    onExportClick?: () => void;
+    onExportClick?: (format: 'excel' | 'pdf') => void;
     hideStock?: boolean;
     hideEdit?: boolean;
     hideAdd?: boolean;
@@ -98,6 +99,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             onStatusUpdate={props.onStatusUpdate} 
             onPaymentUpdate={props.onPaymentUpdate}
             onViewClick={finalViewClick} 
+            onExportClick={props.onExportClick}
         />
     ) : (
         <UserListTable

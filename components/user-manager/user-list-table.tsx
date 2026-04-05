@@ -64,7 +64,7 @@ interface UserListTableProps {
     onDeleteClick?: (item: any) => void;
     onPrint?: (item: any) => void;
     loading?: boolean;
-    onExportClick?: () => void;
+    onExportClick?: (format: 'excel' | 'pdf') => void;
 }
 
 const UserListTable = ({

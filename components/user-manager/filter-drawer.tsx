@@ -22,7 +22,7 @@ interface FilterDrawerProps {
     setMinPrice?: (value: string) => void;
     maxPrice?: string;
     setMaxPrice?: (value: string) => void;
-    onExport?: () => void;
+    onExport?: (format: 'excel' | 'pdf') => void;
 }
 
 const FilterDrawer = ({ 
@@ -36,6 +36,13 @@ const FilterDrawer = ({
     const [localCategory, setLocalCategory] = React.useState<string>(categoryId || '');
     const [localMinPrice, setLocalMinPrice] = React.useState<string>(minPrice || '');
     const [localMaxPrice, setLocalMaxPrice] = React.useState<string>(maxPrice || '');
+    const [userRole, setUserRole] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setUserRole(localStorage.getItem('role'));
+        }
+    }, []);
 
     // Sync local state when external data changes or drawer is opened
     React.useEffect(() => {
@@ -130,7 +137,7 @@ const FilterDrawer = ({
                                 <button 
                                     type="button" 
                                     className="btn btn-success w-full btn-sm gap-2 uppercase font-black tracking-tight" 
-                                    onClick={onExport}
+                                    onClick={() => onExport('excel')}
                                 >
                                     <IconDownload className="h-4 w-4" />
                                     Export {type} List
@@ -148,6 +155,10 @@ const FilterDrawer = ({
                                         mode: 'range',
                                         dateFormat: 'Y-m-d',
                                         inline: true,
+                                        ...(userRole === 'store_manager' || userRole === 'warehouse_manager' ? {
+                                            minDate: new Date(new Date().setDate(new Date().getDate() - 1)),
+                                            maxDate: new Date(),
+                                        } : {})
                                     }}
                                     className="opacity-0 h-0 w-0 absolute z-[-1]"
                                     onChange={(selectedDates) => setLocalDate(selectedDates)}
