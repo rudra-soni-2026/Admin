@@ -24,7 +24,7 @@ const InventoryTransfer = () => {
         try {
             setHistoryLoading(true);
 
-            const storedRole = localStorage.getItem('role');
+            const storedRole = localStorage.getItem('role')?.toLowerCase() || '';
             const userDataString = localStorage.getItem('userData');
             let query = `/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}`;
 
@@ -33,10 +33,10 @@ const InventoryTransfer = () => {
                     const userData = JSON.parse(userDataString);
                     const assignedId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || userData.warehouseId || userData.warehouse_id;
 
-                    if (assignedId) {
-                        if (storedRole === 'store_manager') {
+                    if (assignedId && assignedId !== 'all') {
+                        if (storedRole.includes('store_manager')) {
                             query += `&storeId=${assignedId}`;
-                        } else if (storedRole === 'warehouse_manager') {
+                        } else if (storedRole.includes('warehouse_manager')) {
                             query += `&warehouseId=${assignedId}`;
                         }
                     }
@@ -199,9 +199,9 @@ const InventoryTransfer = () => {
                     onPageChange={(p) => setHistoryPage(p)}
                     onStatusClick={hasPerm('inventory', 'update') ? (record) => handleApproveTransfer(record) : undefined}
                     onViewClick={(record) => {
-                        // Pass data via params to avoid extra API call as requested
-                        const encodedData = encodeURIComponent(JSON.stringify(record));
-                        router.push(`/inventory/transfer/view/${record.originalId}?data=${encodedData}`);
+                        // 🚀 SessionStorage Hack: Avoid huge URL params while keeping instant load
+                        sessionStorage.setItem(`transfer_${record.originalId}`, JSON.stringify(record));
+                        router.push(`/inventory/transfer/view/${record.originalId}`);
                     }}
                     hideAdd={true}
                     hideDelete={true}

@@ -85,6 +85,12 @@ export const subscribeToOrders = (cb: (err: any, data: any) => void) => {
         return cb(null, payload);
     });
 
+    // Listen for stock alerts
+    socket.on('STOCK_ALERT_RECEIVED', (payload: any) => {
+        console.log('🚨 Received STOCK_ALERT_RECEIVED:', payload);
+        return cb(null, { ...payload, type: 'STOCK_ALERT' });
+    });
+
     // Handle generic errors
     socket.on('ERROR', (err: any) => {
         console.error('Socket Error:', err);
@@ -100,6 +106,7 @@ export const unsubscribeFromOrders = () => {
     socket.off('ORDER_UPDATED');
     socket.off('STORE_ORDERS_UPDATED');
     socket.off('ORDER_STATUS_CHANGED');
+    socket.off('STOCK_ALERT_RECEIVED');
     socket.off('ERROR');
     socket.off('DASHBOARD_STATS_DATA');
     socket.off('DASHBOARD_STATS_UPDATE');

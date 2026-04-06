@@ -57,16 +57,23 @@ const Sidebar = () => {
     const hasPermission = (permission: string) => {
         // 1. Super Admin Level
         if (role === 'super_admin') return true;
-        
+
         // 🚨 Role-based overrides (Ensure essential tabs are always visible for specific roles)
         if (role === 'store_manager') {
             // Sir, Store Manager ONLY sees Orders and Store Inventory as requested!
             const allowed = ['orders', 'store_inventory'];
             return allowed.includes(permission);
         }
-        
+
         if (role === 'admin') {
-            const allowed = ['orders', 'stores', 'warehouses', 'dashboard', 'users', 'riders', 'products', 'categories', 'inventory_transfer', 'store_inventory', 'warehouse_inventory'];
+            let getper = localStorage.getItem('permissions');
+            let permissioncheck = ['orders', 'stores', 'warehouses', 'dashboard', 'users', 'riders', 'products', 'categories', 'inventory_transfer', 'store_inventory', 'warehouse_inventory'];
+            if (getper) {
+                const parsed = JSON.parse(getper);
+                permissioncheck = Object.keys(parsed)
+                console.log(Object.keys(parsed), "getper");
+            }
+            const allowed = permissioncheck//['orders', 'stores', 'warehouses', 'dashboard', 'users', 'riders', 'products', 'categories', 'inventory_transfer', 'store_inventory', 'warehouse_inventory'];
             if (allowed.includes(permission)) return true;
         }
 
@@ -256,9 +263,19 @@ const Sidebar = () => {
                                         <ul>
                                             {hasPermission('suppliers') && (<li className="nav-item"><Link href="/suppliers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span></div></Link></li>)}
                                             {hasPermission('purchase') && (<li className="nav-item"><Link href="/purchase/list" className="group"><div className="flex items-center"><IconListCheck className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span></div></Link></li>)}
-                                            {hasPermission('warehouse_inventory') && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
-                                            {hasPermission('store_inventory') && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
-                                            {hasPermission('inventory_transfer') && (<li className="nav-item"><Link href="/inventory/transfer" className="group"><div className="flex items-center"><IconRefresh className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span></div></Link></li>)}
+                                            {hasPermission('warehouse_inventory') && role =="super_admin" && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
+                                            {hasPermission('store_inventory') && role =="super_admin" && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
+                                            {hasPermission('inventory_transfer')  && (<li className="nav-item"><Link href="/inventory/transfer" className="group"><div className="flex items-center"><IconRefresh className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span></div></Link></li>)}
+                                            {(role === 'super_admin' || role === 'store_manager' || role === 'warehouse_manager') && (
+                                                <li className="nav-item">
+                                                    <Link href="/inventory/alerts-history" className="group text-danger">
+                                                        <div className="flex items-center">
+                                                            <IconBell className="shrink-0 group-hover:!text-danger" />
+                                                            <span className="ltr:pl-3 rtl:pr-3 uppercase font-black text-[10px]">Stock Alerts Log</span>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                            )}
                                         </ul>
                                     </li>
                                 </>

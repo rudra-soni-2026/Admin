@@ -70,6 +70,7 @@ export default function AddProduct() {
         price: '',
         original_price: '',
         stock: 100,
+        low_stock_threshold: 2,
         sku: '',
         barcode: '',
         image: ''
@@ -456,6 +457,7 @@ export default function AddProduct() {
                     price: Number(v.price) || Number(v.original_price) || 0,
                     original_price: Number(v.original_price) || 0,
                     stock: Number(v.stock) || 100,
+                    low_stock_threshold: Number(v.low_stock_threshold) || 2,
                     image: vImages.length > 0 ? vImages[0] : "",
                     images: vImages.map((url, idx) => ({
                         image_url: url,
@@ -640,7 +642,7 @@ export default function AddProduct() {
                         <div className="space-y-6">
                             <div className="flex items-center justify-between border-b pb-2">
                                 <h6 className="text-base font-bold text-primary">Variants Inventory</h6>
-                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', original_price: '', barcode: '', images: [] }])}>
+                                <button type="button" className="btn btn-primary btn-sm gap-2" onClick={() => setVariants([...variants, { unit_label: '', unit_type: 'piece', original_price: '', barcode: '', stock: 100, low_stock_threshold: 2, images: [] }])}>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                     Add Another Variant
                                 </button>
@@ -749,6 +751,10 @@ export default function AddProduct() {
                                                         <span className="absolute left-2.5 top-2 text-gray-400 text-xs">₹</span>
                                                         <input className="form-input py-2 pl-5 text-sm font-bold text-primary" value={v.price} onChange={(e) => { const nv = [...variants]; nv[i].price = e.target.value; setVariants(nv); }} placeholder="0.00" />
                                                     </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-danger">Low Stock Threshold</label>
+                                                    <input type="number" className="form-input py-2 text-sm" value={v.low_stock_threshold} onChange={(e) => { const nv = [...variants]; nv[i].low_stock_threshold = e.target.value; setVariants(nv); }} placeholder="Alert at..." />
                                                 </div>
                                             </div>
                                         </div>

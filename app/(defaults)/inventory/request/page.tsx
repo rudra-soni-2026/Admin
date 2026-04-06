@@ -210,13 +210,13 @@ const StockTransfer = () => {
 
             const response = await callApi('/management/admin/inventory-transfer', 'POST', payload);
             
-            if (response?.success) {
-                showMessage('Inventory stock successfully move ho chuka hai.', 'success');
+            if (response?.status === 'success' || response?.success) {
+                showMessage('Inventory stock transfer request created successfully.', 'success');
                 setTimeout(() => {
                     window.location.href = '/inventory/transfer';
                 }, 1500);
             } else {
-                showMessage(response?.message || 'Transfer failed.', 'error');
+                showMessage(response?.message || 'Transfer initiation failed.', 'error');
             }
         } catch (error: any) {
             Swal.fire('Error', error?.message || 'Something went wrong.', 'error');
@@ -233,10 +233,6 @@ const StockTransfer = () => {
                     <h1 className="text-2xl font-bold">Warehouse To Store Transfer</h1>
                     <p className="text-gray-500 text-sm font-medium">Instantly move stock from your warehouse to a specific store inventory.</p>
                 </div>
-                <Link href="/inventory/transfer" className="btn btn-outline-primary gap-2 shadow-sm">
-                    <IconArrowBackward className="w-4 h-4" />
-                    View Transfer Logs
-                </Link>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

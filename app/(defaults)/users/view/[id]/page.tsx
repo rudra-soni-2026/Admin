@@ -10,7 +10,7 @@ import IconShoppingBag from '@/components/icon/icon-shopping-bag';
 import IconMapPin from '@/components/icon/icon-map-pin';
 
 // Sub-component for a Paginated Order Table
-const OrderHistoryTable = ({ orders }: { orders: any[] }) => {
+const OrderHistoryTable = ({ orders, user }: { orders: any[], user: any }) => {
     const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
@@ -35,30 +35,49 @@ const OrderHistoryTable = ({ orders }: { orders: any[] }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-gray-900">
-                        {currentOrders.length > 0 ? currentOrders.map((order: any, idx: number) => (
-                            <tr 
-                                key={idx} 
-                                className="hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors cursor-pointer group"
-                                onClick={() => router.push(`/orders/preview/${order.id}`)}
-                            >
-                                <td className="px-6 py-5">
-                                    <p className="font-black uppercase tracking-tight text-[12px] group-hover:text-primary transition-colors">{order.store?.name}</p>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{order.store?.city}</p>
-                                </td>
-                                <td className="px-6 py-5 font-bold text-gray-500 whitespace-nowrap text-[12px] italic">
-                                    {new Date(order.createdAt).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-5 text-right font-black text-sm tracking-tighter">₹{order.totalAmount}</td>
-                                <td className="px-6 py-5 text-center">
-                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border
-                                        ${order.status === 'delivered' ? 'bg-success/5 border-success/10 text-success' :
-                                            order.status === 'cancelled' ? 'bg-danger/5 border-danger/20 text-danger' :
-                                                'bg-warning/5 border-warning/20 text-warning'}`}>
-                                        {order.status}
-                                    </span>
-                                </td>
-                            </tr>
-                        )) : (
+                        {currentOrders.length > 0 ? currentOrders.map((order: any, idx: number) => {
+                            let calc: any = {};
+                            try {
+                                calc = typeof order.calculation_details === 'string' ? JSON.parse(order.calculation_details) : (order.calculation_details || {});
+                            } catch (e) { }
+                            const finalTotal = calc.total || order.totalAmount || order.total_amount || 0;
+
+                            return (
+                                <tr 
+                                    key={idx} 
+                                    className="hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors cursor-pointer group"
+                                    onClick={() => {
+                                        // 🚀 OPTIMIZATION: Pass already-fetched order data AND CUSTOMER INFO to the next page
+                                        // This ensures the Order Detail page shows the correct Name/Phone instead of "Guest User"
+                                        const orderWithCustomer = {
+                                            ...order,
+                                            customerName: user?.name,
+                                            customerPhone: user?.phone,
+                                            user: user // Full fallback
+                                        };
+                                        localStorage.setItem(`view_order_${order.id}`, JSON.stringify(orderWithCustomer));
+                                        router.push(`/orders/view/${order.id}`);
+                                    }}
+                                >
+                                    <td className="px-6 py-5">
+                                        <p className="font-black uppercase tracking-tight text-[12px] text-primary hover:underline hover:text-blue-700 transition-all">{order.store?.name}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{order.store?.city}</p>
+                                    </td>
+                                    <td className="px-6 py-5 font-bold text-gray-500 whitespace-nowrap text-[12px] italic">
+                                        {new Date(order.createdAt).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-5 text-right font-black text-sm tracking-tighter">₹{parseFloat(finalTotal).toFixed(2)}</td>
+                                    <td className="px-6 py-5 text-center">
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border
+                                            ${order.status === 'delivered' ? 'bg-success/5 border-success/10 text-success' :
+                                                order.status === 'cancelled' ? 'bg-danger/5 border-danger/20 text-danger' :
+                                                    'bg-warning/5 border-warning/20 text-warning'}`}>
+                                            {order.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            );
+                        }) : (
                             <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-300 font-bold uppercase tracking-widest text-[11px]">No activity history found</td></tr>
                         )}
                     </tbody>
@@ -253,7 +272,7 @@ const CustomerDetail = () => {
                         </div>
 
                         {/* Order History Table with Pagination */}
-                        <OrderHistoryTable orders={orders} />
+                        <OrderHistoryTable orders={orders} user={userData.user} />
                     </div>
                 )}
 

@@ -779,7 +779,7 @@ const ComponentsDashboardSales = () => {
                     <div className="mb-6 grid gap-6 xl:grid-cols-3">
                         <div className="panel h-full xl:col-span-3">
                             <div className="mb-5 flex items-center justify-between dark:text-white-light">
-                                <h5 className="text-lg font-semibold">Store-wise Sales Performance (Live)</h5>
+                                <h5 className="text-lg font-semibold">Sales Performance (Live)</h5>
                             </div>
                             <div className="relative">
                                 <div className="rounded-lg bg-white dark:bg-black">
@@ -947,7 +947,7 @@ const ComponentsDashboardSales = () => {
                                         <tr>
                                             <th className="ltr:rounded-l-md rtl:rounded-r-md">Product</th>
                                             <th>Store</th>
-                                            <th>Category</th>
+                                            {/* <th>Category</th> */}
                                             <th>Price</th>
                                             <th className="ltr:rounded-r-md rtl:rounded-l-md">Sold</th>
                                         </tr>
@@ -961,8 +961,8 @@ const ComponentsDashboardSales = () => {
                                                         <span className="whitespace-nowrap">{product.name}</span>
                                                     </div>
                                                 </td>
-                                                <td className="text-primary">{product.store}</td>
-                                                <td>{product.category}</td>
+                                                <td className="text-primary">ALL</td>
+                                                {/* <td>{product.category}</td> */}
                                                 <td>₹{product.price}</td>
                                                 <td>
                                                     <span className="badge bg-success shadow-md dark:group-hover:bg-transparent">{product.sold} Units</span>

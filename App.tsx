@@ -74,24 +74,46 @@ function App({ children }: PropsWithChildren) {
                 if (err) return;
                 
                 const orderInfo = data.order || data;
-                const orderStoreId = orderInfo.storeId || orderInfo.store_id || orderInfo.warehouseId || orderInfo.warehouse_id;
+                const orderStoreId = orderInfo.storeId || orderInfo.store_id || orderInfo.warehouseId || orderInfo.warehouse_id || orderInfo.locationId;
 
                 const isRelevant = storeId === 'all' || (orderStoreId && String(orderStoreId) === String(storeId));
 
                 if (data.type === 'NEW_ORDER' || data.eventType === 'NEW_ORDER') {
                     if (isRelevant) {
-                        if (audioRef.current) {
-                            audioRef.current.pause();
-                            audioRef.current.currentTime = 0;
-                            audioRef.current.play().catch(e => {
-                                setTimeout(() => { audioRef.current?.play().catch(() => { }); }, 500);
+                        console.log('🔔 [SOUND] Triggering New Order Sound...');
+                        // 🎵 Play sound for NEW ORDER (Re-create for reliability)
+                        try {
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                            audio.play().catch(e => {
+                                console.warn('🔇 [SOUND] Auto-play blocked or failed:', e);
+                                // Fallback: Try playing via the ref if unlocked
+                                audioRef.current?.play().catch(() => {});
                             });
+                        } catch (e) {
+                            console.error('Sound play error:', e);
                         }
-                        toast.fire({ icon: 'info', title: `🔔 New Order: ${orderInfo.order_id || 'ID N/A'}` });
+                        
+                        toast.fire({ icon: 'info', title: `🔔 New Order Received!` });
                     }
                 } else if (data.type === 'STATUS_CHANGE' || data.type === 'ORDER_STATUS_CHANGED') {
                     if (isRelevant) {
                         toast.fire({ icon: 'info', title: `📈 Status Updated: ${orderInfo.order_id || 'ID N/A'}` });
+                    }
+                } else if (data.type === 'STOCK_ALERT') {
+                    if (isRelevant) {
+                        // 📢 [SOUND] Use a DIFFERENT Warning Sound for Stock Alert
+                        try {
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/955/955-preview.mp3'); 
+                            audio.play().catch(() => {
+                                audioRef.current?.play().catch(() => {});
+                            });
+                        } catch (e) {}
+
+                        toast.fire({
+                            icon: data.currentStock === 0 || data.isCritical ? 'error' : 'warning',
+                            title: `🔴 ${data.currentStock === 0 || data.isCritical ? 'Out of Stock' : 'Low Stock Alert'}`,
+                            text: `${data.productName || 'Product'} has ${data.currentStock} units left at ${data.locationName || 'Location'}`
+                        });
                     }
                 }
             });
@@ -119,6 +141,8 @@ function App({ children }: PropsWithChildren) {
             className={`${(themeConfig.sidebar && 'toggle-sidebar') || ''} ${themeConfig.menu} ${themeConfig.layout} ${themeConfig.rtlClass
                 } main-section relative font-nunito text-sm font-normal antialiased`}
         >
+            {/* 🔔 Notification Sound */}
+            <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
             {isLoading ? <Loading /> : children}
         </div>
     );
