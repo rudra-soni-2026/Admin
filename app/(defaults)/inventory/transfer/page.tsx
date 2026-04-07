@@ -14,11 +14,14 @@ const InventoryTransfer = () => {
     const [historyPage, setHistoryPage] = useState(1);
     const [historyPageSize, setHistoryPageSize] = useState(10);
     const [historyTotal, setHistoryTotal] = useState(0);
+    const [historyStatus, setHistoryStatus] = useState('all');
+    const [historyTypeFilter, setHistoryTypeFilter] = useState('all');
+    const [historyDateRange, setHistoryDateRange] = useState<any>('');
 
     // Initial Fetch
     useEffect(() => {
         fetchTransferHistory();
-    }, [historyPage, historyPageSize]);
+    }, [historyPage, historyPageSize, historyStatus, historyTypeFilter, historyDateRange]);
 
     const fetchTransferHistory = async () => {
         try {
@@ -26,7 +29,13 @@ const InventoryTransfer = () => {
 
             const storedRole = localStorage.getItem('role')?.toLowerCase() || '';
             const userDataString = localStorage.getItem('userData');
-            let query = `/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}`;
+            let query = `/management/admin/inventory-transfers?page=${historyPage}&limit=${historyPageSize}&status=${historyStatus}&type=${historyTypeFilter}`;
+
+            if (historyDateRange && Array.isArray(historyDateRange) && historyDateRange.length === 2) {
+                const start = new Date(historyDateRange[0]).toISOString().split('T')[0];
+                const end = new Date(historyDateRange[1]).toISOString().split('T')[0];
+                query += `&startDate=${start}&endDate=${end}`;
+            }
 
             if (userDataString) {
                 try {
@@ -59,10 +68,11 @@ const InventoryTransfer = () => {
 
                     return {
                         ...item,
-                        id: item.status === 'PENDING' ? `#REQ-${item.id.slice(-6).toUpperCase()}` : `#TR-${item.id.slice(-6).toUpperCase()}`,
+                        id: item.type === 'RETURN' ? `#RET-${String(item.id).slice(-6).toUpperCase()}` : (item.status === 'PENDING' ? `#REQ-${String(item.id).slice(-6).toUpperCase()}` : `#TR-${String(item.id).slice(-6).toUpperCase()}`),
                         originalId: item.id,
-                        from: item.source_warehouse?.name || '---',
-                        to: item.destination_store?.name || '---',
+                        from: item.type === 'RETURN' ? (item.source_store?.name || '---') : (item.source_warehouse?.name || '---'),
+                        to: item.type === 'RETURN' ? (item.destination_warehouse?.name || '---') : (item.destination_store?.name || '---'),
+                        type_label: item.type || 'TRANSFER',
                         image: firstItem.product?.image || firstItem.product_image || '/assets/images/profile-1.jpeg',
                         items_summary: `${firstItem.product?.name || firstItem.product_name || 'N/A'} ${itemsArray.length > 1 ? `(+${itemsArray.length - 1} more)` : ''} | Total: ${totalUnits}`,
                         date: item.createdAt ? new Date(item.createdAt).toLocaleString() : (item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'),
@@ -118,15 +128,20 @@ const InventoryTransfer = () => {
                     items = typeof record.items === 'string' ? JSON.parse(record.items) : (record.items || []);
                 } catch (e) { items = []; }
 
-                const payload = {
+                const endpoint = record.type === 'RETURN' 
+                    ? `/management/admin/inventory-transfer/${record.originalId}/approve-return`
+                    : '/management/admin/inventory-transfer';
+
+                const method = record.type === 'RETURN' ? 'PATCH' : 'POST';
+                const payload = record.type === 'RETURN' ? {} : {
                     source_warehouse_id: record.source_warehouse_id,
                     destination_store_id: record.destination_store_id,
                     items: items
                 };
 
-                const response = await callApi('/management/admin/inventory-transfer', 'POST', payload);
-                if (response?.success) {
-                    showMessage('Stock successfully transfer ho chuka hai.', 'success');
+                const response = await callApi(endpoint, method, payload);
+                if (response?.success || response?.status === 'success') {
+                    showMessage(record.type === 'RETURN' ? 'Return request approved successfully.' : 'Stock successfully transfer ho chuka hai.', 'success');
                     fetchTransferHistory();
                 } else {
                     showMessage(response?.message || 'Approval failed.', 'error');
@@ -160,10 +175,11 @@ const InventoryTransfer = () => {
 
     const columns = [
         { key: 'id', label: 'Reference' },
+        { key: 'type_label', label: 'Type' },
         { key: 'image', label: 'Item' },
         { key: 'items_summary', label: 'Product Details' },
-        { key: 'from', label: 'From (Warehouse)' },
-        { key: 'to', label: 'To (Store)' },
+        { key: 'from', label: 'Source' },
+        { key: 'to', label: 'Destination' },
         { key: 'date', label: 'Time' },
         { key: 'status_label', label: 'Status' },
     ];
@@ -197,6 +213,12 @@ const InventoryTransfer = () => {
                     page={historyPage}
                     pageSize={historyPageSize}
                     onPageChange={(p) => setHistoryPage(p)}
+                    status={historyStatus}
+                    onStatusChange={(s) => { setHistoryStatus(s); setHistoryPage(1); }}
+                    inventoryType={historyTypeFilter}
+                    onInventoryTypeChange={(t) => { setHistoryTypeFilter(t); setHistoryPage(1); }}
+                    dateRange={historyDateRange}
+                    onDateRangeChange={(d) => { setHistoryDateRange(d); setHistoryPage(1); }}
                     onStatusClick={hasPerm('inventory', 'update') ? (record) => handleApproveTransfer(record) : undefined}
                     onViewClick={(record) => {
                         // 🚀 SessionStorage Hack: Avoid huge URL params while keeping instant load

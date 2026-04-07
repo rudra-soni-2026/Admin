@@ -61,6 +61,8 @@ interface UserManagerTableProps {
     hideStock?: boolean;
     hideEdit?: boolean;
     hideAdd?: boolean;
+    inventoryType?: string;
+    onInventoryTypeChange?: (val: string) => void;
 }
 
 const UserManagerTable = (props: UserManagerTableProps) => {
@@ -125,6 +127,8 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             hideStock={props.hideStock}
             hideEdit={props.hideEdit}
             hideAdd={props.hideAdd}
+            inventoryType={props.inventoryType}
+            onInventoryTypeChange={props.onInventoryTypeChange}
         />
     );
 };

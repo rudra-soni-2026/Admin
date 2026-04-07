@@ -22,16 +22,20 @@ interface FilterDrawerProps {
     setMinPrice?: (value: string) => void;
     maxPrice?: string;
     setMaxPrice?: (value: string) => void;
+    inventoryType?: string;
+    setInventoryType?: (value: string) => void;
     onExport?: (format: 'excel' | 'pdf') => void;
 }
 
 const FilterDrawer = ({ 
     show, setShow, date, setDate, status, setStatus, type = 'User',
     categoryId, setCategoryId, brand, setBrand, minPrice, setMinPrice, maxPrice, setMaxPrice,
+    inventoryType, setInventoryType,
     onExport
 }: FilterDrawerProps) => {
     const [localDate, setLocalDate] = React.useState<any>(date);
     const [localStatus, setLocalStatus] = React.useState<string>(status);
+    const [localInventoryType, setLocalInventoryType] = React.useState<string>(inventoryType || 'all');
     const [localBrand, setLocalBrand] = React.useState<string>(brand || '');
     const [localCategory, setLocalCategory] = React.useState<string>(categoryId || '');
     const [localMinPrice, setLocalMinPrice] = React.useState<string>(minPrice || '');
@@ -49,6 +53,7 @@ const FilterDrawer = ({
         if (show) {
             setLocalDate(date);
             setLocalStatus(status);
+            setLocalInventoryType(inventoryType || 'all');
             setLocalBrand(brand || '');
             setLocalCategory(categoryId || '');
             setLocalMinPrice(minPrice || '');
@@ -59,6 +64,7 @@ const FilterDrawer = ({
     const handleApply = () => {
         setDate(localDate);
         setStatus(localStatus);
+        setInventoryType?.(localInventoryType);
         setBrand?.(localBrand);
         setCategoryId?.(localCategory);
         setMinPrice?.(localMinPrice);
@@ -69,6 +75,7 @@ const FilterDrawer = ({
     const handleReset = () => {
         setLocalDate('');
         setLocalStatus('all');
+        setLocalInventoryType('all');
         setLocalBrand('');
         setLocalCategory('');
         setLocalMinPrice('');
@@ -76,6 +83,7 @@ const FilterDrawer = ({
         
         setDate('');
         setStatus('all');
+        setInventoryType?.('all');
         setBrand?.('');
         setCategoryId?.('');
         setMinPrice?.('');
@@ -222,6 +230,26 @@ const FilterDrawer = ({
                                 )}
                             </div>
                         </div>
+
+                        {type === 'Inventory' && (
+                            <div className="space-y-3 pt-2">
+                                <label className="mb-1 block text-[12px] font-bold text-gray-700 dark:text-white-light uppercase tracking-tight">Inventory Request Type</label>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localInventoryType === 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
+                                        <div className="flex items-center text-[13px] font-bold">🌎 All Requests</div>
+                                        <input type="radio" name="inv_type" className="hidden" value="all" checked={localInventoryType === 'all'} onChange={(e) => setLocalInventoryType(e.target.value)} />
+                                    </label>
+                                    <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localInventoryType === 'TRANSFER' ? 'border-primary bg-primary/10 text-primary' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
+                                        <div className="flex items-center text-[13px] font-bold">🚚 Dispatches</div>
+                                        <input type="radio" name="inv_type" className="hidden" value="TRANSFER" checked={localInventoryType === 'TRANSFER'} onChange={(e) => setLocalInventoryType(e.target.value)} />
+                                    </label>
+                                    <label className={`flex cursor-pointer items-center justify-between rounded-md border px-2.5 py-2 transition-all ${localInventoryType === 'RETURN' ? 'border-danger bg-danger/10 text-danger' : 'border-white-light dark:border-[#1b2e4b] hover:bg-gray-50 dark:hover:bg-[#1b2e4b]/50'}`}>
+                                        <div className="flex items-center text-[13px] font-bold">♻️ Returns (Expiry/Damage)</div>
+                                        <input type="radio" name="inv_type" className="hidden" value="RETURN" checked={localInventoryType === 'RETURN'} onChange={(e) => setLocalInventoryType(e.target.value)} />
+                                    </label>
+                                </div>
+                            </div>
+                        )}
 
                         {type === 'Product' && (
                             <>

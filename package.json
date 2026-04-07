@@ -31,6 +31,7 @@
         "easymde": "^2.18.0",
         "eslint": "8.57.0",
         "eslint-config-next": "14.2.13",
+        "file-saver": "^2.0.5",
         "formik": "^2.2.9",
         "highlight.js": "^11.7.0",
         "i18next": "^23.13.0",
@@ -75,6 +76,7 @@
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.3",
         "@tailwindcss/typography": "^0.5.8",
+        "@types/file-saver": "^2.0.7",
         "@types/lodash": "^4.17.10",
         "@types/react-copy-to-clipboard": "^5.0.4",
         "@types/react-flatpickr": "^3.8.8",

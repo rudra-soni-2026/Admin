@@ -20,7 +20,6 @@ const WarehouseInventory = () => {
 
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-
     const [outOfStockProducts, setOutOfStockProducts] = useState<any[]>([]);
     const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
     const [loadingStock, setLoadingStock] = useState(false);
@@ -38,7 +37,6 @@ const WarehouseInventory = () => {
             let query = `/management/admin/warehouse-inventory?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
             if (warehouseIdParam) query += `&warehouse_id=${warehouseIdParam}`;
-
             const response = await callApi(query, 'GET');
             if (response?.data) {
                 const mappedData = response.data.map((item: any) => ({
@@ -66,12 +64,9 @@ const WarehouseInventory = () => {
     const fetchStockAlerts = async () => {
         try {
             setLoadingStock(true);
-            
             let query = `/management/admin/warehouse-inventory?page=1&limit=100`;
             if (warehouseIdParam) query += `&warehouse_id=${warehouseIdParam}`;
-            
-            // Auto-detect for warehouse_manager if no param
-            if (!warehouseIdParam) {
+            else {
                 const storedRole = localStorage.getItem('role');
                 const userDataString = localStorage.getItem('userData');
                 if (storedRole?.toLowerCase().includes('warehouse_manager') && userDataString) {
@@ -82,13 +77,10 @@ const WarehouseInventory = () => {
                     } catch (e) { }
                 }
             }
-
             const response = await callApi(query, 'GET');
             if (response?.data) {
-                const outOfStock = response.data.filter((item: any) => (item.stock_count || 0) === 0);
-                const lowStock = response.data.filter((item: any) => (item.stock_count || 0) > 0 && (item.stock_count || 0) <= (item.low_stock_threshold || 2));
-                setOutOfStockProducts(outOfStock);
-                setLowStockProducts(lowStock);
+                setOutOfStockProducts(response.data.filter((item: any) => (item.stock_count || 0) === 0));
+                setLowStockProducts(response.data.filter((item: any) => (item.stock_count || 0) > 0 && (item.stock_count || 0) <= (item.low_stock_threshold || 2)));
             }
         } catch (error) {
             console.error('Error fetching stock alerts:', error);
@@ -115,7 +107,7 @@ const WarehouseInventory = () => {
     const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
     const hasPerm = (mod: string, action: string) => {
         if (uRole === 'super_admin') return true;
-        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        if (uRole !== 'admin') return true;
         let currentPerms = perms;
         if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
         return currentPerms?.[mod]?.[action] === true;
@@ -129,64 +121,73 @@ const WarehouseInventory = () => {
         { key: 'threshold', label: 'Alert Threshold' },
     ];
 
+    const showToast = (msg: string, type: 'success' | 'danger' = 'success') => {
+        const toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+        toast.fire({
+            icon: type === 'danger' ? 'error' : 'success',
+            title: `<span class="text-[12px] font-black uppercase">${msg}</span>`,
+            padding: '10px 20px',
+            customClass: { popup: type === 'danger' ? '!bg-danger !text-white' : '!bg-success !text-white' }
+        });
+    };
+
     const handleEdit = async (item: any) => {
         const storedRole = typeof window !== 'undefined' ? localStorage.getItem('role') : '';
         const isSuperAdmin = storedRole?.toLowerCase() === 'super_admin';
 
         const { value: formValues } = await Swal.fire({
             title: `Warehouse Inventory Management`,
-            html:
-                `<div class="flex flex-col gap-4 text-left p-2">` +
-                `<div class="bg-info/5 p-3 rounded-lg border border-info/10 mb-2">` +
-                `<h6 class="text-sm font-black text-info uppercase">${item.product}</h6>` +
-                `<p class="text-[10px] text-gray-500 font-bold uppercase mt-1">Configure fulfillment center stock and low-stock triggers</p>` +
-                `</div>` +
-                (isSuperAdmin ? 
-                `<div class="flex flex-col gap-1">` +
-                `<label class="text-[10px] font-black uppercase text-gray-400 tracking-wider">📦 Warehouse Stock Count</label>` +
-                `<input id="swal-input1" class="swal2-input !m-0 !w-full !border-gray-100 focus:!border-info/40 focus:!bg-white !rounded-xl !text-sm" type="number" placeholder="Enter stock amount" value="${item.stockNum}"></div>` : '') +
-                `<div class="flex flex-col gap-1">` +
-                `<label class="text-[10px] font-black uppercase text-gray-400 tracking-wider">⚠️ Threshold for Critical Alert</label>` +
-                `<input id="swal-input2" class="swal2-input !m-0 !w-full !border-gray-100 focus:!border-info/40 focus:!bg-white !rounded-xl !text-sm" type="number" placeholder="Alert me when stock hits..." value="${item.thresholdNum}"></div>` +
-                `</div>`,
-            focusConfirm: false,
+            html: `<div class="flex flex-col gap-4 text-left p-2"><div class="bg-info/5 p-3 rounded-lg border border-info/10 mb-2">` +
+                `<h6 class="text-sm font-black text-info uppercase">${item.product}</h6></div>` +
+                (isSuperAdmin ? `<div class="flex flex-col gap-1"><label class="text-[10px] font-black uppercase text-gray-400">📦 Stock</label>` +
+                `<input id="swal-input1" class="swal2-input !m-0 !w-full" type="number" value="${item.stockNum}"></div>` : '') +
+                `<div class="flex flex-col gap-1"><label class="text-[10px] font-black uppercase text-gray-400">⚠️ Threshold</label>` +
+                `<input id="swal-input2" class="swal2-input !m-0 !w-full" type="number" value="${item.thresholdNum}"></div></div>`,
             showCancelButton: true,
             confirmButtonText: 'Update Stock 🚀',
-            cancelButtonText: 'Cancel Update',
-            customClass: {
-                popup: 'rounded-3xl border-none shadow-2xl',
-                confirmButton: 'btn btn-info px-8 rounded-xl uppercase font-black tracking-widest text-[11px]',
-                cancelButton: 'btn btn-outline-danger px-8 rounded-xl uppercase font-black tracking-widest text-[11px]'
-            },
-            preConfirm: () => {
-                return [
-                   isSuperAdmin ? (document.getElementById('swal-input1') as HTMLInputElement).value : item.stockNum,
-                   (document.getElementById('swal-input2') as HTMLInputElement).value
-                ]
-            }
+            preConfirm: () => [
+                isSuperAdmin ? (document.getElementById('swal-input1') as HTMLInputElement).value : item.stockNum,
+                (document.getElementById('swal-input2') as HTMLInputElement).value
+            ]
         });
 
         if (formValues) {
             try {
                 const [newStock, newThreshold] = formValues;
                 const warehouse_id = warehouseIdParam || localStorage.getItem('assigned_id') || localStorage.getItem('warehouseId');
-                
                 const response = await callApi('/management/admin/update-warehouse-inventory', 'POST', {
-                    warehouse_id,
-                    product_id: item.productId,
-                    stock_count: parseInt(newStock),
-                    low_stock_threshold: parseInt(newThreshold)
+                    warehouse_id, product_id: item.productId, stock_count: parseInt(newStock), low_stock_threshold: parseInt(newThreshold)
                 });
-
                 if (response?.status === 'success') {
-                    Swal.fire('Updated!', 'Warehouse inventory saved.', 'success');
+                    showToast('Warehouse inventory saved.');
                     fetchData(page);
-                } else {
-                    throw new Error(response?.message || 'Update failed');
-                }
+                } else throw new Error(response?.message || 'Update failed');
             } catch (error: any) {
-                Swal.fire('Error', error.message, 'error');
+                showToast(error.message, 'danger');
             }
+        }
+    };
+
+    const handleExport = async (format: string) => {
+        try {
+            const response = await callApi('/management/admin/reports/warehouse-stock', 'GET');
+            if (response?.data) {
+                const XLSX = await import('xlsx');
+                const worksheet = XLSX.utils.json_to_sheet(response.data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'WarehouseStock');
+                const fileName = `Warehouse_Stock_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(workbook, fileName);
+                showToast('Excel report downloaded!');
+            }
+        } catch (error) {
+            showToast('Export failed', 'danger');
         }
     };
 
@@ -194,142 +195,55 @@ const WarehouseInventory = () => {
         <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
-                    <h5 className="text-xl font-black uppercase tracking-tight text-white-dark dark:text-white">Store Inventory</h5>
-                    <ul className="flex space-x-2 rtl:space-x-reverse text-xs mt-1">
+                    <h5 className="text-xl font-black uppercase tracking-tight text-white-dark dark:text-white">Warehouse Inventory</h5>
+                    <ul className="flex space-x-2 text-xs mt-1">
                         <li><Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link></li>
-                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Inventory</span></li>
-                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 font-bold text-gray-400"><span>Store Report</span></li>
+                        <li className="before:content-['/'] ltr:before:mr-2"><span>Inventory</span></li>
+                        <li className="before:content-['/'] ltr:before:mr-2 font-bold text-gray-400"><span>Warehouse Report</span></li>
                     </ul>
                 </div>
                 <div className="flex items-center gap-2">
                     <Link href="/inventory/transfer" className="btn btn-outline-primary shadow-sm uppercase font-black text-[10px] px-5 py-2 group">
-                        <IconArrowBackward className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                        Full History
+                        <IconArrowBackward className="w-4 h-4 mr-2" /> Full History
                     </Link>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
-                {/* Out of Stock Section */}
-                <div className="panel h-full w-full border-t-4 border-danger">
-                    <div className="mb-5 flex items-center justify-between">
-                        <h5 className="text-lg font-semibold dark:text-white-light flex items-center gap-2">
-                            <IconXCircle className="text-danger" />
-                            Out of Stock
-                            <span className="badge badge-outline-danger rounded-full ml-2">{outOfStockProducts.length}</span>
-                        </h5>
-                    </div>
-                    <div className="table-responsive max-h-[300px] overflow-y-auto -mx-5 px-5">
+                <div className="panel h-full border-t-4 border-danger">
+                    <div className="mb-5 flex items-center justify-between"><h5 className="text-lg font-semibold flex items-center gap-2"><IconXCircle className="text-danger" /> Out of Stock <span className="badge badge-outline-danger ml-2">{outOfStockProducts.length}</span></h5></div>
+                    <div className="table-responsive max-h-[300px] overflow-y-auto px-5">
                         <table className="table-hover">
-                            <thead>
-                                <tr className="!bg-transparent dark:!bg-transparent border-b border-[#e0e6ed] dark:border-[#1b2e4b]">
-                                    <th className="!py-3 !pl-0">Product</th>
-                                    <th className="text-center !py-3 !pr-0 font-bold">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#e0e6ed] dark:divide-[#1b2e4b]">
-                                {outOfStockProducts.map((item: any, index: number) => (
-                                    <tr key={index} className="group text-white-dark hover:text-black dark:hover:text-white-light/90 border-none">
-                                        <td className="text-black dark:text-white !py-3 !pl-0 border-none">
-                                            <div className="flex items-center">
-                                                <img className="h-9 w-9 rounded-md object-cover ltr:mr-3 rtl:ml-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="product" />
-                                                <span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="text-center !py-3 !pr-0 border-none">
-                                            <span className="badge bg-danger/10 text-danger border-none font-bold px-3 py-1">0 Units</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {outOfStockProducts.length === 0 && !loadingStock && (
-                                    <tr>
-                                        <td colSpan={2} className="text-center py-6 text-white-dark italic">✨ All products are in stock</td>
-                                    </tr>
-                                )}
-                                {loadingStock && (
-                                     <tr>
-                                        <td colSpan={2} className="text-center py-6">
-                                            <span className="animate-spin inline-block w-5 h-5 border-2 border-primary border-l-transparent rounded-full"></span>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
+                            <thead><tr><th className="!py-3 !pl-0">Product</th><th className="text-center !py-3 !pr-0 font-bold">Status</th></tr></thead>
+                            <tbody className="divide-y">{outOfStockProducts.map((item: any, index: number) => (
+                                <tr key={index} className="group border-none"><td className="!py-3 !pl-0 border-none"><div className="flex items-center"><img className="h-9 w-9 rounded-md object-cover mr-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="" /><span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span></div></td><td className="text-center border-none"><span className="badge bg-danger/10 text-danger font-bold px-3 py-1">0 Units</span></td></tr>
+                            ))}</tbody>
                         </table>
                     </div>
                 </div>
-
-                {/* Low Stock Section */}
-                <div className="panel h-full w-full border-t-4 border-warning shadow-md">
-                    <div className="mb-5 flex items-center justify-between">
-                        <h5 className="text-lg font-bold dark:text-white-light flex items-center gap-2">
-                            <IconInfoTriangle className="text-warning h-5 w-5" />
-                            Low Stock Alerts
-                            <span className="badge badge-outline-warning rounded-full ml-2 text-xs">{lowStockProducts.length}</span>
-                        </h5>
-                    </div>
-                    <div className="table-responsive max-h-[300px] overflow-y-auto -mx-5 px-5">
+                <div className="panel h-full border-t-4 border-warning shadow-md">
+                    <div className="mb-5 flex items-center justify-between"><h5 className="text-lg font-bold flex items-center gap-2"><IconInfoTriangle className="text-warning h-5 w-5" /> Low Stock <span className="badge badge-outline-warning ml-2 text-xs">{lowStockProducts.length}</span></h5></div>
+                    <div className="table-responsive max-h-[300px] overflow-y-auto px-5">
                         <table className="table-hover">
-                            <thead>
-                                <tr className="!bg-transparent dark:!bg-transparent border-b border-[#e0e6ed] dark:border-[#1b2e4b]">
-                                    <th className="!py-3 !pl-0">Product</th>
-                                    <th className="text-center !py-3 !pr-0 font-bold">Remaining</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#e0e6ed] dark:divide-[#1b2e4b]">
-                                {lowStockProducts.map((item: any, index: number) => (
-                                    <tr key={index} className="group text-white-dark hover:text-black dark:hover:text-white-light/90 border-none">
-                                        <td className="text-black dark:text-white !py-3 !pl-0 border-none">
-                                            <div className="flex items-center">
-                                                <img className="h-9 w-9 rounded-md object-cover ltr:mr-3 rtl:ml-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="product" />
-                                                <span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="text-center !py-3 !pr-0 border-none">
-                                            <span className="badge bg-warning/10 text-warning border-none font-bold px-3 py-1">{item.stock_count} Units Left</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {lowStockProducts.length === 0 && !loadingStock && (
-                                    <tr>
-                                        <td colSpan={2} className="text-center py-6 text-white-dark italic">👍 No low stock alerts</td>
-                                    </tr>
-                                )}
-                                {loadingStock && (
-                                     <tr>
-                                        <td colSpan={2} className="text-center py-6">
-                                            <span className="animate-spin inline-block w-5 h-5 border-2 border-primary border-l-transparent rounded-full"></span>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
+                            <thead><tr><th className="!py-3 !pl-0">Product</th><th className="text-center !py-3 !pr-0 font-bold">Remaining</th></tr></thead>
+                            <tbody className="divide-y">{lowStockProducts.map((item: any, index: number) => (
+                                <tr key={index} className="group border-none"><td className="!py-3 !pl-0 border-none"><div className="flex items-center"><img className="h-9 w-9 rounded-md object-cover mr-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="" /><span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span></div></td><td className="text-center border-none"><span className="badge bg-warning/10 text-warning font-bold px-3 py-1">{item.stock_count} Units Left</span></td></tr>
+                            ))}</tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
-                </div>
+                <div className="flex items-center justify-center p-10"><span className="animate-spin rounded-full border-4 border-success w-10 h-10"></span></div>
             ) : (
                 <UserManagerTable
-                    title="Warehouse Stock"
-                    data={inventoryData}
-                    columns={columns}
-                    userType="Inventory"
-                    totalRecords={totalRecords}
-                    totalUsers={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    search={search}
-                    onSearchChange={setSearch}
+                    title="Warehouse Stock" data={inventoryData} columns={columns} userType="Inventory"
+                    totalRecords={totalRecords} totalUsers={totalRecords} page={page} pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)} search={search} onSearchChange={setSearch}
                     onAddClick={hasPerm('inventory', 'create') ? () => window.location.href = '/inventory/request' : undefined}
-                    onEditClick={handleEdit}
-                    addButtonLabel="Transfer Stock"
-                    hideView={true}
-                    hideDelete={true}
-                    hideAction={!hasPerm('inventory', 'update')}
+                    onEditClick={handleEdit} onExportClick={uRole === 'super_admin' ? handleExport : undefined}
+                    addButtonLabel="Transfer Stock" hideView={true} hideDelete={true} hideAction={!hasPerm('inventory', 'update')}
                 />
             )}
         </div>

@@ -39,7 +39,7 @@ interface UserListTableProps {
     userType?: string;
     onAddClick?: () => void;
     addButtonLabel?: string;
-    // Extra filters for Products
+    // Extra filters for Products / Inventory
     categoryId?: string;
     onCategoryIdChange?: (val: string) => void;
     brand?: string;
@@ -48,6 +48,8 @@ interface UserListTableProps {
     onMinPriceChange?: (val: string) => void;
     maxPrice?: string;
     onMaxPriceChange?: (val: string) => void;
+    inventoryType?: string;
+    onInventoryTypeChange?: (val: string) => void;
     hideAction?: boolean;
     hideDelete?: boolean;
     hideEdit?: boolean;
@@ -103,6 +105,8 @@ const UserListTable = ({
     onMinPriceChange,
     maxPrice,
     onMaxPriceChange,
+    inventoryType,
+    onInventoryTypeChange,
     hideAction = false,
     hideDelete = false,
     hideEdit = false,
@@ -204,6 +208,8 @@ const UserListTable = ({
                     setMinPrice={onMinPriceChange}
                     maxPrice={maxPrice}
                     setMaxPrice={onMaxPriceChange}
+                    inventoryType={inventoryType}
+                    setInventoryType={onInventoryTypeChange}
                     onExport={onExportClick}
                 />
 

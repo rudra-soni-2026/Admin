@@ -41,7 +41,6 @@ const StoreInventory = () => {
             let query = `/management/admin/store-inventory?page=${currentPage}&limit=${pageSize}`;
             if (debouncedSearch) query += `&search=${encodeURIComponent(debouncedSearch)}`;
 
-            // Check for store_manager assignedId
             const storedRole = localStorage.getItem('role');
             const userDataString = localStorage.getItem('userData');
             let assignedStoreId = storeIdParam;
@@ -84,7 +83,6 @@ const StoreInventory = () => {
     const fetchStockAlerts = async () => {
         try {
             setLoadingStock(true);
-            
             const storedRole = localStorage.getItem('role');
             const userDataString = localStorage.getItem('userData');
             let assignedStoreId = storeIdParam;
@@ -103,11 +101,8 @@ const StoreInventory = () => {
             if (response?.data) {
                 const outOfStock = response.data.filter((item: any) => (item.stock_count || 0) === 0);
                 const lowStock = response.data.filter((item: any) => (item.stock_count || 0) <= (item.low_stock_threshold || 2));
-                
                 setOutOfStockProducts(outOfStock);
                 setLowStockProducts(lowStock);
-
-                // Use summary counts if available, fallback to list lengths
                 setTotalOutOfStock(response.summary?.totalOutOfStock ?? outOfStock.length);
                 setTotalLowStock(response.summary?.totalLowStock ?? lowStock.length);
             }
@@ -135,7 +130,7 @@ const StoreInventory = () => {
     const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
     const hasPerm = (mod: string, action: string) => {
         if (uRole === 'super_admin') return true;
-        if (uRole !== 'admin') return true; // Gate only for 'admin' role
+        if (uRole !== 'admin') return true;
         let currentPerms = perms;
         if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
         return currentPerms?.[mod]?.[action] === true;
@@ -149,7 +144,6 @@ const StoreInventory = () => {
         { key: 'threshold', label: 'Alert Threshold' },
     ];
 
-    // 📢 Toast Helper
     const showToast = (msg: string, type: 'success' | 'danger' = 'success') => {
         const toast = Swal.mixin({
             toast: true,
@@ -169,10 +163,9 @@ const StoreInventory = () => {
     const handleEdit = async (item: any) => {
         const storedRole = typeof window !== 'undefined' ? localStorage.getItem('role') : '';
         const isSuperAdmin = storedRole?.toLowerCase() === 'super_admin';
-
-        // 🔍 Correctly resolve storeId (Mirror logic from fetchData)
         const userDataString = localStorage.getItem('userData');
         let assignedStoreId = storeIdParam;
+
         if (storedRole?.toLowerCase().includes('store_manager') && userDataString) {
             try {
                 const userData = JSON.parse(userDataString);
@@ -186,62 +179,63 @@ const StoreInventory = () => {
         }
 
         const { value: formValues } = await Swal.fire({
-            title: `<div class="flex-col">
-                <p class="text-[9px] font-bold text-gray-400 uppercase mt-0.5">${item.product}</p>
-            </div>`,
-            html:
-                `<div class="flex flex-col gap-3 text-left">` +
-                (isSuperAdmin ? 
-                `<div class="flex flex-row items-center gap-3 bg-gray-50/50 p-2 rounded-xl transition-all border border-gray-100">
+            title: `<div class="flex-col"><p class="text-[9px] font-bold text-gray-400 uppercase mt-0.5">${item.product}</p></div>`,
+            html: `<div class="flex flex-col gap-3 text-left">` +
+                (isSuperAdmin ? `<div class="flex flex-row items-center gap-3 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
                     <label class="text-[9px] font-black uppercase text-gray-500 w-24">📦 Stock</label>
-                    <input id="swal-input1" class="swal2-input !m-0 !w-full !border-none !bg-transparent focus:!ring-0 !text-[13px] !font-black !h-8" type="string" placeholder="0" value="${item.stockNum}">
+                    <input id="swal-input1" class="swal2-input !m-0 !w-full !border-none !bg-transparent !text-[13px] !font-black !h-8" type="number" value="${item.stockNum}">
                 </div>` : '') +
-                `<div class="flex flex-row items-center gap-3 bg-gray-50/50 p-2 rounded-xl transition-all border border-gray-100">
+                `<div class="flex flex-row items-center gap-3 bg-gray-50/50 p-2 rounded-xl border border-gray-100">
                     <label class="text-[9px] font-black uppercase text-gray-500 w-24">⚠️ Threshold</label>
-                    <input id="swal-input2" class="swal2-input !m-0 !w-full !border-none !bg-transparent focus:!ring-0 !text-[13px] !font-black !h-8" type="string" placeholder="2" value="${item.thresholdNum}">
-                </div>` +
-                `<p class="text-[8px] font-bold text-gray-300 uppercase text-center mt-1">Get notified when stock drops below Alert limit</p>` +
-                `</div>`,
-            focusConfirm: false,
+                    <input id="swal-input2" class="swal2-input !m-0 !w-full !border-none !bg-transparent !text-[13px] !font-black !h-8" type="number" value="${item.thresholdNum}">
+                </div></div>`,
             showCancelButton: true,
             confirmButtonText: 'SAVE',
-            cancelButtonText: 'DISCARD',
             width: '350px',
             customClass: {
-                popup: 'rounded-2xl border-none shadow-2xl p-6 bg-white dark:bg-gray-900',
-                actions: 'flex gap-2 w-full mt-4 !flex-row', // Force row layout
-                confirmButton: 'btn btn-primary flex-1 py-2.5 rounded-xl uppercase font-black tracking-widest text-[10px] !m-0',
-                cancelButton: 'btn btn-outline-danger flex-1 py-2.5 rounded-xl uppercase font-black tracking-widest text-[10px] !m-0 bg-gray-50 border-none hover:bg-gray-100 text-gray-400'
+                popup: 'rounded-2xl shadow-2xl p-6 bg-white',
+                confirmButton: 'btn btn-primary flex-1 py-2.5 rounded-xl uppercase font-black tracking-widest text-[10px]',
+                cancelButton: 'btn btn-outline-danger flex-1 py-2.5 rounded-xl uppercase font-black tracking-widest text-[10px]'
             },
-            preConfirm: () => {
-                return [
-                    isSuperAdmin ? (document.getElementById('swal-input1') as HTMLInputElement).value : item.stockNum,
-                    (document.getElementById('swal-input2') as HTMLInputElement).value
-                ]
-            }
+            preConfirm: () => [
+                isSuperAdmin ? (document.getElementById('swal-input1') as HTMLInputElement).value : item.stockNum,
+                (document.getElementById('swal-input2') as HTMLInputElement).value
+            ]
         });
 
         if (formValues) {
             try {
                 const [newStock, newThreshold] = formValues;
-                const storeId = assignedStoreId;
-                
                 const response = await callApi('/management/store-manager/inventory', 'POST', {
-                    storeId,
+                    storeId: assignedStoreId,
                     productId: item.productId,
                     stockCount: parseInt(newStock),
                     lowStockThreshold: parseInt(newThreshold)
                 });
-
                 if (response?.status === 'success') {
                     showToast('Settings saved successfully!');
                     fetchData(page);
-                } else {
-                    throw new Error(response?.message || 'Update failed');
-                }
+                } else throw new Error(response?.message || 'Update failed');
             } catch (error: any) {
                 showToast(error.message, 'danger');
             }
+        }
+    };
+
+    const handleExport = async (format: string) => {
+        try {
+            const response = await callApi('/management/admin/reports/store-stock', 'GET');
+            if (response?.data) {
+                const XLSX = await import('xlsx');
+                const worksheet = XLSX.utils.json_to_sheet(response.data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'StoreStock');
+                const fileName = `Store_Stock_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(workbook, fileName);
+                showToast('Excel report downloaded!');
+            }
+        } catch (error) {
+            showToast('Export failed', 'danger');
         }
     };
 
@@ -250,112 +244,61 @@ const StoreInventory = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                     <h5 className="text-xl font-black uppercase tracking-tight text-white-dark dark:text-white">Store Inventory</h5>
-                    <ul className="flex space-x-2 rtl:space-x-reverse text-xs mt-1">
+                    <ul className="flex space-x-2 text-xs mt-1">
                         <li><Link href="/" className="text-primary hover:underline font-bold">Dashboard</Link></li>
-                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2"><span>Inventory</span></li>
-                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 font-bold text-gray-400"><span>Store Report</span></li>
+                        <li className="before:content-['/'] ltr:before:mr-2"><span>Inventory</span></li>
+                        <li className="before:content-['/'] ltr:before:mr-2 font-bold text-gray-400"><span>Store Report</span></li>
                     </ul>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Link href="/inventory/transfer" className="btn btn-outline-primary shadow-sm uppercase font-black text-[10px] px-5 py-2 group">
-                        <IconArrowBackward className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                        Full History
+                    <Link href="/inventory/stock-request?type=RETURN" className="btn btn-outline-danger uppercase font-black text-[10px] px-5 py-2">
+                        <IconXCircle className="w-4 h-4 mr-2" /> Return Damaged / Expired
+                    </Link>
+                    <Link href="/inventory/transfer" className="btn btn-outline-primary uppercase font-black text-[10px] px-5 py-2">
+                        <IconArrowBackward className="w-4 h-4 mr-2" /> Full History
                     </Link>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
-                {/* Out of Stock Section */}
-                <div className="panel h-full w-full border-t-4 border-danger">
+                <div className="panel h-full border-t-4 border-danger">
                     <div className="mb-5 flex items-center justify-between">
-                        <h5 className="text-lg font-semibold dark:text-white-light flex items-center gap-2">
-                            <IconXCircle className="text-danger" />
-                            Out of Stock
-                            {/* <span className="badge badge-outline-danger rounded-full ml-2">{totalOutOfStock}</span> */}
-                        </h5>
+                        <h5 className="text-lg font-semibold flex items-center gap-2"><IconXCircle className="text-danger" /> Out of Stock</h5>
                     </div>
-                    <div className="table-responsive max-h-[300px] overflow-y-auto -mx-5 px-5">
+                    <div className="table-responsive max-h-[300px] overflow-y-auto px-5">
                         <table className="table-hover">
-                            <thead>
-                                <tr className="!bg-transparent dark:!bg-transparent border-b border-[#e0e6ed] dark:border-[#1b2e4b]">
-                                    <th className="!py-3 !pl-0">Product</th>
-                                    <th className="text-center !py-3 !pr-0 font-bold">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#e0e6ed] dark:divide-[#1b2e4b]">
+                            <thead><tr><th className="!py-3 !pl-0">Product</th><th className="text-center !py-3 !pr-0 font-bold">Status</th></tr></thead>
+                            <tbody className="divide-y">
                                 {outOfStockProducts.map((item: any, index: number) => (
-                                    <tr key={index} className="group text-white-dark hover:text-black dark:hover:text-white-light/90 border-none">
-                                        <td className="text-black dark:text-white !py-3 !pl-0 border-none">
-                                            <div className="flex items-center">
-                                                <img className="h-9 w-9 rounded-md object-cover ltr:mr-3 rtl:ml-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="product" />
-                                                <span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="text-center !py-3 !pr-0 border-none">
-                                            <span className="badge bg-danger/10 text-danger border-none font-bold px-3 py-1">0 Units</span>
-                                        </td>
+                                    <tr key={index} className="group border-none">
+                                        <td className="!py-3 !pl-0 border-none"><div className="flex items-center">
+                                            <img className="h-9 w-9 rounded-md object-cover mr-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="" />
+                                            <span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span>
+                                        </div></td>
+                                        <td className="text-center border-none"><span className="badge bg-danger/10 text-danger font-bold px-3 py-1">0 Units</span></td>
                                     </tr>
                                 ))}
-                                {outOfStockProducts.length === 0 && !loadingStock && (
-                                    <tr>
-                                        <td colSpan={2} className="text-center py-6 text-white-dark italic">✨ All products are in stock</td>
-                                    </tr>
-                                )}
-                                {loadingStock && (
-                                     <tr>
-                                        <td colSpan={2} className="text-center py-6">
-                                            <span className="animate-spin inline-block w-5 h-5 border-2 border-primary border-l-transparent rounded-full"></span>
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
-
-                {/* Low Stock Section */}
-                <div className="panel h-full w-full border-t-4 border-warning shadow-md">
+                <div className="panel h-full border-t-4 border-warning shadow-md">
                     <div className="mb-5 flex items-center justify-between">
-                        <h5 className="text-lg font-bold dark:text-white-light flex items-center gap-2">
-                            <IconInfoTriangle className="text-warning h-5 w-5" />
-                            Low Stock Alerts
-                            {/* <span className="badge badge-outline-warning rounded-full ml-2 text-xs">{totalLowStock}</span> */}
-                        </h5>
+                        <h5 className="text-lg font-bold flex items-center gap-2"><IconInfoTriangle className="text-warning h-5 w-5" /> Low Stock Alerts</h5>
                     </div>
-                    <div className="table-responsive max-h-[300px] overflow-y-auto -mx-5 px-5">
+                    <div className="table-responsive max-h-[300px] overflow-y-auto px-5">
                         <table className="table-hover">
-                            <thead>
-                                <tr className="!bg-transparent dark:!bg-transparent border-b border-[#e0e6ed] dark:border-[#1b2e4b]">
-                                    <th className="!py-3 !pl-0">Product</th>
-                                    <th className="text-center !py-3 !pr-0 font-bold">Remaining</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#e0e6ed] dark:divide-[#1b2e4b]">
+                            <thead><tr><th className="!py-3 !pl-0">Product</th><th className="text-center !py-3 !pr-0 font-bold">Remaining</th></tr></thead>
+                            <tbody className="divide-y">
                                 {lowStockProducts.map((item: any, index: number) => (
-                                    <tr key={index} className="group text-white-dark hover:text-black dark:hover:text-white-light/90 border-none">
-                                        <td className="text-black dark:text-white !py-3 !pl-0 border-none">
-                                            <div className="flex items-center">
-                                                <img className="h-9 w-9 rounded-md object-cover ltr:mr-3 rtl:ml-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="product" />
-                                                <span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="text-center !py-3 !pr-0 border-none">
-                                            <span className="badge bg-warning/10 text-warning border-none font-bold px-3 py-1">{item.stock_count} Units Left</span>
-                                        </td>
+                                    <tr key={index} className="group border-none">
+                                        <td className="!py-3 !pl-0 border-none"><div className="flex items-center">
+                                            <img className="h-9 w-9 rounded-md object-cover mr-3 shadow-sm" src={item.product?.image || "/assets/images/product-headphones.jpg"} alt="" />
+                                            <span className="line-clamp-1 font-medium">{item.product?.name || 'Unknown'}</span>
+                                        </div></td>
+                                        <td className="text-center border-none"><span className="badge bg-warning/10 text-warning font-bold px-3 py-1">{item.stock_count} Units Left</span></td>
                                     </tr>
                                 ))}
-                                {lowStockProducts.length === 0 && !loadingStock && (
-                                    <tr>
-                                        <td colSpan={2} className="text-center py-6 text-white-dark italic">👍 No low stock alerts</td>
-                                    </tr>
-                                )}
-                                {loadingStock && (
-                                     <tr>
-                                        <td colSpan={2} className="text-center py-6">
-                                            <span className="animate-spin inline-block w-5 h-5 border-2 border-primary border-l-transparent rounded-full"></span>
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
                     </div>
@@ -363,28 +306,15 @@ const StoreInventory = () => {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center p-10">
-                    <span className="mb-10 inline-block animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10 align-middle m-auto"></span>
-                </div>
+                <div className="flex items-center justify-center p-10"><span className="animate-spin rounded-full border-4 border-success border-l-transparent w-10 h-10"></span></div>
             ) : (
                 <UserManagerTable
-                    title="Store Stock"
-                    data={inventoryData}
-                    columns={columns}
-                    userType="Inventory"
-                    totalRecords={totalRecords}
-                    totalUsers={totalRecords}
-                    page={page}
-                    pageSize={pageSize}
-                    onPageChange={(p) => setPage(p)}
-                    search={search}
-                    onSearchChange={setSearch}
+                    title="Store Stock" data={inventoryData} columns={columns} userType="Inventory"
+                    totalRecords={totalRecords} totalUsers={totalRecords} page={page} pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)} search={search} onSearchChange={setSearch}
                     onAddClick={hasPerm('inventory', 'create') ? () => window.location.href = '/inventory/stock-request' : undefined}
-                    onEditClick={handleEdit}
-                    addButtonLabel="Request For Stock"
-                    hideView={true}
-                    hideDelete={true}
-                    hideAction={!hasPerm('inventory', 'update')}
+                    onEditClick={handleEdit} onExportClick={uRole === 'super_admin' ? handleExport : undefined}
+                    addButtonLabel="Request For Stock" hideView={true} hideDelete={true} hideAction={!hasPerm('inventory', 'update')}
                 />
             )}
         </div>
@@ -392,5 +322,3 @@ const StoreInventory = () => {
 };
 
 export default StoreInventory;
-
-
