@@ -67,11 +67,17 @@ const Sidebar = () => {
 
         if (role === 'admin') {
             let getper = localStorage.getItem('permissions');
+
             let permissioncheck = ['orders', 'stores', 'warehouses', 'dashboard', 'users', 'riders', 'products', 'categories', 'inventory_transfer', 'store_inventory', 'warehouse_inventory'];
+
             if (getper) {
                 const parsed = JSON.parse(getper);
-                permissioncheck = Object.keys(parsed)
-                console.log(Object.keys(parsed), "getper");
+
+                permissioncheck = Object.keys(parsed).filter(
+                    module => parsed[module]?.read === true
+                );
+
+                console.log(permissioncheck, "read allowed modules");
             }
             const allowed = permissioncheck//['orders', 'stores', 'warehouses', 'dashboard', 'users', 'riders', 'products', 'categories', 'inventory_transfer', 'store_inventory', 'warehouse_inventory'];
             if (allowed.includes(permission)) return true;
@@ -149,7 +155,7 @@ const Sidebar = () => {
     const anyEmployeeShown = hasPermission('admins') || hasPermission('product_managers') || hasPermission('accountant_managers') || hasPermission('warehouse_managers') || hasPermission('store_managers') || hasPermission('riders');
     const anyPlaceShown = hasPermission('warehouses') || hasPermission('stores');
     const anyPromotionShown = hasPermission('notifications') || hasPermission('coupons') || hasPermission('product_ranking') || hasPermission('category_ranking');
-    const anyInventoryShown = hasPermission('suppliers') || hasPermission('purchase') || hasPermission('warehouse_inventory') && role == "super_admin" || hasPermission('store_inventory')  && role == "super_admin" || hasPermission('inventory_transfer');
+    const anyInventoryShown = hasPermission('suppliers') || hasPermission('purchase') || (hasPermission('warehouse_inventory') && (role === 'super_admin' || role === 'warehouse_manager')) || (hasPermission('store_inventory') && (role === 'super_admin' || role === 'store_manager')) || hasPermission('inventory_transfer');
     const anyCatalogShown = hasPermission('products') || hasPermission('categories') || hasPermission('offers');
 
     return (
@@ -263,16 +269,21 @@ const Sidebar = () => {
                                         <ul>
                                             {hasPermission('suppliers') && (<li className="nav-item"><Link href="/suppliers/list" className="group"><div className="flex items-center"><IconUsersGroup className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span></div></Link></li>)}
                                             {hasPermission('purchase') && (<li className="nav-item"><Link href="/purchase/list" className="group"><div className="flex items-center"><IconListCheck className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase</span></div></Link></li>)}
-                                            {hasPermission('warehouse_inventory') && role == "super_admin" && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
-                                            {hasPermission('store_inventory') && role == "super_admin" && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
+                                            {hasPermission('warehouse_inventory') && (<li className="nav-item"><Link href="/inventory/warehouse" className="group"><div className="flex items-center"><IconBox className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Warehouse Inventory</span></div></Link></li>)}
+                                            {hasPermission('store_inventory') && (<li className="nav-item"><Link href="/inventory/store" className="group"><div className="flex items-center"><IconShoppingBag className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Store Inventory</span></div></Link></li>)}
                                             {hasPermission('inventory_transfer') && (<li className="nav-item"><Link href="/inventory/transfer" className="group"><div className="flex items-center"><IconRefresh className="shrink-0 group-hover:!text-primary" /><span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Inventory Transfer</span></div></Link></li>)}
-                                            {(role === 'super_admin' || role === 'store_manager' || role === 'warehouse_manager') && (
+                                            {(role === 'super_admin' || role === 'admin' || role === 'store_manager' || role === 'warehouse_manager') && (
                                                 <li className="nav-item">
-                                                    <Link href="/inventory/alerts-history" className="group text-danger">
+                                                    <Link href="/inventory/alerts-history" className="group text-danger relative flex items-center justify-between">
                                                         <div className="flex items-center">
                                                             <IconBell className="shrink-0 group-hover:!text-danger" />
                                                             <span className="ltr:pl-3 rtl:pr-3 uppercase font-black text-[10px]">Stock Alerts Log</span>
                                                         </div>
+                                                        {/* Pulsing Badge for Urgent Alerts */}
+                                                        <span className="flex h-2 w-2">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-danger"></span>
+                                                        </span>
                                                     </Link>
                                                 </li>
                                             )}

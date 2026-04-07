@@ -57,6 +57,7 @@ interface UserManagerTableProps {
     onDeleteClick?: (item: any) => void;
     loading?: boolean;
     onExportClick?: (format: 'excel' | 'pdf') => void;
+    onOrderEdit?: (item: any) => void;
     hideStock?: boolean;
     hideEdit?: boolean;
     hideAdd?: boolean;
@@ -89,7 +90,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
         );
     }
 
-    const finalViewClick = props.onViewClick || (props.hideView ? undefined : (props.userType === 'Category' ? undefined : handleViewUser));
+    const finalViewClick = props.onViewClick || (props.hideView || props.userType === 'Order' ? undefined : (props.userType === 'Category' ? undefined : handleViewUser));
 
     return props.userType === 'Order' ? (
         <OrderListTable 
@@ -98,6 +99,7 @@ const UserManagerTable = (props: UserManagerTableProps) => {
             onPrint={props.onPrint} 
             onStatusUpdate={props.onStatusUpdate} 
             onPaymentUpdate={props.onPaymentUpdate}
+            onOrderEdit={props.onOrderEdit || props.onEditClick}
             onViewClick={finalViewClick} 
             onExportClick={props.onExportClick}
         />

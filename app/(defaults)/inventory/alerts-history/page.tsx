@@ -21,6 +21,7 @@ const StockAlertsHistory = () => {
             if (data.type === 'STOCK_ALERT') {
                 const newAlert = {
                     id: data.notificationId || Date.now(),
+                    message: data.message, // 🔥 Full Message
                     product_name: data.productName || 'New Product Alert',
                     variant_label: data.variantLabel || '',
                     location_name: data.locationName || (data.locationType === 'STORE' ? 'Store' : 'Warehouse'),
@@ -59,16 +60,24 @@ const StockAlertsHistory = () => {
             const response = await callApi(query, 'GET');
             if (response && response.data) {
                 // Map the Notification model (SQL) to our UI fields
-                const mappedAlerts = response.data.map((n: any) => ({
-                    id: n.id,
-                    product_name: n.metadata?.productName || 'Unknown Product',
-                    variant_label: n.metadata?.variantLabel || '',
-                    location_name: n.metadata?.locationName || (n.metadata?.locationType === 'STORE' ? 'Store' : 'Warehouse'),
-                    current_stock: n.metadata?.currentStock ?? 0,
-                    threshold: n.metadata?.threshold || 2,
-                    type: n.metadata?.alertType || (n.metadata?.currentStock === 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK'),
-                    createdAt: n.createdAt
-                }));
+                const mappedAlerts = response.data.map((n: any) => {
+                    let meta = n.metadata;
+                    if (typeof meta === 'string') {
+                        try { meta = JSON.parse(meta); } catch (e) { meta = {}; }
+                    }
+                    
+                    return {
+                        id: n.id,
+                        message: n.message, // 🔥 Full Message
+                        product_name: meta?.productName || 'Unknown Product',
+                        variant_label: meta?.variantLabel || '',
+                        location_name: meta?.locationName || (meta?.locationType === 'STORE' ? 'Store' : 'Warehouse'),
+                        current_stock: meta?.currentStock ?? (meta?.stockCount ?? 0),
+                        threshold: meta?.threshold || 2,
+                        type: meta?.alertType || (meta?.currentStock === 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK'),
+                        createdAt: n.createdAt
+                    };
+                });
                 setAlerts(mappedAlerts);
             }
         } catch (error) {
@@ -105,7 +114,7 @@ const StockAlertsHistory = () => {
                         <thead>
                             <tr className="bg-gray-50 dark:bg-black/20 border-b border-gray-100 dark:border-gray-800">
                                 <th className="py-4 px-6 text-[10px] uppercase font-black text-gray-400">Timestamp</th>
-                                <th className="py-4 px-6 text-[10px] uppercase font-black text-gray-400">Product & Variant</th>
+                                <th className="py-4 px-6 text-[10px] uppercase font-black text-gray-400">Product Alert Message</th>
                                 <th className="py-4 px-6 text-[10px] uppercase font-black text-gray-400">Location</th>
                                 <th className="py-4 px-6 text-[10px] uppercase font-black text-gray-400">Alert Type</th>
                                 <th className="py-4 px-6 text-[10px] uppercase font-black text-gray-400">Stock Count</th>
@@ -127,8 +136,7 @@ const StockAlertsHistory = () => {
                                         </td>
                                         <td className="py-4 px-6">
                                             <div className="flex flex-col">
-                                                <span className="font-extrabold text-gray-800 dark:text-gray-200">{alert.product_name}</span>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{alert.variant_label}</span>
+                                                <span className="font-extrabold text-gray-800 dark:text-gray-200 leading-tight block max-w-sm whitespace-normal">{alert.message}</span>
                                             </div>
                                         </td>
                                         <td className="py-4 px-6">

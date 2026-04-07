@@ -18,6 +18,7 @@ function App({ children }: PropsWithChildren) {
     const router = useRouter();
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const alertAudioRef = useRef<HTMLAudioElement | null>(null);
     const socketInitialized = useRef(false);
 
     // 🔐 Auth Check (Runs on navigation)
@@ -47,19 +48,27 @@ function App({ children }: PropsWithChildren) {
             joinStore(storeId);
 
             // Pre-load audio
-            if (!audioRef.current && typeof window !== 'undefined') {
-                audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audioRef.current.load();
+            if (typeof window !== 'undefined') {
+                if (!audioRef.current) {
+                    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                    audioRef.current.load();
+                }
+                if (!alertAudioRef.current) {
+                    alertAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/955/955-preview.mp3');
+                    alertAudioRef.current.load();
+                }
 
                 // Unlock audio context on first user interaction
                 const unlockAudio = () => {
-                    if (audioRef.current) {
-                        audioRef.current.play().then(() => {
-                            audioRef.current?.pause();
-                            if (audioRef.current) audioRef.current.currentTime = 0;
-                            window.removeEventListener('click', unlockAudio);
-                        }).catch(e => console.log('🔇 Unlock interaction failed:', e));
-                    }
+                    [audioRef.current, alertAudioRef.current].forEach(audio => {
+                        if (audio) {
+                            audio.play().then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(e => console.log('🔇 Unlock interaction failed:', e));
+                        }
+                    });
+                    window.removeEventListener('click', unlockAudio);
                 };
                 window.addEventListener('click', unlockAudio);
             }
@@ -99,20 +108,27 @@ function App({ children }: PropsWithChildren) {
                     if (isRelevant) {
                         toast.fire({ icon: 'info', title: `📈 Status Updated: ${orderInfo.order_id || 'ID N/A'}` });
                     }
-                } else if (data.type === 'STOCK_ALERT') {
+                } else if (data.type === 'STOCK_ALERT' || data.eventType === 'STOCK_ALERT') {
                     if (isRelevant) {
                         // 📢 [SOUND] Use a DIFFERENT Warning Sound for Stock Alert
                         try {
                             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/955/955-preview.mp3'); 
                             audio.play().catch(() => {
-                                audioRef.current?.play().catch(() => {});
+                                alertAudioRef.current?.play().catch(() => {});
                             });
-                        } catch (e) {}
+                        } catch (e) {
+                            alertAudioRef.current?.play().catch(() => {});
+                        }
+
+                        const isOutOfStock = data.alertType === 'OUT_OF_STOCK' || data.currentStock === 0;
 
                         toast.fire({
-                            icon: data.currentStock === 0 || data.isCritical ? 'error' : 'warning',
-                            title: `🔴 ${data.currentStock === 0 || data.isCritical ? 'Out of Stock' : 'Low Stock Alert'}`,
-                            text: `${data.productName || 'Product'} has ${data.currentStock} units left at ${data.locationName || 'Location'}`
+                            icon: isOutOfStock ? 'error' : 'warning',
+                            title: isOutOfStock ? `🚨 Out of Stock: ${data.productName || 'Product'}` : `⚠️ Low Stock: ${data.productName || 'Product'}`,
+                            text: data.message || `${data.currentStock} units left at ${data.locationName || 'Location'}`,
+                            customClass: {
+                                popup: `color-${isOutOfStock ? 'danger' : 'warning'} border-${isOutOfStock ? 'danger' : 'warning'} shadow-lg animate__animated animate__fadeInRight`
+                            },
                         });
                     }
                 }
@@ -141,8 +157,9 @@ function App({ children }: PropsWithChildren) {
             className={`${(themeConfig.sidebar && 'toggle-sidebar') || ''} ${themeConfig.menu} ${themeConfig.layout} ${themeConfig.rtlClass
                 } main-section relative font-nunito text-sm font-normal antialiased`}
         >
-            {/* 🔔 Notification Sound */}
+            {/* 🔔 Notification Sounds */}
             <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
+            <audio ref={alertAudioRef} src="https://assets.mixkit.co/active_storage/sfx/955/955-preview.mp3" preload="auto" />
             {isLoading ? <Loading /> : children}
         </div>
     );

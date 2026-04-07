@@ -6,7 +6,7 @@ import UserManagerTable from '@/components/user-manager/user-manager-table';
 import IconInfoTriangle from '@/components/icon/icon-info-triangle';
 import IconXCircle from '@/components/icon/icon-x-circle';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
-
+import Swal from 'sweetalert2';
 import { useSearchParams } from 'next/navigation';
 
 const WarehouseInventory = () => {
@@ -47,6 +47,11 @@ const WarehouseInventory = () => {
                     product: item.product?.name || 'Unknown Product',
                     unit: item.product?.unit_label || 'N/A',
                     stock: `${item.stock_count || 0} units`,
+                    threshold: `${item.low_stock_threshold || 0} units`,
+                    originalId: item.id || item._id,
+                    productId: item.product_id,
+                    stockNum: item.stock_count || 0,
+                    thresholdNum: item.low_stock_threshold || 2
                 }));
                 setInventoryData(mappedData);
                 setTotalRecords(response.totalCount || 0);
@@ -121,7 +126,69 @@ const WarehouseInventory = () => {
         { key: 'product', label: 'Product Name' },
         { key: 'unit', label: 'Unit' },
         { key: 'stock', label: 'Total Stock' },
+        { key: 'threshold', label: 'Alert Threshold' },
     ];
+
+    const handleEdit = async (item: any) => {
+        const storedRole = typeof window !== 'undefined' ? localStorage.getItem('role') : '';
+        const isSuperAdmin = storedRole?.toLowerCase() === 'super_admin';
+
+        const { value: formValues } = await Swal.fire({
+            title: `Warehouse Inventory Management`,
+            html:
+                `<div class="flex flex-col gap-4 text-left p-2">` +
+                `<div class="bg-info/5 p-3 rounded-lg border border-info/10 mb-2">` +
+                `<h6 class="text-sm font-black text-info uppercase">${item.product}</h6>` +
+                `<p class="text-[10px] text-gray-500 font-bold uppercase mt-1">Configure fulfillment center stock and low-stock triggers</p>` +
+                `</div>` +
+                (isSuperAdmin ? 
+                `<div class="flex flex-col gap-1">` +
+                `<label class="text-[10px] font-black uppercase text-gray-400 tracking-wider">📦 Warehouse Stock Count</label>` +
+                `<input id="swal-input1" class="swal2-input !m-0 !w-full !border-gray-100 focus:!border-info/40 focus:!bg-white !rounded-xl !text-sm" type="number" placeholder="Enter stock amount" value="${item.stockNum}"></div>` : '') +
+                `<div class="flex flex-col gap-1">` +
+                `<label class="text-[10px] font-black uppercase text-gray-400 tracking-wider">⚠️ Threshold for Critical Alert</label>` +
+                `<input id="swal-input2" class="swal2-input !m-0 !w-full !border-gray-100 focus:!border-info/40 focus:!bg-white !rounded-xl !text-sm" type="number" placeholder="Alert me when stock hits..." value="${item.thresholdNum}"></div>` +
+                `</div>`,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Update Stock 🚀',
+            cancelButtonText: 'Cancel Update',
+            customClass: {
+                popup: 'rounded-3xl border-none shadow-2xl',
+                confirmButton: 'btn btn-info px-8 rounded-xl uppercase font-black tracking-widest text-[11px]',
+                cancelButton: 'btn btn-outline-danger px-8 rounded-xl uppercase font-black tracking-widest text-[11px]'
+            },
+            preConfirm: () => {
+                return [
+                   isSuperAdmin ? (document.getElementById('swal-input1') as HTMLInputElement).value : item.stockNum,
+                   (document.getElementById('swal-input2') as HTMLInputElement).value
+                ]
+            }
+        });
+
+        if (formValues) {
+            try {
+                const [newStock, newThreshold] = formValues;
+                const warehouse_id = warehouseIdParam || localStorage.getItem('assigned_id') || localStorage.getItem('warehouseId');
+                
+                const response = await callApi('/management/admin/update-warehouse-inventory', 'POST', {
+                    warehouse_id,
+                    product_id: item.productId,
+                    stock_count: parseInt(newStock),
+                    low_stock_threshold: parseInt(newThreshold)
+                });
+
+                if (response?.status === 'success') {
+                    Swal.fire('Updated!', 'Warehouse inventory saved.', 'success');
+                    fetchData(page);
+                } else {
+                    throw new Error(response?.message || 'Update failed');
+                }
+            } catch (error: any) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -258,6 +325,7 @@ const WarehouseInventory = () => {
                     search={search}
                     onSearchChange={setSearch}
                     onAddClick={hasPerm('inventory', 'create') ? () => window.location.href = '/inventory/request' : undefined}
+                    onEditClick={handleEdit}
                     addButtonLabel="Transfer Stock"
                     hideView={true}
                     hideDelete={true}

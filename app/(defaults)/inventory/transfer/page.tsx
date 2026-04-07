@@ -206,6 +206,7 @@ const InventoryTransfer = () => {
                     hideAdd={true}
                     hideDelete={true}
                     hideView={true}
+                    hideAction={true}
                 />
             )}
         </div>

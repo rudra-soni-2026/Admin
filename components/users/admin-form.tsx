@@ -278,62 +278,98 @@ const AdminForm = (props: AdminFormProps) => {
                     )}
 
                     {/* Optimised Permissions Matrix */}
-                    {(formData.role === 'admin' || formData.role === 'super_admin') && (
+                    {(formData.role === 'admin' || formData.role === 'super_admin' || formData.role === 'warehouse_manager') && (
                         <div className="mt-8 border-t border-gray-100 pt-8">
-                        <label className="text-[11px] font-black text-gray-800 uppercase tracking-widest mb-4 block border-l-4 border-black pl-3">Access Privileges</label>
-                        <div className="overflow-hidden border border-gray-100 rounded-xl shadow-sm">
-                            <table className="w-full text-left bg-white">
-                                <thead className="bg-gray-50 group">
-                                    <tr className="border-b border-gray-100">
-                                        <th className="p-3 text-[10px] font-black uppercase text-gray-400 w-1/3 pl-6">Module Name</th>
-                                        {actions.map(action => (
-                                            <th key={action.key} className="p-3 text-[10px] font-black uppercase text-gray-400 text-center">{action.label}</th>
-                                        ))}
-                                        <th className="p-3 text-[10px] font-black uppercase text-primary text-center bg-primary/5">All Access</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {permissionMap.map((module, mIdx) => {
-                                        const isFirstInGroup = mIdx === 0 || permissionMap[mIdx - 1].group !== module.group;
-                                        return (
-                                            <React.Fragment key={module.id}>
-                                                {isFirstInGroup && (
-                                                    <tr className="bg-gray-50/10">
-                                                        <td colSpan={6} className="py-2 px-6 text-[9px] font-black text-primary uppercase tracking-widest italic">{module.group} Sector</td>
-                                                    </tr>
-                                                )}
-                                                <tr className="hover:bg-gray-50/50 transition-all duration-200 group">
-                                                    <td className="p-3 pl-8">
-                                                        <span className="text-[12px] font-bold text-gray-500 uppercase group-hover:text-black transition-colors">{module.label}</span>
-                                                    </td>
-                                                    {actions.map(action => (
-                                                        <td key={action.key} className="p-3 text-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="form-checkbox h-4 w-4 mx-auto rounded border-gray-200 cursor-pointer checked:bg-black transition-colors"
-                                                                checked={!!formData.permissions[module.id]?.[action.key]}
-                                                                onChange={() => handlePermissionToggle(module.id, action.key)}
-                                                            />
+                            <label className="text-[11px] font-black text-gray-800 uppercase tracking-widest mb-4 block border-l-4 border-black pl-3">Access Privileges</label>
+                            <div className="overflow-hidden border border-gray-100 rounded-xl shadow-sm">
+                                <table className="w-full text-left bg-white">
+                                    <thead className="bg-gray-50 group">
+                                        <tr className="border-b border-gray-100">
+                                            <th className="p-3 text-[10px] font-black uppercase text-gray-400 w-1/3 pl-6">Module Name</th>
+                                            {actions.map(action => (
+                                                <th key={action.key} className="p-3 text-[10px] font-black uppercase text-gray-400 text-center">{action.label}</th>
+                                            ))}
+                                            <th className="p-3 text-[10px] font-black uppercase text-primary text-center bg-primary/5">All Access</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {permissionMap.map((module, mIdx) => {
+                                            const isFirstInGroup = mIdx === 0 || permissionMap[mIdx - 1].group !== module.group;
+                                            return (
+                                                <React.Fragment key={module.id}>
+                                                    {isFirstInGroup && (
+                                                        <tr className="bg-gray-50/10">
+                                                            <td colSpan={6} className="py-2 px-6 text-[9px] font-black text-primary uppercase tracking-widest italic">{module.group} Sector</td>
+                                                        </tr>
+                                                    )}
+                                                    <tr className="hover:bg-gray-50/50 transition-all duration-200 group">
+                                                        <td className="p-3 pl-8">
+                                                            <span className="text-[12px] font-bold text-gray-500 uppercase group-hover:text-black transition-colors">{module.label}</span>
                                                         </td>
-                                                    ))}
-                                                    <td className="p-3 text-center bg-gray-50/5 border-l border-gray-50">
-                                                        <div className="flex items-center justify-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                className={`form-checkbox h-4 w-4 mx-auto cursor-pointer transition-all duration-300 rounded-full border-2 ${isModuleFullySelected(module.id) ? 'bg-primary border-primary shadow-sm scale-110' : 'border-gray-200 hover:border-primary/50'}`}
-                                                                checked={isModuleFullySelected(module.id)}
-                                                                onChange={(e) => handleModuleFullAccess(module.id, e.target.checked)}
-                                                            />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                        {actions.map(action => (
+                                                            <td key={action.key} className="p-3 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="form-checkbox h-4 w-4 mx-auto rounded border-gray-200 cursor-pointer checked:bg-black transition-colors"
+                                                                    checked={!!formData.permissions[module.id]?.[action.key]}
+                                                                    onChange={() => handlePermissionToggle(module.id, action.key)}
+                                                                />
+                                                            </td>
+                                                        ))}
+                                                        <td className="p-3 text-center bg-gray-50/5 border-l border-gray-50">
+                                                            <div className="flex items-center justify-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className={`form-checkbox h-4 w-4 mx-auto cursor-pointer transition-all duration-300 rounded-full border-2 ${isModuleFullySelected(module.id) ? 'bg-primary border-primary shadow-sm scale-110' : 'border-gray-200 hover:border-primary/50'}`}
+                                                                    checked={isModuleFullySelected(module.id)}
+                                                                    onChange={(e) => handleModuleFullAccess(module.id, e.target.checked)}
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Simplified Toggle for Store Manager */}
+                    {formData.role === 'store_manager' && (
+                        <div className="mt-8 border-t border-gray-100 pt-8 animate-fade-in">
+                            <label className="text-[11px] font-black text-gray-800 uppercase tracking-widest mb-6 block border-l-4 border-warning pl-3">Store Manager Controls</label>
+                            
+                            <div className="p-6 bg-warning/5 rounded-2xl border border-warning/10 flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-[13px] font-black uppercase text-gray-800 mb-1">Order Editing Access</h4>
+                                    <p className="text-[11px] font-bold text-gray-400">Enable this to allow this manager to modify active orders (Quantity/Items).</p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-[10px] font-black uppercase tracking-widest transition-all ${!formData.permissions?.orders?.update ? 'text-danger' : 'text-gray-300'}`}>OFF</span>
+                                    <label className="relative h-6 w-12 cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            className="custom_switch peer hidden" 
+                                            checked={!!formData.permissions?.orders?.update}
+                                            onChange={() => {
+                                                const current = !!formData.permissions?.orders?.update;
+                                                setFormData((prev: any) => ({
+                                                    ...prev,
+                                                    permissions: {
+                                                        ...prev.permissions,
+                                                        orders: { read: true, update: !current } // Ensure they can at least read orders if they have edit switch
+                                                    }
+                                                }));
+                                            }}
+                                        />
+                                        <span className="block h-full w-full rounded-full bg-[#ebedf2] before:absolute before:left-1 before:bottom-1 before:h-4 before:w-4 before:rounded-full before:bg-white before:transition-all before:duration-300 peer-checked:bg-warning peer-checked:before:left-7 dark:bg-dark dark:before:bg-white-dark dark:peer-checked:before:bg-white"></span>
+                                    </label>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest transition-all ${formData.permissions?.orders?.update ? 'text-success' : 'text-gray-300'}`}>ON</span>
+                                </div>
+                            </div>
+                        </div>
                     )}
 
                     <div className="mt-10 flex justify-end gap-3 pt-6 border-t border-gray-100">

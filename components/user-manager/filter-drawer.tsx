@@ -156,7 +156,7 @@ const FilterDrawer = ({
                                         dateFormat: 'Y-m-d',
                                         inline: true,
                                         ...(userRole === 'store_manager' || userRole === 'warehouse_manager' ? {
-                                            minDate: new Date(new Date().setDate(new Date().getDate() - 1)),
+                                            minDate: new Date(new Date().setHours(0, 0, 0, 0) - 86400000), // Start of Yesterday
                                             maxDate: new Date(),
                                         } : {})
                                     }}

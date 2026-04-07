@@ -6,7 +6,7 @@ import UserManagerTable from '@/components/user-manager/user-manager-table';
 import IconInfoTriangle from '@/components/icon/icon-info-triangle';
 import IconXCircle from '@/components/icon/icon-x-circle';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
-
+import Swal from 'sweetalert2';
 import { useSearchParams } from 'next/navigation';
 
 const StoreInventory = () => {
@@ -24,6 +24,8 @@ const StoreInventory = () => {
 
     const [outOfStockProducts, setOutOfStockProducts] = useState<any[]>([]);
     const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
+    const [totalOutOfStock, setTotalOutOfStock] = useState<number>(0);
+    const [totalLowStock, setTotalLowStock] = useState<number>(0);
     const [loadingStock, setLoadingStock] = useState(false);
 
     useEffect(() => {
@@ -63,7 +65,11 @@ const StoreInventory = () => {
                     product: item.product?.name || 'Unknown Product',
                     unit: item.product?.unit_label || 'N/A',
                     stock: `${item.stock_count || 0} units`,
-                    originalId: item._id
+                    threshold: `${item.low_stock_threshold || 0} units`,
+                    originalId: item.id || item._id,
+                    productId: item.productId || item.product_id,
+                    stockNum: item.stock_count || 0,
+                    thresholdNum: item.low_stock_threshold || 2
                 }));
                 setInventoryData(mappedData);
                 setTotalRecords(response.totalCount || 0);
@@ -96,9 +102,14 @@ const StoreInventory = () => {
             const response = await callApi(query, 'GET');
             if (response?.data) {
                 const outOfStock = response.data.filter((item: any) => (item.stock_count || 0) === 0);
-                const lowStock = response.data.filter((item: any) => (item.stock_count || 0) > 0 && (item.stock_count || 0) <= (item.low_stock_threshold || 2));
+                const lowStock = response.data.filter((item: any) => (item.stock_count || 0) <= (item.low_stock_threshold || 2));
+                
                 setOutOfStockProducts(outOfStock);
                 setLowStockProducts(lowStock);
+
+                // Use summary counts if available, fallback to list lengths
+                setTotalOutOfStock(response.summary?.totalOutOfStock ?? outOfStock.length);
+                setTotalLowStock(response.summary?.totalLowStock ?? lowStock.length);
             }
         } catch (error) {
             console.error('Error fetching stock alerts:', error);
@@ -135,7 +146,104 @@ const StoreInventory = () => {
         { key: 'product', label: 'Product Name' },
         { key: 'unit', label: 'Unit' },
         { key: 'stock', label: 'Total Stock' },
+        { key: 'threshold', label: 'Alert Threshold' },
     ];
+
+    // 📢 Toast Helper
+    const showToast = (msg: string, type: 'success' | 'danger' = 'success') => {
+        const toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+        toast.fire({
+            icon: type === 'danger' ? 'error' : 'success',
+            title: `<span class="text-[12px] font-black uppercase">${msg}</span>`,
+            padding: '10px 20px',
+            customClass: { popup: type === 'danger' ? '!bg-danger !text-white' : '!bg-success !text-white' }
+        });
+    };
+
+    const handleEdit = async (item: any) => {
+        const storedRole = typeof window !== 'undefined' ? localStorage.getItem('role') : '';
+        const isSuperAdmin = storedRole?.toLowerCase() === 'super_admin';
+
+        // 🔍 Correctly resolve storeId (Mirror logic from fetchData)
+        const userDataString = localStorage.getItem('userData');
+        let assignedStoreId = storeIdParam;
+        if (storedRole?.toLowerCase().includes('store_manager') && userDataString) {
+            try {
+                const userData = JSON.parse(userDataString);
+                assignedStoreId = userData.assignedId || userData.assigned_id || userData.storeId || userData.store_id || assignedStoreId;
+            } catch (e) { }
+        }
+        
+        if (!assignedStoreId && !isSuperAdmin) {
+            showToast('Assigned Store ID not found. Please re-login.', 'danger');
+            return;
+        }
+
+        const { value: formValues } = await Swal.fire({
+            title: `<div class="flex-col">
+                <p class="text-[9px] font-bold text-gray-400 uppercase mt-0.5">${item.product}</p>
+            </div>`,
+            html:
+                `<div class="flex flex-col gap-3 text-left">` +
+                (isSuperAdmin ? 
+                `<div class="flex flex-row items-center gap-3 bg-gray-50/50 p-2 rounded-xl transition-all border border-gray-100">
+                    <label class="text-[9px] font-black uppercase text-gray-500 w-24">📦 Stock</label>
+                    <input id="swal-input1" class="swal2-input !m-0 !w-full !border-none !bg-transparent focus:!ring-0 !text-[13px] !font-black !h-8" type="string" placeholder="0" value="${item.stockNum}">
+                </div>` : '') +
+                `<div class="flex flex-row items-center gap-3 bg-gray-50/50 p-2 rounded-xl transition-all border border-gray-100">
+                    <label class="text-[9px] font-black uppercase text-gray-500 w-24">⚠️ Threshold</label>
+                    <input id="swal-input2" class="swal2-input !m-0 !w-full !border-none !bg-transparent focus:!ring-0 !text-[13px] !font-black !h-8" type="string" placeholder="2" value="${item.thresholdNum}">
+                </div>` +
+                `<p class="text-[8px] font-bold text-gray-300 uppercase text-center mt-1">Get notified when stock drops below Alert limit</p>` +
+                `</div>`,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'SAVE',
+            cancelButtonText: 'DISCARD',
+            width: '350px',
+            customClass: {
+                popup: 'rounded-2xl border-none shadow-2xl p-6 bg-white dark:bg-gray-900',
+                actions: 'flex gap-2 w-full mt-4 !flex-row', // Force row layout
+                confirmButton: 'btn btn-primary flex-1 py-2.5 rounded-xl uppercase font-black tracking-widest text-[10px] !m-0',
+                cancelButton: 'btn btn-outline-danger flex-1 py-2.5 rounded-xl uppercase font-black tracking-widest text-[10px] !m-0 bg-gray-50 border-none hover:bg-gray-100 text-gray-400'
+            },
+            preConfirm: () => {
+                return [
+                    isSuperAdmin ? (document.getElementById('swal-input1') as HTMLInputElement).value : item.stockNum,
+                    (document.getElementById('swal-input2') as HTMLInputElement).value
+                ]
+            }
+        });
+
+        if (formValues) {
+            try {
+                const [newStock, newThreshold] = formValues;
+                const storeId = assignedStoreId;
+                
+                const response = await callApi('/management/store-manager/inventory', 'POST', {
+                    storeId,
+                    productId: item.productId,
+                    stockCount: parseInt(newStock),
+                    lowStockThreshold: parseInt(newThreshold)
+                });
+
+                if (response?.status === 'success') {
+                    showToast('Settings saved successfully!');
+                    fetchData(page);
+                } else {
+                    throw new Error(response?.message || 'Update failed');
+                }
+            } catch (error: any) {
+                showToast(error.message, 'danger');
+            }
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -163,7 +271,7 @@ const StoreInventory = () => {
                         <h5 className="text-lg font-semibold dark:text-white-light flex items-center gap-2">
                             <IconXCircle className="text-danger" />
                             Out of Stock
-                            <span className="badge badge-outline-danger rounded-full ml-2">{outOfStockProducts.length}</span>
+                            {/* <span className="badge badge-outline-danger rounded-full ml-2">{totalOutOfStock}</span> */}
                         </h5>
                     </div>
                     <div className="table-responsive max-h-[300px] overflow-y-auto -mx-5 px-5">
@@ -211,7 +319,7 @@ const StoreInventory = () => {
                         <h5 className="text-lg font-bold dark:text-white-light flex items-center gap-2">
                             <IconInfoTriangle className="text-warning h-5 w-5" />
                             Low Stock Alerts
-                            <span className="badge badge-outline-warning rounded-full ml-2 text-xs">{lowStockProducts.length}</span>
+                            {/* <span className="badge badge-outline-warning rounded-full ml-2 text-xs">{totalLowStock}</span> */}
                         </h5>
                     </div>
                     <div className="table-responsive max-h-[300px] overflow-y-auto -mx-5 px-5">
@@ -272,6 +380,7 @@ const StoreInventory = () => {
                     search={search}
                     onSearchChange={setSearch}
                     onAddClick={hasPerm('inventory', 'create') ? () => window.location.href = '/inventory/stock-request' : undefined}
+                    onEditClick={handleEdit}
                     addButtonLabel="Request For Stock"
                     hideView={true}
                     hideDelete={true}

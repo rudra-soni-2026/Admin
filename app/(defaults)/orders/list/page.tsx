@@ -213,12 +213,14 @@ const OrderList = () => {
         if (resDate) setDateRange([moment(resDate).toDate()]);
         if (resStore) setSelectedStoreId(resStore);
 
-        // 👮🏽‍♂️ ROLE-BASED DATE RESTRICTION
-        if (storedRole === 'store_manager' && dateRange) {
-            const selectedDate = moment(dateRange[0]);
-            const diff = moment().diff(selectedDate, 'days');
-            if (diff > 1) {
-                Swal.fire('Restricted', 'Managers can only view reports for today and yesterday.', 'warning');
+        // 👮🏽‍♂️ ROLE-BASED DATE RESTRICTION: Allow Today & Yesterday ONLY for Managers
+        if (storedRole === 'store_manager' && dateRange && dateRange[0]) {
+            const selectedDate = moment(dateRange[0]).startOf('day');
+            const today = moment().startOf('day');
+            const diff = today.diff(selectedDate, 'days');
+            
+            if (diff > 1 || diff < 0) {
+                Swal.fire('Restricted', 'Managers can only view reports for Today and Yesterday.', 'warning');
                 setDateRange('');
                 return;
             }
@@ -672,11 +674,15 @@ const OrderList = () => {
     const uRole = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
     const hasPerm = (mod: string, action: string) => {
         if (uRole === 'super_admin') return true;
-        if (uRole !== 'admin') return true; // Condition only for 'admin' role
+        // Don't automatically return true for store_manager/admin anymore
+        // Only roles like customer or guest (not present in this dashboard usually) would bypass
+        if (uRole !== 'admin' && uRole !== 'store_manager' && uRole !== 'warehouse_manager') return true;
+        
         let currentPerms = perms;
         if (typeof perms === 'string') try { currentPerms = JSON.parse(perms); } catch (e) { }
         return currentPerms?.[mod]?.[action] === true;
     };
+
 
     const columns = [
         { key: 'order_id', label: 'ORDER ID' },
@@ -765,11 +771,12 @@ const OrderList = () => {
                 onStatusChange={(val) => { setStatus(val); setPage(1); }}
                 dateRange={dateRange}
                 onDateRangeChange={(val) => { setDateRange(val); setPage(1); }}
-                onStatusUpdate={hasPerm('orders', 'update') ? handleStatusUpdate : undefined}
-                onRiderAssign={hasPerm('orders', 'update') ? handleRiderAssign : undefined}
-                onViewClick={hasPerm('orders', 'read') ? handleViewOrder : undefined}
-                onPrint={hasPerm('orders', 'read') ? handlePrint : undefined}
+                onStatusUpdate={handleStatusUpdate}
+                onRiderAssign={handleRiderAssign}
+                onViewClick={handleViewOrder}
+                onPrint={handlePrint}
                 onPaymentUpdate={handlePaymentUpdate}
+                onOrderEdit={hasPerm('orders', 'update') ? handleOrderEdit : undefined}
                 riders={riders}
                 addButtonLabel="Create New Order"
                 hideFilter={false}
@@ -779,5 +786,130 @@ const OrderList = () => {
         </div>
     );
 };
+
+const handleOrderEdit = async (order: any) => {
+    const items = [...(order.items || [])];
+    if (items.length === 0) {
+        Swal.fire('Error', 'No items found in this order to edit.', 'error');
+        return;
+    }
+
+    let editedItems = items.map(it => ({ ...it, newQuantity: it.quantity }));
+
+    const renderItems = () => {
+        return editedItems.map((it, idx) => `
+            <div class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm transition-all rounded-2xl mb-3 group" id="item-row-${it.productId}">
+                <div class="flex flex-col text-left flex-1 min-w-0 pr-4">
+                    <span class="text-[12px] font-black text-gray-800 dark:text-white uppercase tracking-tight truncate mb-0.5">${it.productName}</span>
+                    <span class="text-[10px] font-bold text-primary px-2 py-0.5 bg-primary/5 rounded-full w-fit">₹${it.unit_amount} / unit</span>
+                </div>
+                <div class="flex items-center gap-4 shrink-0">
+                    <div class="flex items-center bg-gray-50 dark:bg-gray-900 rounded-xl p-1 border border-gray-100 dark:border-gray-700 h-10">
+                        <button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-danger/10 text-gray-400 hover:text-danger transition-all qty-minus active:scale-90" data-idx="${idx}">
+                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                        <input type="number" class="w-10 text-center text-sm font-black border-none bg-transparent focus:ring-0 qty-input p-0 dark:text-white" value="${it.newQuantity}" readonly id="qty-val-${idx}">
+                        <button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-success/10 text-gray-400 hover:text-success transition-all qty-plus active:scale-90" data-idx="${idx}">
+                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                    </div>
+                    <button type="button" class="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-danger hover:bg-danger/5 rounded-full transition-all item-remove active:scale-75" data-idx="${idx}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    const result = await Swal.fire({
+        title: `
+            <div class="flex flex-col items-center gap-2 pt-1 border-b border-gray-100 pb-4 mb-2">
+                <div class="w-14 h-14 rounded-3xl bg-warning/10 flex items-center justify-center relative shadow-inner">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-warning border-2 border-white animate-pulse"></div>
+                </div>
+                <div class="text-center mt-2">
+                    <h2 class="text-lg font-black uppercase tracking-tighter text-gray-800 dark:text-white leading-tight">Edit Order</h2>
+                    <p class="text-[10px] font-black text-primary/60 tracking-[0.2em] uppercase mt-1">ID: #${order.order_id?.toString().slice(-6)}</p>
+                </div>
+            </div>
+        `,
+        html: `
+            <div class="max-h-[400px] overflow-y-auto px-1 pt-2 custom-scrollbar" id="items-container" style="scrollbar-width: thin;">
+                ${renderItems()}
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'CONFIRM CHANGES 🚀',
+        cancelButtonText: 'DISCARD',
+        confirmButtonColor: '#4361ee',
+        focusConfirm: false,
+        width: '420px',
+        customClass: {
+            popup: 'rounded-[2rem] border-none shadow-2xl p-6 bg-white dark:bg-gray-900',
+            confirmButton: 'rounded-2xl px-8 py-4 text-xs font-black uppercase tracking-widest w-full mt-4 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all',
+            cancelButton: 'rounded-2xl px-8 py-4 text-[10px] font-black uppercase tracking-widest w-full mt-2 border-none bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-100 transition-all'
+        },
+        didOpen: (popup) => {
+            const container = popup.querySelector('#items-container');
+            container?.addEventListener('click', (e: any) => {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                
+                const idx = parseInt(btn.dataset.idx);
+                if (btn.classList.contains('qty-plus')) {
+                    editedItems[idx].newQuantity++;
+                    (popup.querySelector(`#qty-val-${idx}`) as HTMLInputElement).value = editedItems[idx].newQuantity.toString();
+                } else if (btn.classList.contains('qty-minus')) {
+                    if (editedItems[idx].newQuantity > 1) {
+                        editedItems[idx].newQuantity--;
+                        (popup.querySelector(`#qty-val-${idx}`) as HTMLInputElement).value = editedItems[idx].newQuantity.toString();
+                    }
+                } else if (btn.classList.contains('item-remove')) {
+                    if (editedItems.length <= 1) {
+                        Swal.showValidationMessage('Cannot remove last item. Please cancel order instead.');
+                        return;
+                    }
+                    editedItems.splice(idx, 1);
+                    (popup.querySelector('#items-container') as HTMLElement).innerHTML = renderItems();
+                }
+                Swal.resetValidationMessage();
+            });
+        },
+        preConfirm: async () => {
+            try {
+                const payload = {
+                    orderId: order.originalId,
+                    items: editedItems.map(it => ({ productId: it.productId, quantity: it.newQuantity }))
+                };
+                const { callApi } = await import('@/utils/api');
+                const response = await callApi('/management/store-manager/order/edit-items', 'PATCH', payload);
+                if (response.status === 'error') throw new Error(response.message);
+                return response.data;
+            } catch (err: any) {
+                Swal.showValidationMessage(`Error: ${err.message}`);
+                return false;
+            }
+        }
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({
+            icon: 'success',
+            title: '<span class="text-sm uppercase font-black">Changes Applied!</span>',
+            text: 'Inventory and billing have been updated successfully.',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            customClass: {
+                popup: 'rounded-2xl border-none shadow-xl'
+            }
+        });
+    }
+};
+
+
 
 export default OrderList;

@@ -65,6 +65,7 @@ interface UserListTableProps {
     onExportClick?: (format: 'excel' | 'pdf') => void;
     onStatusUpdate?: (orderId: any, newStatus: string) => void;
     onPaymentUpdate?: (orderId: any, paymentMethod: string, breakdown?: any) => void;
+    onOrderEdit?: (item: any) => void;
     hideFilter?: boolean;
 }
 
@@ -99,6 +100,7 @@ const OrderListTable = ({
     onPrint,
     onStatusUpdate,
     onPaymentUpdate,
+    onOrderEdit,
     hideFilter = false,
     loading = false,
     onExportClick
@@ -464,6 +466,8 @@ const OrderListTable = ({
                                                                 </button>
                                                             </Tippy>
                                                         )}
+
+                                                        {/* Edit Action Removed as per user request (moved to Detail page) */}
                                                     </div>
                                                 ) : col.key === 'status' ? (
                                                     <label className="relative mb-0 inline-block h-5 w-10 cursor-pointer">
