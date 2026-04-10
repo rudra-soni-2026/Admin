@@ -51,7 +51,7 @@ const IconColorPalette = ({ className }: { className?: string }) => (
     </svg>
 );
 
-const AVAILABLE_ICONS = ['Home', 'Headphones', 'Sparkles', 'Baby', 'Shirt', 'Dumbbell', 'UtensilsCrossed', 'Pill', 'PawPrint'];
+const AVAILABLE_ICONS = ['Home', 'Headphones', 'Gift', 'Sparkles', 'Baby', 'Shirt', 'Dumbbell', 'UtensilsCrossed', 'Pill', 'PawPrint'];
 
 const Toggle = ({ checked, onChange }: { checked: boolean, onChange: (v: boolean) => void }) => (
     <button
@@ -171,7 +171,7 @@ const CompanySettingsForm = () => {
         if (currentTab.festive_multi_banner?.parent_category_id) {
             fetchSubCategoriesByCategory(currentTab.festive_multi_banner.parent_category_id);
             if (currentTab.festive_multi_banner.sub_category_id) fetchNicheCategoriesBySubCategory(currentTab.festive_multi_banner.sub_category_id);
-            
+
             const fetchId = currentTab.festive_multi_banner.category_id || currentTab.festive_multi_banner.sub_category_id || currentTab.festive_multi_banner.parent_category_id;
             if (fetchId) fetchProductsByCategory(fetchId);
         }
@@ -302,7 +302,7 @@ const CompanySettingsForm = () => {
                 const rootTabs = safeParse(data.header_tabs_config) || [];
                 const festiveConfig = safeParse(data.festive_config) || {};
                 const festiveTabs = safeParse(festiveConfig.header_tabs_config) || [];
-                
+
                 // Merge them into a single state for the UI
                 const combinedTabs = (Array.isArray(rootTabs) ? rootTabs : []).map((rt: any) => {
                     const ft = (Array.isArray(festiveTabs) ? festiveTabs : []).find((t: any) => t.id === rt.id) || {};
@@ -318,7 +318,8 @@ const CompanySettingsForm = () => {
                     spotlight: safeParse(data.spotlight) || [],
                     delivery_time_slots: safeParse(data.delivery_time_slots) || [],
                     rider_time_slots: safeParse(data.rider_time_slots) || [],
-                    festive_sale: safeParse(data.festive_sale) || {}
+                    festive_sale: safeParse(data.festive_sale) || {},
+                    referral_config: safeParse(data.referral_config) || { referrer_amount: 50, referee_amount: 50, reward_referee: true, reward_referrer: true }
                 };
 
                 setSettings(preparedData);
@@ -402,11 +403,13 @@ const CompanySettingsForm = () => {
     };
 
     const updateTabFestive = (idx: number, field: string, value: any) => {
-        const currentConfig = [...(settings.header_tabs_config || [])];
-        if (currentConfig[idx]) {
-            currentConfig[idx] = { ...currentConfig[idx], [field]: value };
-            setSettings(prev => ({ ...prev, header_tabs_config: currentConfig }));
-        }
+        setSettings(prev => {
+            const currentConfig = [...(prev.header_tabs_config || [])];
+            if (currentConfig[idx]) {
+                currentConfig[idx] = { ...currentConfig[idx], [field]: value };
+            }
+            return { ...prev, header_tabs_config: currentConfig };
+        });
     };
 
     const handleToggle = (key: keyof CompanySettings, value: boolean) => {
@@ -445,15 +448,21 @@ const CompanySettingsForm = () => {
     };
 
     const updateHeaderTab = (index: number, field: keyof HeaderTabConfig, value: string) => {
-        const newTabs = [...(settings.header_tabs_config || [])];
-        newTabs[index] = { ...newTabs[index], [field]: value };
-        setSettings(prev => ({ ...prev, header_tabs_config: newTabs }));
+        setSettings(prev => {
+            const newTabs = [...(prev.header_tabs_config || [])];
+            if (newTabs[index]) {
+                newTabs[index] = { ...newTabs[index], [field]: value };
+            }
+            return { ...prev, header_tabs_config: newTabs };
+        });
     };
 
     const removeHeaderTab = (index: number) => {
-        const newTabs = [...(settings.header_tabs_config || [])];
-        newTabs.splice(index, 1);
-        setSettings(prev => ({ ...prev, header_tabs_config: newTabs }));
+        setSettings(prev => {
+            const newTabs = [...(prev.header_tabs_config || [])];
+            newTabs.splice(index, 1);
+            return { ...prev, header_tabs_config: newTabs };
+        });
     };
 
     // Time Slots Management
@@ -465,15 +474,19 @@ const CompanySettingsForm = () => {
     };
 
     const updateTimeSlot = (key: 'delivery_time_slots' | 'rider_time_slots', index: number, value: string) => {
-        const newSlots = [...(settings[key] || [])];
-        newSlots[index] = value;
-        setSettings(prev => ({ ...prev, [key]: newSlots }));
+        setSettings(prev => {
+            const newSlots = [...(prev[key] || [])];
+            newSlots[index] = value;
+            return { ...prev, [key]: newSlots };
+        });
     };
 
     const removeTimeSlot = (key: 'delivery_time_slots' | 'rider_time_slots', index: number) => {
-        const newSlots = [...(settings[key] || [])];
-        newSlots.splice(index, 1);
-        setSettings(prev => ({ ...prev, [key]: newSlots }));
+        setSettings(prev => {
+            const newSlots = [...(prev[key] || [])];
+            newSlots.splice(index, 1);
+            return { ...prev, [key]: newSlots };
+        });
     };
 
     // Screen Colors Management
@@ -485,15 +498,21 @@ const CompanySettingsForm = () => {
     };
 
     const updateScreenColor = (index: number, field: string, value: string) => {
-        const newColors = [...(settings.screen_colors || [])];
-        newColors[index] = { ...newColors[index], [field]: value };
-        setSettings(prev => ({ ...prev, screen_colors: newColors }));
+        setSettings(prev => {
+            const newColors = [...(prev.screen_colors || [])];
+            if (newColors[index]) {
+                newColors[index] = { ...newColors[index], [field]: value };
+            }
+            return { ...prev, screen_colors: newColors };
+        });
     };
 
     const removeScreenColor = (index: number) => {
-        const newColors = [...(settings.screen_colors || [])];
-        newColors.splice(index, 1);
-        setSettings(prev => ({ ...prev, screen_colors: newColors }));
+        setSettings(prev => {
+            const newColors = [...(prev.screen_colors || [])];
+            newColors.splice(index, 1);
+            return { ...prev, screen_colors: newColors };
+        });
     };
 
     // Spotlight Management
@@ -505,22 +524,32 @@ const CompanySettingsForm = () => {
     };
 
     const updateSpotlight = (index: number, field: string, value: any) => {
-        const newSpotlight = [...(settings.spotlight || [])];
-        newSpotlight[index] = { ...newSpotlight[index], [field]: value };
-        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+        setSettings(prev => {
+            const newSpotlight = [...(prev.spotlight || [])];
+            if (newSpotlight[index]) {
+                newSpotlight[index] = { ...newSpotlight[index], [field]: value };
+            }
+            return { ...prev, spotlight: newSpotlight };
+        });
     };
 
     const removeSpotlight = (index: number) => {
-        const newSpotlight = [...(settings.spotlight || [])];
-        newSpotlight.splice(index, 1);
-        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+        setSettings(prev => {
+            const newSpotlight = [...(prev.spotlight || [])];
+            newSpotlight.splice(index, 1);
+            return { ...prev, spotlight: newSpotlight };
+        });
     };
 
     const addSpotlightItem = (spotIndex: number) => {
-        const newSpotlight = [...(settings.spotlight || [])];
-        const newItem = { id: Date.now().toString(), image: '', products: [] };
-        newSpotlight[spotIndex].items = [newItem, ...(newSpotlight[spotIndex].items || [])];
-        setSettings(prev => ({ ...prev, spotlight: newSpotlight }));
+        setSettings(prev => {
+            const newSpotlight = [...(prev.spotlight || [])];
+            if (newSpotlight[spotIndex]) {
+                const newItem = { id: Date.now().toString(), image: '', products: [] };
+                newSpotlight[spotIndex].items = [newItem, ...(newSpotlight[spotIndex].items || [])];
+            }
+            return { ...prev, spotlight: newSpotlight };
+        });
     };
 
     const updateSpotlightItem = (spotIndex: number, itemIndex: number, field: string, value: any) => {
@@ -639,6 +668,9 @@ const CompanySettingsForm = () => {
 
             const screenConfig = (payload.header_tabs_config || []).map((tab: any) => {
                 const { color, chosen, selected, header_color, festive_categories, ...rest } = tab;
+                if (rest.festive_single_banners && Array.isArray(rest.festive_single_banners)) {
+                    rest.festive_single_banners = rest.festive_single_banners.filter((b: any) => b && (b.image || b.title || b.parent_category_id));
+                }
                 return rest;
             });
 
@@ -706,6 +738,7 @@ const CompanySettingsForm = () => {
 
                             { label: 'Business Logic', isHeader: true },
                             { id: 'system', label: 'System Logic', icon: <IconSettings className="w-4 h-4" /> },
+                            { id: 'referral', label: 'Referral System', icon: <IconStar className="w-4 h-4" /> },
                             { id: 'charges', label: 'Charges', icon: <IconCashBanknotes className="w-4 h-4" /> },
                             { id: 'time', label: 'Time Management', icon: <IconClock className="w-4 h-4" /> },
                             { label: 'Screen Management', isHeader: true },
@@ -979,8 +1012,8 @@ const CompanySettingsForm = () => {
                                                                     }
                                                                 }} />
                                                             </label>
-                                                            <button 
-                                                                type="button" 
+                                                            <button
+                                                                type="button"
                                                                 className="btn btn-danger btn-sm flex gap-1 items-center px-6"
                                                                 onClick={() => updateTabFestive(tabDetailIdx!, 'festive_banner_url', '')}
                                                             >
@@ -1011,8 +1044,8 @@ const CompanySettingsForm = () => {
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h6 className="text-[10px] font-bold text-primary uppercase tracking-widest border-l-2 border-primary pl-2">Featured Slots (1-4)</h6>
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             className="btn btn-outline-danger btn-xs px-4"
                                             onClick={() => {
                                                 Swal.fire({
@@ -1024,7 +1057,7 @@ const CompanySettingsForm = () => {
                                                 }).then((result) => {
                                                     if (result.isConfirmed) {
                                                         // Clear Slots
-                                                        updateTabFestive(tabDetailIdx!, 'festive_single_banners', [{}, {}, {}, {}]);
+                                                        updateTabFestive(tabDetailIdx!, 'festive_single_banners', []);
                                                         // Clear Product Wall
                                                         updateTabFestive(tabDetailIdx!, 'festive_multi_banner', { parent_category_id: '', sub_category_id: '', category_id: '', items: [], title: '' });
                                                         showMessage('Sections cleared', 'success');
@@ -1036,7 +1069,7 @@ const CompanySettingsForm = () => {
                                         </button>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {(settings.header_tabs_config[tabDetailIdx].festive_single_banners || [{}, {}, {}, {}]).map((banner: any, bIdx: number) => (
+                                        {(settings.header_tabs_config[tabDetailIdx].festive_single_banners?.length ? settings.header_tabs_config[tabDetailIdx].festive_single_banners : [{}, {}, {}, {}]).map((banner: any, bIdx: number) => (
                                             <div key={bIdx} className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex gap-4">
                                                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-white dark:bg-black border border-gray-100 dark:border-gray-800 relative group flex-shrink-0">
                                                     {banner.image ? (
@@ -1056,8 +1089,8 @@ const CompanySettingsForm = () => {
                                                                         }
                                                                     }} />
                                                                 </label>
-                                                                <button 
-                                                                    type="button" 
+                                                                <button
+                                                                    type="button"
                                                                     className="p-1"
                                                                     onClick={() => {
                                                                         const newBanners = [...(settings.header_tabs_config![tabDetailIdx!].festive_single_banners || [{}, {}, {}, {}])];
@@ -1708,16 +1741,25 @@ const CompanySettingsForm = () => {
                                         <input id="delivery_buffer_time" type="number" className="form-input" value={settings.delivery_buffer_time || 0} onChange={handleChange} />
                                     </div>
                                 </div>
-                                
+
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'referral' && (
+                        <div className="panel animate__animated animate__fadeIn space-y-8">
+                            <div>
+                                <h6 className="text-lg font-bold mb-6 border-b pb-4 border-gray-100 dark:border-gray-800">Referral System</h6>
+
                                 {/* Referral Configuration Section */}
-                                <div className="p-8 rounded-3xl bg-white dark:bg-black/20 border border-gray-100 dark:border-gray-800 md:col-span-2 shadow-sm space-y-6">
+                                <div className="p-8 rounded-3xl bg-white dark:bg-black/20 border border-gray-100 dark:border-gray-800 shadow-sm space-y-6">
                                     <div className="flex items-center gap-3 border-b border-gray-50 dark:border-gray-800 pb-4">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
                                             <IconStar className="h-5 w-5" />
                                         </div>
                                         <div>
-                                            <h6 className="font-bold text-base text-gray-800 dark:text-white">Referral System</h6>
-                                            <p className="text-[10px] text-white-dark uppercase font-bold tracking-wider">Configure user invitation rewards</p>
+                                            <h6 className="font-bold text-base text-gray-800 dark:text-white">User Invitation Rewards</h6>
+                                            <p className="text-[10px] text-white-dark uppercase font-bold tracking-wider">Configure how users earn rewards by referring others</p>
                                         </div>
                                     </div>
 
